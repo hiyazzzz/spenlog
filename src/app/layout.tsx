@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
 import localFont from 'next/font/local'
-import './globals.css'
+import './globals.css' // 최상위 app 폴더 바로 옆에 있는 globals.css를 정확히 바라봅니다.
 
 const pretendard = localFont({
-  src: '../fonts/PretendardVariable.woff2',
+  src: '../fonts/PretendardVariable.woff2', // src/fonts/ 위치를 정확히 계산합니다.
   variable: '--font-pretendard',
   display: 'swap',
 })
@@ -17,6 +17,6 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" className={pretendard.variable}>
-      <body className="font-pretendard antialiased">{children}</body>
+      <body className="font-pretendard antialiased bg-[#FAF7F4] text-gray-900">{children}</body>
     </html>
   )}
