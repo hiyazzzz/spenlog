@@ -1,3 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 경희님이 작성하셨던 기존 스타일 코드들은 이 아래에 그대로 두시면 됩니다! */
 @layer base {
   :root {
     --font-pretendard: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
