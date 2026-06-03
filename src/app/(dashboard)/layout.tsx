@@ -1,7 +1,6 @@
 // src/app/(dashboard)/layout.tsx
 import React from "react";
 import BottomNav from "@/components/ui/BottomNav";
-import "../globals.css"; // ◀ 대시보드 레이아웃에도 이 스타일 패스를 직접 꽂아줍니다!
 
 export default function DashboardLayout({
   children,
