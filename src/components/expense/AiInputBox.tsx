@@ -1,8 +1,10 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export default function AiInputBox({ userId }: { userId: string }) {
+  const router = useRouter()
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState<any>(null)
@@ -33,7 +35,7 @@ export default function AiInputBox({ userId }: { userId: string }) {
     setPreview(null)
     setText('')
     // 새로고침으로 목록 업데이트
-    window.location.reload()
+    router.refresh()
   }
 
   return (
