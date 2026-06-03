@@ -3,10 +3,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const NAV_ITEMS = [
-  { href: '/',          icon: '🏠', label: '홈' },
+  { href: '/',         icon: '🏠', label: '홈' },
   { href: '/analytics', icon: '📊', label: '분석' },
-  { href: '/budget',    icon: '📅', label: '예산' },
-  { href: '/settings',  icon: '⚙️', label: '설정' },
+  { href: '/budget',   icon: '📅', label: '예산' },
+  { href: '/fixed',    icon: '🔄', label: '고정비' },
+  { href: '/settings', icon: '⚙️', label: '설정' },
 ]
 
 export default function BottomNav() {

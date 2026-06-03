@@ -22,8 +22,8 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // 로그인 안 된 경우 /login으로 리다이렉트 (단, /login은 제외)
-  if (!user && !request.nextUrl.pathname.startsWith('/login')) {
+  // 로그인 안 된 경우 /login으로 리다이렉트 (단, /login, /auth 경로는 제외)
+  if (!user && !request.nextUrl.pathname.startsWith('/login') && !request.nextUrl.pathname.startsWith('/auth')) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

@@ -1,54 +1,38 @@
-'use client'
-import { THEMES } from '@/lib/themes'
-import { Theme } from '@/types'
+'use client';
 
-interface Props {
-  totalSpent: number
-  savingGoal: number
-  userName: string
-  theme: Theme
+interface HeaderProps {
+  totalSpent: number;
+  savingGoal: number;
+  userName: string;
+  theme: string;
 }
 
-export default function DashboardHeader({ totalSpent, savingGoal, userName, theme }: Props) {
-  const currentTheme = THEMES[theme] || THEMES.Burgundy
+export default function DashboardHeader({ totalSpent, savingGoal, userName }: HeaderProps) {
+  const displayName = userName || "소비요정";
 
   return (
-    <div 
-      className="text-white px-6 pt-8 pb-12 rounded-b-[2.5rem] shadow-sm transition-all"
-      style={{ backgroundColor: currentTheme.primary }}
-    >
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <span className="text-xs opacity-60 block font-medium">WELCOME BACK</span>
-          <h2 className="text-lg font-serif tracking-wide">{userName || '경희'}님의 Spenlog</h2>
-        </div>
-        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm">
-          ✨
-        </div>
-      </div>
-
-      <p className="text-xs opacity-70 mb-1 font-medium">이번 달 지출 총액</p>
-      <div className="flex items-baseline gap-1 mb-6">
-        <span className="text-xl font-light">₩</span>
-        <h1 className="text-4xl font-bold tracking-tight">
-          {totalSpent.toLocaleString()}
+    <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 mb-4">
+      <div className="mb-4">
+        <h1 className="text-xl font-bold text-gray-900">
+          안녕하세요, <span className="text-[#802634]">{displayName}</span>님!
         </h1>
+        <p className="text-xs text-gray-400 mt-1">오늘도 현명한 소비 습관을 만들어봐요.</p>
       </div>
-
-      {savingGoal > 0 && (
-        <div className="bg-white/10 rounded-2xl p-3.5 backdrop-blur-sm border border-white/5">
-          <div className="flex justify-between text-xs mb-2 opacity-90">
-            <span>월 지출 목표</span>
-            <span className="font-semibold">₩{savingGoal.toLocaleString()}</span>
-          </div>
-          <div className="bg-white/20 rounded-full h-1.5 overflow-hidden">
-            <div 
-              className="h-full bg-white rounded-full transition-all duration-500"
-              style={{ width: `${Math.min((totalSpent / savingGoal) * 100, 100)}%` }}
-            />
-          </div>
+      
+      <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50">
+        <div>
+          <span className="text-xs text-gray-400 block mb-1">이번 달 총 지출</span>
+          <span className="text-base font-bold text-[#802634]">
+            {(totalSpent ?? 0).toLocaleString()}원
+          </span>
         </div>
-      )}
+        <div>
+          <span className="text-xs text-gray-400 block mb-1">저축 목표</span>
+          <span className="text-base font-semibold text-emerald-600">
+            {(savingGoal ?? 0).toLocaleString()}원
+          </span>
+        </div>
+      </div>
     </div>
-  )
+  );
 }
