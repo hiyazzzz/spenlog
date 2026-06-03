@@ -210,8 +210,3 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
     </div>
   )
 }
-
-    </div>
-  )
-}
-}
