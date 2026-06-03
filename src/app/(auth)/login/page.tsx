@@ -34,8 +34,14 @@ export default function LoginPage() {
     clearState()
 
     if (mode === 'signup') {
-      const { error } = await supabase.auth.signUp({ email, password })
+      const { data: signUpData, error } = await supabase.auth.signUp({ email, password })
       if (!error) {
+        if (signUpData.session) {
+          // 이메일 인증 OFF: 바로 로그인 처리
+          router.refresh()
+          router.push('/')
+          return
+        }
         setSuccessMsg('가입 완료! 이메일 인증 후 로그인해 주세요.')
       } else if (error.message.toLowerCase().includes('already registered') || error.message.includes('already been registered')) {
         setErrorType('email_taken')
@@ -47,6 +53,7 @@ export default function LoginPage() {
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (!error) {
+        router.refresh()
         router.push('/')
         return
       }
