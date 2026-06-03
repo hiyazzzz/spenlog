@@ -10,11 +10,12 @@ export default async function BudgetPage() {
 
   const thisMonth = dayjs().format('YYYY-MM')
 
-  const [{ data: budgets }, { data: expenses }] = await Promise.all([
+  const [{ data: budgets }, { data: expenses }, { data: profile }] = await Promise.all([
     supabase.from('budgets').select('*').eq('user_id', user.id).eq('month', thisMonth),
     supabase.from('expenses').select('category, amount').eq('user_id', user.id)
       .gte('date', `${thisMonth}-01`)
       .lt('date', `${dayjs().add(1, 'month').format('YYYY-MM')}-01`),
+    supabase.from('users').select('income').eq('id', user.id).single(),
   ])
 
   return (
@@ -28,6 +29,7 @@ export default async function BudgetPage() {
         initialBudgets={budgets || []}
         expenses={expenses || []}
         thisMonth={thisMonth}
+        income={profile?.income ?? 0}
       />
     </div>
   )

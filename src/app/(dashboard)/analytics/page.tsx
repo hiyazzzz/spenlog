@@ -57,11 +57,11 @@ export default async function AnalyticsPage({ searchParams }: Props) {
       <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-4">
         <p className="text-xs text-gray-400 mb-1">총 지출</p>
         <p className="text-3xl font-bold" style={{ color: 'var(--color-primary)' }}>
-          \u20a9{thisTotal.toLocaleString()}
+          {thisTotal.toLocaleString()}원
         </p>
         {lastTotal > 0 && (
           <p className={`text-xs mt-1 font-medium ${diff > 0 ? 'text-rose-500' : 'text-emerald-600'}`}>
-            지난 달 대비 {diff > 0 ? '+' : ''}{diffPercent}% ({diff > 0 ? '+' : ''}\u20a9{Math.abs(diff).toLocaleString()})
+            지난 달 대비 {diff > 0 ? '+' : ''}{diffPercent}% ({diff > 0 ? '+' : ''}{Math.abs(diff).toLocaleString()}원)
           </p>
         )}
         {lastTotal === 0 && <p className="text-xs mt-1 text-gray-400">지난 달 데이터 없음</p>}
@@ -91,7 +91,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
                           {catDiff > 0 ? '▲' : '▼'}{Math.abs(catDiffPct)}%
                         </span>
                       )}
-                      <span className="text-gray-800 font-semibold">\u20a9{thisAmt.toLocaleString()}</span>
+                      <span className="text-gray-800 font-semibold">{thisAmt.toLocaleString()}원</span>
                     </div>
                   </div>
                   <div className="bg-gray-100 rounded-full h-2 overflow-hidden">
@@ -102,7 +102,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
                   </div>
                   {lastAmt > 0 && (
                     <p className="text-[10px] text-gray-300 mt-0.5 text-right">
-                      지난 달 \u20a9{lastAmt.toLocaleString()}
+                      지난 달 {lastAmt.toLocaleString()}원
                     </p>
                   )}
                 </div>

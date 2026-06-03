@@ -109,9 +109,14 @@ export default function OnboardingForm({ userId, email }: Props) {
             나중에 설정에서 언제든지 수정할 수 있어요 😊
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <input type="number" placeholder="숫자만 입력" value={values.income}
-              onChange={e => set(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleNext()}
-              style={{ ...inputStyle, flex: 1 }} autoFocus />
+            <input
+              type="text" inputMode="numeric" pattern="[0-9]*"
+              placeholder="숫자만 입력"
+              value={values.income}
+              onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); set(raw) }}
+              onKeyDown={e => e.key === 'Enter' && handleNext()}
+              style={{ ...inputStyle, flex: 1 }} autoFocus
+            />
             <span style={{ fontSize: '15px', color: '#6B1E2E', fontWeight: '600', whiteSpace: 'nowrap' as const }}>만 원</span>
           </div>
           <p style={{ fontSize: '12px', color: '#C4A0A8', marginTop: '8px' }}>
@@ -130,9 +135,14 @@ export default function OnboardingForm({ userId, email }: Props) {
             저축 목표는 언제든지 유지하거나 수정할 수 있어요 😊
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <input type="number" placeholder="숫자만 입력" value={values.goal}
-              onChange={e => set(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleNext()}
-              style={{ ...inputStyle, flex: 1 }} autoFocus />
+            <input
+              type="text" inputMode="numeric" pattern="[0-9]*"
+              placeholder="숫자만 입력"
+              value={values.goal}
+              onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); set(raw) }}
+              onKeyDown={e => e.key === 'Enter' && handleNext()}
+              style={{ ...inputStyle, flex: 1 }} autoFocus
+            />
             <span style={{ fontSize: '15px', color: '#6B1E2E', fontWeight: '600', whiteSpace: 'nowrap' as const }}>만 원</span>
           </div>
           <p style={{ fontSize: '12px', color: '#C4A0A8', marginTop: '8px' }}>

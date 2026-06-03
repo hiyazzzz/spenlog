@@ -61,7 +61,7 @@ export default function FixedCostList({ initialItems, userId }: Props) {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-gray-900">
-                    ₩{item.amount.toLocaleString()}
+                    {item.amount.toLocaleString()}원
                   </span>
                   <button
                     onClick={() => handleDelete(item.id)}

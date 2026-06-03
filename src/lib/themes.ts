@@ -1,5 +1,6 @@
 export const THEMES = {
   Burgundy: {
+    name: '버건디',
     primary: '#6B1E2E',
     primaryLight: '#F5E8EA',
     primaryMid: '#C4748A',
@@ -7,6 +8,7 @@ export const THEMES = {
     bg: '#FAF7F4',
   },
   Sage: {
+    name: '세이지',
     primary: '#4A6741',
     primaryLight: '#EAF0E8',
     primaryMid: '#8AAF84',
@@ -14,6 +16,7 @@ export const THEMES = {
     bg: '#F5F7F4',
   },
   Lavender: {
+    name: '라벤더',
     primary: '#5C4B8A',
     primaryLight: '#EDE8F5',
     primaryMid: '#9B8EC4',
@@ -21,6 +24,7 @@ export const THEMES = {
     bg: '#F7F5FB',
   },
   Terracotta: {
+    name: '테라코타',
     primary: '#A0522D',
     primaryLight: '#F5EDE8',
     primaryMid: '#C48A6A',

@@ -126,7 +126,7 @@ export default function AiInputBox({ userId }: { userId: string }) {
               </p>
             </div>
             <p className="text-lg font-bold" style={{ color: 'var(--color-primary)' }}>
-              ₩{preview.amount?.toLocaleString()}
+              {preview.amount?.toLocaleString()}원
             </p>
           </div>
           <div className="flex gap-2 mt-3">

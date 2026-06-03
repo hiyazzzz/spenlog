@@ -60,7 +60,7 @@ export default function ApplyFixedCosts({ fixedCosts, userId, appliedNames, this
         <div>
           <p className="text-sm font-semibold text-gray-800">이번 달 고정비 반영</p>
           <p className="text-xs text-gray-400 mt-0.5">
-            {notApplied.length}건 미반영 · \u20a9{notApplied.reduce((s, f) => s + f.amount, 0).toLocaleString()}
+            {notApplied.length}건 미반영 · {notApplied.reduce((s, f) => s + f.amount, 0).toLocaleString()}원
           </p>
         </div>
         <button onClick={handleApply} disabled={applying} style={{
@@ -76,7 +76,7 @@ export default function ApplyFixedCosts({ fixedCosts, userId, appliedNames, this
       <div className="mt-3 flex flex-wrap gap-1.5">
         {notApplied.map(f => (
           <span key={f.id} className="text-[11px] bg-gray-50 text-gray-500 px-2 py-1 rounded-lg border border-gray-100">
-            {f.name} \u20a9{f.amount.toLocaleString()}
+            {f.name} {f.amount.toLocaleString()}원
           </span>
         ))}
       </div>

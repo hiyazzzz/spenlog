@@ -66,7 +66,7 @@ export default function ExpenseFilter({ expenses }: { expenses: Expense[] }) {
       <div className="flex justify-between items-center mb-2 px-1">
         <span className="text-xs text-gray-400">{filtered.length}건</span>
         <span className="text-xs font-semibold text-gray-700">
-          합계 ₩{total.toLocaleString()}
+          합계 {total.toLocaleString()}원
         </span>
       </div>
 
