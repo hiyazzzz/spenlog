@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* ===== 테마 CSS 변수 (기본: Burgundy) ===== */
+:root {
+  --color-primary: #6B1E2E;
+  --color-primary-mid: #C4748A;
+  --color-primary-light: #F5E8EA;
+  --color-accent: #4A1220;
+  --color-bg: #FAF7F4;
+}
+
 * {
   -webkit-tap-highlight-color: transparent;
 }
