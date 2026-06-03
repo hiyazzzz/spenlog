@@ -2,6 +2,7 @@ export type Theme = 'Burgundy' | 'Sage' | 'Lavender' | 'Terracotta'
 export type Category = '생활비' | '활동비' | '고정비' | '친목비' | '예비비'
 export type AccountType = '입출금' | '적금' | '투자' | '기타'
 export type FixedCostType = '월정액' | '연정액' | '기타'
+export type FixedCostKind = '고정지출' | '고정저축'
 
 export interface User {
   id: string
@@ -39,6 +40,7 @@ export interface FixedCost {
   name: string
   amount: number
   type: FixedCostType
+  kind: FixedCostKind  // '고정지출' | '고정저축'
   due_day: number | null
 }
 

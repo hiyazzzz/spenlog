@@ -2,9 +2,10 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { FixedCost, FixedCostType } from '@/types'
+import { FixedCost, FixedCostType, FixedCostKind } from '@/types'
 
 const TYPES: FixedCostType[] = ['월정액', '연정액', '기타']
+const KINDS: FixedCostKind[] = ['고정지출', '고정저축']
 
 interface Props {
   initialItems: FixedCost[]
@@ -13,12 +14,18 @@ interface Props {
 
 export default function FixedCostList({ initialItems, userId }: Props) {
   const router = useRouter()
+  const [activeKind, setActiveKind] = useState<FixedCostKind>('고정지출')
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
   const [type, setType] = useState<FixedCostType>('월정액')
+  const [kind, setKind] = useState<FixedCostKind>('고정지출')
   const [dueDay, setDueDay] = useState('')
   const [saving, setSaving] = useState(false)
+
+  const filtered = initialItems.filter(item => (item.kind ?? '고정지출') === activeKind)
+  const totalSpend = initialItems.filter(i => (i.kind ?? '고정지출') === '고정지출').reduce((s, f) => s + f.amount, 0)
+  const totalSave = initialItems.filter(i => i.kind === '고정저축').reduce((s, f) => s + f.amount, 0)
 
   const handleAdd = async () => {
     if (!name.trim() || !amount) return
@@ -27,11 +34,12 @@ export default function FixedCostList({ initialItems, userId }: Props) {
     await supabase.from('fixed_costs').insert({
       user_id: userId,
       name: name.trim(),
-      amount: Number(amount),
+      amount: Number(amount.replace(/,/g, '')),
       type,
+      kind,
       due_day: dueDay ? Number(dueDay) : null,
     })
-    setName(''); setAmount(''); setDueDay(''); setType('월정액')
+    setName(''); setAmount(''); setDueDay(''); setType('월정액'); setKind(activeKind)
     setShowForm(false)
     setSaving(false)
     router.refresh()
@@ -45,13 +53,32 @@ export default function FixedCostList({ initialItems, userId }: Props) {
 
   return (
     <div>
-      {/* 목록 */}
+      <div className="flex gap-2 mb-3">
+        {KINDS.map(k => {
+          const total = k === '고정지출' ? totalSpend : totalSave
+          const selected = activeKind === k
+          return (
+            <button key={k} onClick={() => setActiveKind(k)} style={{
+              flex: 1, padding: '10px 8px', borderRadius: '14px',
+              border: selected ? '2px solid var(--color-primary)' : '2px solid #f0f0f0',
+              background: selected ? 'var(--color-primary-light)' : '#fafafa',
+              cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
+            }}>
+              <p style={{ fontSize: '11px', color: selected ? 'var(--color-primary)' : '#aaa', fontWeight: '600', marginBottom: '2px' }}>{k}</p>
+              <p style={{ fontSize: '14px', fontWeight: '700', color: selected ? 'var(--color-accent)' : '#ccc' }}>
+                {total.toLocaleString()}원
+              </p>
+            </button>
+          )
+        })}
+      </div>
+
       <div className="bg-white rounded-2xl border border-gray-100 mb-4 overflow-hidden">
-        {initialItems.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-8">등록된 고정비가 없어요.</p>
+        {filtered.length === 0 ? (
+          <p className="text-xs text-gray-400 text-center py-8">등록된 {activeKind} 항목이 없어요.</p>
         ) : (
           <div className="divide-y divide-gray-50">
-            {initialItems.map((item) => (
+            {filtered.map((item) => (
               <div key={item.id} className="flex items-center justify-between px-4 py-3">
                 <div>
                   <p className="text-sm font-medium text-gray-800">{item.name}</p>
@@ -60,15 +87,11 @@ export default function FixedCostList({ initialItems, userId }: Props) {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-gray-900">
+                  <span className="text-sm font-bold" style={{ color: item.kind === '고정저축' ? '#10B981' : '#374151' }}>
                     {item.amount.toLocaleString()}원
                   </span>
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="text-xs text-gray-300 hover:text-rose-400 transition-colors"
-                  >
-                    ✕
-                  </button>
+                  <button onClick={() => handleDelete(item.id)}
+                    className="text-xs text-gray-300 hover:text-rose-400 transition-colors">✕</button>
                 </div>
               </div>
             ))}
@@ -76,66 +99,50 @@ export default function FixedCostList({ initialItems, userId }: Props) {
         )}
       </div>
 
-      {/* 추가 폼 */}
       {showForm ? (
         <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-3">
-          <input
-            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#6B1E2E]"
-            placeholder="항목명 (예: 넷플릭스)"
-            value={name}
-            onChange={e => setName(e.target.value)}
-          />
-          <input
-            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#6B1E2E]"
-            placeholder="금액"
-            type="number"
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
-          />
+          <div className="flex gap-2">
+            {KINDS.map(k => (
+              <button key={k} onClick={() => setKind(k)} style={{
+                flex: 1, padding: '8px', borderRadius: '10px', fontSize: '12px', fontWeight: '600',
+                border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                background: kind === k ? 'var(--color-primary)' : '#f0f0f0',
+                color: kind === k ? '#fff' : '#888',
+              }}>{k}</button>
+            ))}
+          </div>
+          <input className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none"
+            placeholder={kind === '고정저축' ? '항목명 (예: 청약통장, 적금)' : '항목명 (예: 넷플릭스, 월세)'}
+            value={name} onChange={e => setName(e.target.value)} />
+          <input className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none"
+            placeholder="금액" type="text" inputMode="numeric"
+            value={amount} onChange={e => setAmount(e.target.value.replace(/[^0-9]/g, ''))} />
           <div className="flex gap-2">
             {TYPES.map(t => (
-              <button
-                key={t}
-                onClick={() => setType(t)}
-                className={`flex-1 py-1.5 rounded-xl text-xs font-medium transition-colors ${
-                  type === t ? 'bg-[#6B1E2E] text-white' : 'bg-gray-100 text-gray-500'
-                }`}
-              >
+              <button key={t} onClick={() => setType(t)}
+                className="flex-1 py-1.5 rounded-xl text-xs font-medium transition-colors"
+                style={{ background: type === t ? 'var(--color-primary)' : '#f0f0f0', color: type === t ? '#fff' : '#888' }}>
                 {t}
               </button>
             ))}
           </div>
-          <input
-            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#6B1E2E]"
-            placeholder="결제일 (선택, 숫자만)"
-            type="number"
-            min="1"
-            max="31"
-            value={dueDay}
-            onChange={e => setDueDay(e.target.value)}
-          />
+          <input className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none"
+            placeholder="이체일 (선택, 숫자만)" type="text" inputMode="numeric"
+            value={dueDay} onChange={e => setDueDay(e.target.value.replace(/[^0-9]/g, ''))} />
           <div className="flex gap-2">
-            <button
-              onClick={() => setShowForm(false)}
-              className="flex-1 py-2 rounded-xl text-sm bg-gray-100 text-gray-500"
-            >
-              취소
-            </button>
-            <button
-              onClick={handleAdd}
-              disabled={saving}
-              className="flex-1 py-2 rounded-xl text-sm bg-[#6B1E2E] text-white font-medium disabled:opacity-50"
-            >
+            <button onClick={() => setShowForm(false)} className="flex-1 py-2 rounded-xl text-sm bg-gray-100 text-gray-500">취소</button>
+            <button onClick={handleAdd} disabled={saving}
+              className="flex-1 py-2 rounded-xl text-sm text-white font-medium disabled:opacity-50"
+              style={{ background: 'var(--color-primary)' }}>
               {saving ? '저장 중…' : '추가'}
             </button>
           </div>
         </div>
       ) : (
-        <button
-          onClick={() => setShowForm(true)}
-          className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-[#6B1E2E] hover:text-[#6B1E2E] transition-colors"
-        >
-          + 고정비 추가
+        <button onClick={() => { setShowForm(true); setKind(activeKind) }}
+          className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-400"
+          style={{ fontFamily: 'inherit' }}>
+          + {activeKind} 추가
         </button>
       )}
     </div>

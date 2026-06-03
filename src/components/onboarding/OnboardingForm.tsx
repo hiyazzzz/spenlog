@@ -48,7 +48,7 @@ export default function OnboardingForm({ userId, email }: Props) {
         theme: 'Burgundy',
       })
       if (err) { setError('저장 중 오류가 발생했어요: ' + err.message); setSaving(false); return }
-      router.push('/')
+      router.push('/setup/assets-intro')
     }
   }
 

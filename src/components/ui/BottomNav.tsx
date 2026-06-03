@@ -6,7 +6,7 @@ const NAV_ITEMS = [
   { href: '/',         icon: '🏠', label: '홈' },
   { href: '/analytics', icon: '📊', label: '분석' },
   { href: '/report',   icon: '📋', label: '리포트' },
-  { href: '/budget',   icon: '📅', label: '예산' },
+  { href: '/assets',   icon: '💰', label: '자산' },
   { href: '/settings', icon: '⚙️', label: '설정' },
 ]
 

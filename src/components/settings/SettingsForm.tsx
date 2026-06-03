@@ -1,28 +1,28 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { THEMES } from '@/lib/themes'
-import { Theme } from '@/types'
+import { Theme, Budget } from '@/types'
 import DarkModeToggle from '@/components/ui/DarkModeToggle'
+import BudgetForm from '@/components/budget/BudgetForm'
 
-interface Props { profile: any; userId: string; email: string; provider?: string }
-
-function formatNumber(v: string) {
-  const n = v.replace(/[^0-9]/g, '')
-  return n ? parseInt(n).toLocaleString() : ''
+interface Props {
+  profile: any
+  userId: string
+  email: string
+  provider?: string
+  budgets: Budget[]
+  expenses: { category: string; amount: number }[]
+  thisMonth: string
 }
-function parseNumber(v: string) {
-  return parseInt(v.replace(/,/g, '')) || 0
-}
 
-export default function SettingsForm({ profile, userId, email, provider }: Props) {
+
+export default function SettingsForm({ profile, userId, email, provider, budgets, expenses, thisMonth }: Props) {
   const router = useRouter()
   const supabase = createClient()
-  const [tab, setTab] = useState<'profile' | 'finance' | 'login' | 'display'>('profile')
+  const [tab, setTab] = useState<'profile' | 'category' | 'display' | 'login'>('profile')
   const [name, setName] = useState(profile?.name ?? '')
-  const [income, setIncome] = useState(profile?.income ? parseInt(profile.income).toLocaleString() : '')
-  const [savingGoal, setSavingGoal] = useState(profile?.saving_goal ? parseInt(profile.saving_goal).toLocaleString() : '')
   const [theme, setTheme] = useState<Theme>(profile?.theme ?? 'Burgundy')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -50,8 +50,6 @@ export default function SettingsForm({ profile, userId, email, provider }: Props
     await supabase.from('users').upsert({
       id: userId,
       name: name.trim() || profile?.name,
-      income: parseNumber(income),
-      saving_goal: parseNumber(savingGoal),
     })
     setSaving(false)
     setSaved(true)
@@ -91,7 +89,7 @@ export default function SettingsForm({ profile, userId, email, provider }: Props
 
   const TABS = [
     { id: 'profile', label: '프로필' },
-    { id: 'finance', label: '재정' },
+    { id: 'category', label: '예산' },
     { id: 'display', label: '화면' },
     { id: 'login', label: '계정' },
   ] as const
@@ -134,35 +132,17 @@ export default function SettingsForm({ profile, userId, email, provider }: Props
         </div>
       )}
 
-      {/* 재정 탭 */}
-      {tab === 'finance' && (
+      {/* 예산 탭 */}
+      {tab === 'category' && (
         <div>
-          <div style={card}>
-            <p style={{ ...label, fontWeight: '600', color: '#555', fontSize: '12px', marginBottom: '14px' }}>재정 설정</p>
-            <div style={{ marginBottom: '10px' }}>
-              <label style={label}>월 수입 (원)</label>
-              <input style={inputStyle} type="text" inputMode="numeric"
-                value={income}
-                onChange={e => setIncome(formatNumber(e.target.value))}
-                placeholder="0" />
-            </div>
-            <div>
-              <label style={label}>저축 목표 (원)</label>
-              <input style={inputStyle} type="text" inputMode="numeric"
-                value={savingGoal}
-                onChange={e => setSavingGoal(formatNumber(e.target.value))}
-                placeholder="0" />
-            </div>
-          </div>
-          <button onClick={handleSaveProfile} disabled={saving} style={{
-            width: '100%', padding: '14px', borderRadius: '14px',
-            background: saved ? '#2E7D52' : 'var(--color-primary)',
-            color: '#fff', fontSize: '14px', fontWeight: '600',
-            border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-            transition: 'background 0.3s', marginBottom: '12px',
-          }}>
-            {saving ? '저장 중...' : saved ? '✓ 저장됨' : '변경사항 저장'}
-          </button>
+          <p className="text-xs text-gray-400 mb-3">{thisMonth.replace('-', '년 ')}월 카테고리별 목표 예산</p>
+          <BudgetForm
+            userId={userId}
+            initialBudgets={budgets}
+            expenses={expenses}
+            thisMonth={thisMonth}
+            income={profile?.income ?? 0}
+          />
         </div>
       )}
 
