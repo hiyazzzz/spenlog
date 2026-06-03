@@ -21,6 +21,8 @@ export default function SettingsForm({ profile, userId, email }: Props) {
   const [theme, setTheme] = useState<Theme>(profile?.theme ?? 'Burgundy')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [confirmWithdraw, setConfirmWithdraw] = useState(false)
+  const [withdrawing, setWithdrawing] = useState(false)
 
   async function handleSave() {
     setSaving(true)
@@ -35,6 +37,20 @@ export default function SettingsForm({ profile, userId, email }: Props) {
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
     router.refresh()
+  }
+
+  async function handleWithdraw() {
+    setWithdrawing(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      await supabase.from('users').delete().eq('id', user.id)
+      await supabase.from('expenses').delete().eq('user_id', user.id)
+      await supabase.from('budgets').delete().eq('user_id', user.id)
+      await supabase.from('fixed_costs').delete().eq('user_id', user.id)
+      await supabase.auth.admin?.deleteUser(user.id).catch(() => {})
+    }
+    await supabase.auth.signOut()
+    router.push('/login')
   }
 
   async function handleLogout() {
@@ -124,10 +140,36 @@ export default function SettingsForm({ profile, userId, email }: Props) {
         <button onClick={handleLogout} style={{
           background: 'none', border: 'none', cursor: 'pointer',
           color: '#E05070', fontSize: '14px', fontWeight: '600',
-          padding: '4px 0', fontFamily: 'inherit',
+          padding: '4px 0', fontFamily: 'inherit', display: 'block',
         }}>
           로그아웃
         </button>
+        <div style={{ borderTop: '1px solid #f0f0f0', marginTop: '12px', paddingTop: '12px' }}>
+          {!confirmWithdraw ? (
+            <button onClick={() => setConfirmWithdraw(true)} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: '#ccc', fontSize: '12px', padding: 0, fontFamily: 'inherit',
+            }}>
+              계정 탈퇴
+            </button>
+          ) : (
+            <div>
+              <p style={{ fontSize: '12px', color: '#E05070', marginBottom: '8px' }}>
+                정말 탈퇴하시겠어요? 모든 데이터가 삭제됩니다.
+              </p>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => setConfirmWithdraw(false)} style={{
+                  flex: 1, padding: '8px', borderRadius: '10px', background: '#f5f5f5',
+                  border: 'none', cursor: 'pointer', fontSize: '12px', color: '#888', fontFamily: 'inherit',
+                }}>취소</button>
+                <button onClick={handleWithdraw} disabled={withdrawing} style={{
+                  flex: 1, padding: '8px', borderRadius: '10px', background: '#E05070',
+                  border: 'none', cursor: 'pointer', fontSize: '12px', color: '#fff', fontWeight: '600', fontFamily: 'inherit',
+                }}>{withdrawing ? '처리 중...' : '탈퇴 확인'}</button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
