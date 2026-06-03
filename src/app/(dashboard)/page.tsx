@@ -36,6 +36,7 @@ export default async function DashboardHomePage() {
       <DashboardHeader
         totalSpent={totalSpent}
         savingGoal={profile?.saving_goal ?? 0}
+        income={profile?.income ?? 0}
         userName={profile?.name ?? ""}
         theme={profile?.theme ?? "Burgundy"}
       />
