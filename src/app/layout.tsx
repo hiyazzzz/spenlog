@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import localFont from "next/font/local";
+import DarkModeInit from "@/components/ui/DarkModeInit";
 
 const pretendard = localFont({
   src: "../fonts/PretendardVariable.woff2",
@@ -14,15 +15,11 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" className={pretendard.variable}>
-      {/* font-pretendard 대신 pretendard.className을 직접 주입하여 확실하게 폰트를 적용합니다 */}
-      <body className={`${pretendard.className} antialiased bg-[#FAF7F4] text-gray-900`}>
+      <body className={`${pretendard.className} antialiased`} style={{ background: 'var(--color-bg)' }}>
+        <DarkModeInit />
         {children}
       </body>
     </html>

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { THEMES } from '@/lib/themes'
+import DarkModeToggle from '@/components/ui/DarkModeToggle'
 import { Theme } from '@/types'
 
 interface Props {
@@ -95,6 +96,11 @@ export default function SettingsForm({ profile, userId, email }: Props) {
           <label style={label}>저축 목표 (원)</label>
           <input style={input} type="number" value={savingGoal} onChange={e => setSavingGoal(e.target.value)} placeholder="0" />
         </div>
+      </div>
+
+      {/* 다크모드 */}
+      <div style={card}>
+        <DarkModeToggle />
       </div>
 
       {/* 테마 */}
