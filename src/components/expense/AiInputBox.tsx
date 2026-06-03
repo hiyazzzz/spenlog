@@ -42,7 +42,7 @@ export default function AiInputBox({ userId }: { userId: string }) {
         <textarea
           className="w-full text-sm resize-none outline-none text-gray-700 placeholder:text-gray-300"
           rows={2}
-          placeholder="오늘 뭐 썼어? 자연어로 입력해봐&#10;예) 스타벅스 아아 5500원 카카오페이"
+          placeholder="오늘 소비 내역을 알려줘!&#10;예) 스타벅스 아아 5500원 카카오페이&#10;예) 편의점 3200원 현금&#10;예) 배달의민족 치킨 18000원 신한카드"
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
