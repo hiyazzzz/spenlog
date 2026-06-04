@@ -4,7 +4,7 @@ import AddExpenseForm from '@/components/expense/AddExpenseForm'
 import Link from 'next/link'
 
 interface Props {
-  searchParams: Promise<{ name?: string; amount?: string; category?: string }>
+  searchParams: Promise<{ name?: string; amount?: string; category?: string; type?: string }>
 }
 
 export default async function AddExpensePage({ searchParams }: Props) {
@@ -17,6 +17,7 @@ export default async function AddExpensePage({ searchParams }: Props) {
     name: params.name,
     amount: params.amount ? parseInt(params.amount) : undefined,
     category: params.category,
+    type: params.type as 'expense' | 'income' | undefined,
   }
 
   return (

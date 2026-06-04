@@ -59,7 +59,11 @@ function InlineForm({ fields, onSave, onCancel }: {
           {f.options ? (
             <select value={vals[f.key]} onChange={e => setVals(v => ({ ...v, [f.key]: e.target.value }))} style={inp}>
               <option value="">선택</option>
-              {f.options.map(o => <option key={o} value={o}>{o}</option>)}
+              {f.options.map(o => {
+                const parts = o.split('|')
+                const label = parts.length >= 3 ? parts[2] : o
+                return <option key={o} value={o}>{label}</option>
+              })}
             </select>
           ) : (
             <input type="text"
@@ -104,7 +108,6 @@ function BudgetRow({ category, budgetAmt, spent, onSave }: {
   const pct = budgetAmt > 0 ? Math.min(Math.round((spent / budgetAmt) * 100), 100) : 0
   const over = budgetAmt > 0 && spent > budgetAmt
   const barColor = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : 'var(--color-primary)'
-
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
@@ -162,6 +165,12 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const totalBalance = localAccounts.reduce((s, a) => s + (a.balance ?? 0), 0)
   const totalBudget = localBudgets.reduce((s, b) => s + b.amount, 0)
 
+  // 계좌+카드 통합 옵션
+  const linkedOptions = [
+    ...localAccounts.map(a => a.id + '|account|' + a.name + ' · ' + a.bank),
+    ...localCards.map(c => c.id + '|card|' + c.name + ' · ' + c.bank),
+  ]
+
   async function saveIncome() {
     await supabase.from('users').update({ income: parse(income), saving_goal: parse(savingGoal) }).eq('id', userId)
     setEditingIncome(false)
@@ -183,10 +192,12 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   }
 
   async function addCard(vals: Record<string, string>) {
+    const rawLinked = vals.linked_account_id || ''
+    const linkedId = rawLinked.includes('|') ? rawLinked.split('|')[0] : rawLinked || null
     const { data } = await supabase.from('cards').insert({
       user_id: userId, name: vals.name, bank: vals.bank,
       due_day: parseInt(vals.due_day) || null,
-      linked_account_id: vals.linked_account_id || null,
+      linked_account_id: linkedId,
     }).select().single()
     if (data) setLocalCards(c => [...c, data])
     setShowAddCard(false)
@@ -198,11 +209,12 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   }
 
   async function addFixed(vals: Record<string, string>, kind: '고정지출' | '고정저축') {
+    const rawLinked = vals.linked_account_id || ''
+    const linkedId = rawLinked.includes('|') ? rawLinked.split('|')[0] : rawLinked || null
     const { data } = await supabase.from('fixed_costs').insert({
       user_id: userId, name: vals.name, amount: parse(vals.amount),
       kind, due_day: parseInt(vals.due_day) || null,
-      linked_account_id: vals.linked_account_id || null,
-      type: '월정액',
+      linked_account_id: linkedId, type: '월정액',
     }).select().single()
     if (data) setLocalFixed(f => [...f, data])
     setShowAddFixed(null)
@@ -239,6 +251,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
     <div className="min-h-screen pb-20" style={{ background: 'var(--color-bg)' }}>
       <h1 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-accent)' }}>자산</h1>
 
+      {/* 1. 월 수입 */}
       <Section icon="💰" title="월 수입" summary={monthlyIncome > 0 ? '₩' + monthlyIncome.toLocaleString() : '미설정'} defaultOpen={!monthlyIncome}>
         {!editingIncome ? (
           <div>
@@ -274,6 +287,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
         )}
       </Section>
 
+      {/* 2. 예산 */}
       <Section icon="🎯" title="예산" summary={totalBudget > 0 ? '총 ₩' + totalBudget.toLocaleString() + ' 설정' : '미설정'}>
         {(CATEGORIES as readonly string[]).map(cat => (
           <BudgetRow key={cat} category={cat}
@@ -289,49 +303,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
         )}
       </Section>
 
-      <Section icon="📌" title="고정비" summary={'월 ₩' + fixedExpenseTotal.toLocaleString() + ' 지출'}>
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>고정 지출</span>
-            <button onClick={() => setShowAddFixed(showAddFixed === 'expense' ? null : 'expense')} style={addBtnStyle('var(--color-primary)', 'var(--color-primary-light)')}>+ 추가</button>
-          </div>
-          {showAddFixed === 'expense' && (
-            <InlineForm
-              fields={[
-                { label: '이름', key: 'name', placeholder: '예) 넷플릭스' },
-                { label: '금액', key: 'amount', type: 'number', placeholder: '0' },
-                { label: '빠져나가는 날', key: 'due_day', placeholder: '예) 25' },
-                { label: '연결 계좌', key: 'linked_account_id', options: localAccounts.map(a => a.id) },
-              ]}
-              onSave={v => addFixed(v, '고정지출')}
-              onCancel={() => setShowAddFixed(null)} />
-          )}
-          {fixedExpenses.length === 0 && <p style={{ fontSize: 12, color: '#9ca3af' }}>고정 지출이 없어요</p>}
-          {fixedExpenses.map(f => <FixedRow key={f.id} item={f} accountName={localAccounts.find(a => a.id === (f as any).linked_account_id)?.name} onDelete={() => deleteFixed(f.id)} />)}
-          <p style={{ fontSize: 12, color: '#6b7280', marginTop: 6, fontWeight: 600 }}>소계 ₩{fixedExpenseTotal.toLocaleString()}</p>
-        </div>
-        <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>고정 저축</span>
-            <button onClick={() => setShowAddFixed(showAddFixed === 'saving' ? null : 'saving')} style={addBtnStyle('#059669', '#f0fdf4')}>+ 추가</button>
-          </div>
-          {showAddFixed === 'saving' && (
-            <InlineForm
-              fields={[
-                { label: '이름', key: 'name', placeholder: '예) 신한 적금' },
-                { label: '금액', key: 'amount', type: 'number', placeholder: '0' },
-                { label: '빠져나가는 날', key: 'due_day', placeholder: '예) 5' },
-                { label: '연결 계좌', key: 'linked_account_id', options: localAccounts.map(a => a.id) },
-              ]}
-              onSave={v => addFixed(v, '고정저축')}
-              onCancel={() => setShowAddFixed(null)} />
-          )}
-          {fixedSavings.length === 0 && <p style={{ fontSize: 12, color: '#9ca3af' }}>고정 저축이 없어요</p>}
-          {fixedSavings.map(f => <FixedRow key={f.id} item={f} accountName={localAccounts.find(a => a.id === (f as any).linked_account_id)?.name} onDelete={() => deleteFixed(f.id)} />)}
-          <p style={{ fontSize: 12, color: '#059669', marginTop: 6, fontWeight: 600 }}>소계 ₩{fixedSavingTotal.toLocaleString()}</p>
-        </div>
-      </Section>
-
+      {/* 3. 계좌/현금 */}
       <Section icon="🏦" title="계좌 / 현금" summary={'총 잔액 ₩' + totalBalance.toLocaleString()}>
         {showAddAccount && (
           <InlineForm
@@ -360,14 +332,15 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
         <button onClick={() => setShowAddAccount(s => !s)} style={fullAddBtn}>+ 계좌 추가</button>
       </Section>
 
+      {/* 4. 카드 */}
       <Section icon="💳" title="카드" summary={localCards.length > 0 ? localCards.length + '개 등록' : '미등록'}>
         {showAddCard && (
           <InlineForm
             fields={[
               { label: '카드명', key: 'name', placeholder: '예) 신한카드' },
               { label: '카드사', key: 'bank', placeholder: '예) 신한' },
-              { label: '결제일', key: 'due_day', placeholder: '예) 15' },
-              { label: '연결 계좌', key: 'linked_account_id', options: localAccounts.map(a => a.id) },
+              { label: '대금 출금일', key: 'due_day', placeholder: '예) 15' },
+              { label: '연결 계좌/카드', key: 'linked_account_id', options: linkedOptions },
             ]}
             onSave={addCard}
             onCancel={() => setShowAddCard(false)} />
@@ -378,7 +351,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             <div>
               <p style={{ fontSize: 13, fontWeight: 600, color: '#1f2937' }}>{card.name}</p>
               <p style={{ fontSize: 11, color: '#9ca3af' }}>
-                {card.bank}{card.due_day ? ' · 결제일 매월 ' + card.due_day + '일' : ''}
+                {card.bank}{card.due_day ? ' · 출금일 매월 ' + card.due_day + '일' : ''}
                 {card.linked_account ? ' · ' + (localAccounts.find(a => a.id === card.linked_account)?.name ?? '') : ''}
               </p>
             </div>
@@ -386,6 +359,50 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
           </div>
         ))}
         <button onClick={() => setShowAddCard(s => !s)} style={fullAddBtn}>+ 카드 추가</button>
+      </Section>
+
+      {/* 5. 고정비 */}
+      <Section icon="📌" title="고정비" summary={'월 ₩' + fixedExpenseTotal.toLocaleString() + ' 지출'}>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>고정 지출</span>
+            <button onClick={() => setShowAddFixed(showAddFixed === 'expense' ? null : 'expense')} style={addBtnStyle('var(--color-primary)', 'var(--color-primary-light)')}>+ 추가</button>
+          </div>
+          {showAddFixed === 'expense' && (
+            <InlineForm
+              fields={[
+                { label: '이름', key: 'name', placeholder: '예) 넷플릭스' },
+                { label: '금액', key: 'amount', type: 'number', placeholder: '0' },
+                { label: '빠져나가는 날', key: 'due_day', placeholder: '예) 25' },
+                { label: '연결 계좌/카드', key: 'linked_account_id', options: linkedOptions },
+              ]}
+              onSave={v => addFixed(v, '고정지출')}
+              onCancel={() => setShowAddFixed(null)} />
+          )}
+          {fixedExpenses.length === 0 && <p style={{ fontSize: 12, color: '#9ca3af' }}>고정 지출이 없어요</p>}
+          {fixedExpenses.map(f => <FixedRow key={f.id} item={f} accountName={localAccounts.find(a => a.id === (f as any).linked_account_id)?.name} onDelete={() => deleteFixed(f.id)} />)}
+          <p style={{ fontSize: 12, color: '#6b7280', marginTop: 6, fontWeight: 600 }}>소계 ₩{fixedExpenseTotal.toLocaleString()}</p>
+        </div>
+        <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>고정 저축</span>
+            <button onClick={() => setShowAddFixed(showAddFixed === 'saving' ? null : 'saving')} style={addBtnStyle('#059669', '#f0fdf4')}>+ 추가</button>
+          </div>
+          {showAddFixed === 'saving' && (
+            <InlineForm
+              fields={[
+                { label: '이름', key: 'name', placeholder: '예) 신한 적금' },
+                { label: '금액', key: 'amount', type: 'number', placeholder: '0' },
+                { label: '빠져나가는 날', key: 'due_day', placeholder: '예) 5' },
+                { label: '연결 계좌/카드', key: 'linked_account_id', options: linkedOptions },
+              ]}
+              onSave={v => addFixed(v, '고정저축')}
+              onCancel={() => setShowAddFixed(null)} />
+          )}
+          {fixedSavings.length === 0 && <p style={{ fontSize: 12, color: '#9ca3af' }}>고정 저축이 없어요</p>}
+          {fixedSavings.map(f => <FixedRow key={f.id} item={f} accountName={localAccounts.find(a => a.id === (f as any).linked_account_id)?.name} onDelete={() => deleteFixed(f.id)} />)}
+          <p style={{ fontSize: 12, color: '#059669', marginTop: 6, fontWeight: 600 }}>소계 ₩{fixedSavingTotal.toLocaleString()}</p>
+        </div>
       </Section>
     </div>
   )

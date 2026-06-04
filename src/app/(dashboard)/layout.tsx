@@ -4,6 +4,7 @@ import BottomNav from '@/components/ui/BottomNav'
 import ThemeProvider from '@/components/ui/ThemeProvider'
 import GuideOverlay from '@/components/onboarding/GuideOverlay'
 import OfflineBanner from '@/components/ui/OfflineBanner'
+import HomeFAB from '@/components/dashboard/HomeFAB'
 
 export default async function DashboardLayout({
   children,
@@ -32,6 +33,7 @@ export default async function DashboardLayout({
       </main>
       <BottomNav />
       <OfflineBanner />
+      <HomeFAB />
       {!guideCompleted && userId && (
         <GuideOverlay userId={userId} />
       )}

@@ -9,7 +9,7 @@ import dayjs from 'dayjs'
 const PAYMENT_METHODS = ['카드', '현금', '카카오페이', '네이버페이', '토스', '계좌이체']
 
 interface Props {
-  prefill?: { name?: string; amount?: number; category?: string }
+  prefill?: { name?: string; amount?: number; category?: string; type?: 'expense' | 'income' }
 }
 
 function formatAmount(val: string): string {
@@ -24,7 +24,7 @@ export default function AddExpenseForm({ prefill }: Props) {
   const { prefill: storePrefill, clearPrefill } = useAiInputStore()
   // props prefill 우선, 없으면 store prefill
   const effectivePrefill = prefill ?? storePrefill
-  const [type, setType] = useState<'expense' | 'income'>('expense')
+  const [type, setType] = useState<'expense' | 'income'>(prefill?.type ?? 'expense')
   const [form, setForm] = useState({
     name: effectivePrefill?.name ?? '',
     amount: effectivePrefill?.amount ? effectivePrefill.amount.toLocaleString() : '',
