@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { CATEGORIES } from '@/lib/themes'
 import CategoryManager from './CategoryManager'
+import RoutineBanner from './RoutineBanner'
 import { Account, Card, FixedCost } from '@/types'
 
 interface Budget { id: string; category: string; amount: number; month: string }
@@ -252,6 +253,13 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   return (
     <div className="min-h-screen pb-20" style={{ background: 'var(--color-bg)' }}>
       <h1 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-accent)' }}>자산</h1>
+
+      {/* 루틴 배너 */}
+      <RoutineBanner
+        userId={userId}
+        fixedCosts={[...localFixed].map(f => ({ ...f, kind: (f as any).kind ?? '고정지출' }))}
+        thisMonth={thisMonth}
+      />
 
       {/* 1. 월 수입 */}
       <Section icon="💰" title="월 수입" summary={monthlyIncome > 0 ? '₩' + monthlyIncome.toLocaleString() : '미설정'} defaultOpen={!monthlyIncome}>

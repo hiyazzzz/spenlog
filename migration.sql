@@ -118,4 +118,34 @@ CREATE POLICY "expenses_delete_own" ON expenses FOR DELETE USING (auth.uid() = u
 
 -- =============================================
 -- Sprint 2: 카테고리 소프트 삭제
--- ==============
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS categories (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+  name        text NOT NULL,
+  is_default  boolean DEFAULT false,
+  is_hidden   boolean DEFAULT false,
+  sort_order  integer DEFAULT 0,
+  created_at  timestamptz DEFAULT now()
+);
+
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'categories' AND policyname = 'categories_own'
+  ) THEN
+    CREATE POLICY categories_own ON categories FOR ALL
+      USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
+
+
+-- =============================================
+-- Sprint 3: 고정비/적금 루틴 월별 기록
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS savings_payments (
+  id              uuid PRIMARY
