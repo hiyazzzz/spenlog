@@ -257,7 +257,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       {/* 루틴 배너 */}
       <RoutineBanner
         userId={userId}
-        fixedCosts={[...localFixed].map(f => ({ ...f, kind: (f as any).kind ?? '고정지출' }))}
+        fixedCosts={[...localFixed].map(f => ({ ...f, kind: (f as any).kind ?? '고정지출', due_day: (f.due_day ?? undefined) as number | undefined }))}
         thisMonth={thisMonth}
       />
 
