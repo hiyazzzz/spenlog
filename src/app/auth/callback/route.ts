@@ -1,6 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
@@ -8,24 +7,33 @@ export async function GET(request: NextRequest) {
   const origin = requestUrl.origin
 
   if (code) {
-    const cookieStore = await cookies()
+    // redirect response를 먼저 만들고 거기에 쿠키를 붙임
+    const supabaseResponse = NextResponse.redirect(`${origin}/auth/check`)
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          getAll() { return cookieStore.getAll() },
+          getAll() {
+            return request.cookies.getAll()
+          },
           setAll(cookiesToSet) {
+            // redirect 응답에 직접 쿠키 설정
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              supabaseResponse.cookies.set(name, value, options)
             )
           },
         },
       }
     )
-    await supabase.auth.exchangeCodeForSession(code)
+
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    if (!error) {
+      return supabaseResponse
+    }
   }
 
-  // 온보딩 완료 여부 확인 후 분기
-  return NextResponse.redirect(`${origin}/auth/check`)
+  // 코드 없거나 에러 시 로그인으로
+  return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
 }
