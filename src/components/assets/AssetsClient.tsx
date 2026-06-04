@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { CATEGORIES } from '@/lib/themes'
+import CategoryManager from './CategoryManager'
 import { Account, Card, FixedCost } from '@/types'
 
 interface Budget { id: string; category: string; amount: number; month: string }
@@ -11,6 +12,7 @@ interface Props {
   accounts: Account[]; cards: Card[]; fixedCosts: FixedCost[]
   budgets: Budget[]; thisMonthSpent: number
   categorySpent: Record<string, number>; thisMonth: string
+  customCategories?: any[]
 }
 
 function fmt(v: string) { const n = v.replace(/[^0-9]/g, ''); return n ? Number(n).toLocaleString() : '' }
@@ -301,6 +303,11 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-accent)' }}>₩{totalBudget.toLocaleString()}</span>
           </div>
         )}
+        <CategoryManager
+          userId={userId}
+          customCategories={customCategories ?? []}
+          onUpdate={() => router.refresh()}
+        />
       </Section>
 
       {/* 3. 계좌/현금 */}

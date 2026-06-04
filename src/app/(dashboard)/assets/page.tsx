@@ -18,6 +18,7 @@ export default async function AssetsPage() {
     { data: fixedCosts },
     { data: expenses },
     { data: budgets },
+    { data: customCategories },
   ] = await Promise.all([
     supabase.from('users').select('*').eq('id', user.id).single(),
     supabase.from('accounts').select('*').eq('user_id', user.id),
@@ -26,6 +27,7 @@ export default async function AssetsPage() {
     supabase.from('expenses').select('amount, category').eq('user_id', user.id)
       .gte('date', `${thisMonth}-01`).lt('date', `${nextMonth}-01`),
     supabase.from('budgets').select('*').eq('user_id', user.id).eq('month', thisMonth),
+    supabase.from('categories').select('*').eq('user_id', user.id).order('sort_order'),
   ])
 
   const categorySpent: Record<string, number> = {}
@@ -44,6 +46,7 @@ export default async function AssetsPage() {
       thisMonthSpent={expenses?.reduce((s, e) => s + e.amount, 0) ?? 0}
       categorySpent={categorySpent}
       thisMonth={thisMonth}
+      customCategories={customCategories ?? []}
     />
   )
 }
