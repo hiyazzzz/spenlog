@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+/* ===== 테마 CSS 변수 (기본: Burgundy) ===== */
+:root {
+  --color-primary: #6B1E2E;
+  --color-primary-mid: #C4748A;
+  --color-primary-light: #F5E8EA;
+  --color-accent: #4A1220;
+  --color-bg: #FAF7F4;
+  --color-surface: #ffffff;
+  --color-border: #f0f0f0;
+  --color-text: #1a1a1a;
+  --color-text-sub: #888888;
+}
+
+/* ===== 다크모드 ===== */
+[data-theme="dark"] {
+  --color-bg: #1a1a1a;
+  --color-surface: #242424;
+  --color-border: #333333;
+  --color-text: #f0f0f0;
+  --color-text-sub: #aaaaaa;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--font-pretendard), -apple-system, BlinkMacSystemFont,
+    sans-serif;
+  color: var(--color-text);
+  transition: background 0.2s, color 0.2s;
+}
