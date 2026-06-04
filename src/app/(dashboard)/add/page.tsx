@@ -20,4 +20,12 @@ export default async function AddExpensePage({ searchParams }: Props) {
   }
 
   return (
-    <div className="m
+    <div className="min-h-screen pb-20" style={{ background: 'var(--color-bg)' }}>
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="text-lg font-semibold" style={{ color: 'var(--color-accent)' }}>직접 입력</h1>
+        <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">취소</Link>
+      </div>
+      <AddExpenseForm prefill={prefill} />
+    </div>
+  )
+}

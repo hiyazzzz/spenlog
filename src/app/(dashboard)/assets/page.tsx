@@ -30,4 +30,20 @@ export default async function AssetsPage() {
 
   const categorySpent: Record<string, number> = {}
   expenses?.forEach(e => {
-    categorySpent[e.category] = (categorySpent[e.category] ??
+    categorySpent[e.category] = (categorySpent[e.category] ?? 0) + e.amount
+  })
+
+  return (
+    <AssetsClient
+      profile={profile}
+      userId={user.id}
+      accounts={accounts ?? []}
+      cards={cards ?? []}
+      fixedCosts={fixedCosts ?? []}
+      budgets={budgets ?? []}
+      thisMonthSpent={expenses?.reduce((s, e) => s + e.amount, 0) ?? 0}
+      categorySpent={categorySpent}
+      thisMonth={thisMonth}
+    />
+  )
+}
