@@ -1,15 +1,34 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { THEMES } from '@/lib/themes'
+import type { Theme } from '@/types'
 
-type Step = 'name' | 'income' | 'goal'
-const STEPS: Step[] = ['name', 'income', 'goal']
+type Step = 'name' | 'theme' | 'finance' | 'welcome'
 
-const NAME_SUGGESTIONS = [
-  '데굴데굴 도토리', '반짝반짝 별', '폴짝폴짝 토끼',
+const RANDOM_NAMES = [
+  '데굴데굴 도토리', '반짝반짝 별님', '폴짝폴짝 토끼',
   '살금살금 고양이', '두근두근 하트', '알뜰살뜰 다람쥐',
+  '포근포근 구름', '도란도란 물방울', '사뿐사뿐 나비',
+  '쏙쏙 솔방울', '통통 밤톨', '깜짝깜짝 별똥별',
 ]
+
+const THEME_LIST: { key: Theme; emoji: string; desc: string }[] = [
+  { key: 'Burgundy', emoji: '🍷', desc: '고급스러운' },
+  { key: 'Sage', emoji: '🌿', desc: '자연스러운' },
+  { key: 'Lavender', emoji: '💜', desc: '감성적인' },
+  { key: 'Terracotta', emoji: '🧡', desc: '따뜻한' },
+]
+
+function randomName() {
+  return RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)]
+}
+
+function formatWon(val: string) {
+  const n = val.replace(/[^0-9]/g, '')
+  return n ? Number(n).toLocaleString() : ''
+}
 
 interface Props { userId: string; email: string }
 
@@ -17,161 +36,151 @@ export default function OnboardingForm({ userId, email }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const [step, setStep] = useState<Step>('name')
-  const [values, setValues] = useState({ name: '', income: '', goal: '' })
+  const [name, setName] = useState('')
+  const [suggestedName, setSuggestedName] = useState(randomName)
+  const [theme, setTheme] = useState<Theme>('Burgundy')
+  const [income, setIncome] = useState('')
+  const [goal, setGoal] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const stepIdx = STEPS.indexOf(step)
+  // 테마 즉시 미리보기
+  useEffect(() => {
+    const t = THEMES[theme]
+    const root = document.documentElement
+    root.style.setProperty('--color-primary', t.primary)
+    root.style.setProperty('--color-primary-mid', t.primaryMid)
+    root.style.setProperty('--color-primary-light', t.primaryLight)
+    root.style.setProperty('--color-accent', t.accent)
+    root.style.setProperty('--color-bg', t.bg)
+    document.body.style.background = t.bg
+  }, [theme])
 
-  function get() { return step === 'name' ? values.name : step === 'income' ? values.income : values.goal }
-  function set(v: string) {
-    setError('')
-    setValues(prev => ({ ...prev, [step === 'goal' ? 'goal' : step]: v }))
-  }
+  const STEP_ORDER: Step[] = ['name', 'theme', 'finance', 'welcome']
+  const stepIdx = STEP_ORDER.indexOf(step)
 
-  async function handleNext() {
-    const v = get().trim()
-    if (!v) return
-    if (step === 'name' && v.length > 12) { setError('닉네임은 12자 이하로 입력해 주세요.'); return }
-    if (stepIdx < STEPS.length - 1) {
-      setStep(STEPS[stepIdx + 1])
-    } else {
-      setSaving(true)
-      const income = parseInt(values.income.replace(/,/g, '')) * 10000 || 0
-      const saving_goal = parseInt(values.goal.replace(/,/g, '')) * 10000 || 0
-      const { error: err } = await supabase.from('users').upsert({
-        id: userId,
-        email,
-        name: values.name.trim(),
-        income,
-        saving_goal,
-        theme: 'Burgundy',
-      })
-      if (err) { setError('저장 중 오류가 발생했어요: ' + err.message); setSaving(false); return }
-      router.push('/setup/assets-intro')
-    }
-  }
+  const primary = THEMES[theme].primary
+  const primaryLight = THEMES[theme].primaryLight
 
-  const inputStyle = {
+  const inputStyle: React.CSSProperties = {
     width: '100%', padding: '16px', borderRadius: '16px',
-    border: '1.5px solid #EDE3E5', background: '#fff',
+    border: `1.5px solid ${primaryLight}`, background: '#fff',
     fontSize: '16px', color: '#3D2020', outline: 'none',
-    boxSizing: 'border-box' as const, fontFamily: 'inherit',
+    boxSizing: 'border-box', fontFamily: 'inherit',
   }
 
-  return (
-    <div>
-      {/* 진행 바 */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '36px' }}>
-        {STEPS.map((s, i) => (
-          <div key={s} style={{
-            flex: 1, height: '4px', borderRadius: '2px',
-            background: i <= stepIdx ? '#6B1E2E' : '#EDE3E5',
-            transition: 'background 0.3s',
-          }} />
-        ))}
-      </div>
+  async function handleFinish() {
+    setSaving(true)
+    const incomeVal = parseInt(income.replace(/,/g, '')) * 10000 || 0
+    const goalVal = parseInt(goal.replace(/,/g, '')) * 10000 || 0
+    const finalName = name.trim() || suggestedName
 
-      {step === 'name' && (
-        <>
-          <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#6B1E2E', marginBottom: '6px' }}>
-            어떻게 불러드릴까요?
-          </h1>
-          <p style={{ fontSize: '14px', color: '#B8A8AC', marginBottom: '28px' }}>
-            스펜로그에서 사용할 닉네임을 정해주세요
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '14px' }}>
-            <input type="text" placeholder="닉네임 입력" value={values.name}
-              onChange={e => set(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleNext()}
-              maxLength={12} style={inputStyle} autoFocus />
-            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: '8px' }}>
-              {NAME_SUGGESTIONS.map(s => (
-                <button key={s} onClick={() => set(s)} style={{
-                  padding: '6px 12px', borderRadius: '20px',
-                  border: '1.5px solid #EDE3E5',
-                  background: values.name === s ? '#6B1E2E' : '#fff',
-                  color: values.name === s ? '#fff' : '#9A7A80',
-                  fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit',
-                }}>{s}</button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
+    const { error: err } = await supabase.from('users').upsert({
+      id: userId,
+      email,
+      name: finalName,
+      income: incomeVal,
+      saving_goal: goalVal,
+      theme,
+      onboarding_completed: true,
+    })
+    if (err) { setError('저장 오류: ' + err.message); setSaving(false); return }
+    setStep('welcome')
+    setTimeout(() => router.push('/'), 2000)
+  }
 
-      {step === 'income' && (
-        <>
-          <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#6B1E2E', marginBottom: '6px' }}>
-            한 달 수입이 얼마예요?
-          </h1>
-          <p style={{ fontSize: '14px', color: '#B8A8AC', marginBottom: '28px', lineHeight: 1.6 }}>
-            예산 관리에 활용돼요.<br />
-            나중에 설정에서 언제든지 수정할 수 있어요 😊
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <input
-              type="text" inputMode="numeric" pattern="[0-9]*"
-              placeholder="숫자만 입력"
-              value={values.income}
-              onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); set(raw) }}
-              onKeyDown={e => e.key === 'Enter' && handleNext()}
-              style={{ ...inputStyle, flex: 1 }} autoFocus
-            />
-            <span style={{ fontSize: '15px', color: '#6B1E2E', fontWeight: '600', whiteSpace: 'nowrap' as const }}>만 원</span>
-          </div>
-          <p style={{ fontSize: '12px', color: '#C4A0A8', marginTop: '8px' }}>
-            정확하지 않아도 괜찮아요. 대략적인 금액을 입력해 주세요.
-          </p>
-        </>
-      )}
+  // ── Step: 이름 설정 ──
+  if (step === 'name') {
+    const displayName = name.trim() || suggestedName
+    return (
+      <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
+        <ProgressBar current={0} total={3} color={primary} />
+        <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '8px' }}>
+          안녕하세요! 😊
+        </h1>
+        <p style={{ fontSize: '15px', color: '#B8A8AC', marginBottom: '32px' }}>
+          어떻게 불러드릴까요?
+        </p>
 
-      {step === 'goal' && (
-        <>
-          <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#6B1E2E', marginBottom: '6px' }}>
-            한 달에 얼마씩 모아볼까요?
-          </h1>
-          <p style={{ fontSize: '14px', color: '#B8A8AC', marginBottom: '28px', lineHeight: 1.6 }}>
-            이번 달 저축 목표를 설정해요.<br />
-            저축 목표는 언제든지 유지하거나 수정할 수 있어요 😊
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <input
-              type="text" inputMode="numeric" pattern="[0-9]*"
-              placeholder="숫자만 입력"
-              value={values.goal}
-              onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); set(raw) }}
-              onKeyDown={e => e.key === 'Enter' && handleNext()}
-              style={{ ...inputStyle, flex: 1 }} autoFocus
-            />
-            <span style={{ fontSize: '15px', color: '#6B1E2E', fontWeight: '600', whiteSpace: 'nowrap' as const }}>만 원</span>
-          </div>
-          <p style={{ fontSize: '12px', color: '#C4A0A8', marginTop: '8px' }}>
-            정확하지 않아도 괜찮아요. 언제든지 바꿀 수 있어요.
-          </p>
-        </>
-      )}
-
-      {error && (
-        <p style={{ fontSize: '13px', color: '#E05070', marginTop: '10px' }}>{error}</p>
-      )}
-
-      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px', marginTop: '24px' }}>
-        <button onClick={handleNext} disabled={saving || !get().trim()} style={{
-          width: '100%', padding: '16px', borderRadius: '16px',
-          background: saving || !get().trim() ? '#C4A0A8' : '#6B1E2E',
-          color: '#fff', fontSize: '15px', fontWeight: '600',
-          border: 'none', cursor: saving || !get().trim() ? 'not-allowed' : 'pointer',
-          fontFamily: 'inherit',
+        {/* 랜덤 닉네임 추천 */}
+        <div style={{
+          background: primaryLight, borderRadius: '16px',
+          padding: '20px', marginBottom: '16px', textAlign: 'center',
         }}>
-          {saving ? '저장 중...' : stepIdx < STEPS.length - 1 ? '다음 →' : '시작하기'}
-        </button>
-        {stepIdx > 0 && (
-          <button onClick={() => setStep(STEPS[stepIdx - 1])} style={{
-            background: 'none', border: 'none', color: '#B8A8AC',
-            fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit',
-          }}>← 이전</button>
-        )}
+          <p style={{ fontSize: '22px', fontWeight: '700', color: primary, marginBottom: '12px' }}>
+            {suggestedName}
+          </p>
+          <button onClick={() => setSuggestedName(randomName())} style={{
+            padding: '8px 18px', borderRadius: '20px',
+            border: `1.5px solid ${primary}`, background: 'white',
+            color: primary, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit',
+          }}>
+            🔀 다른 이름
+          </button>
+        </div>
+
+        {/* 직접 입력 */}
+        <p style={{ fontSize: '13px', color: '#B8A8AC', marginBottom: '8px' }}>또는 직접 입력</p>
+        <input
+          type="text" placeholder="닉네임 입력 (선택)"
+          value={name} onChange={e => setName(e.target.value)}
+          maxLength={12} style={inputStyle}
+        />
+        <p style={{ fontSize: '11px', color: '#C4A0A8', marginTop: '6px' }}>
+          입력하지 않으면 "{suggestedName}"으로 시작해요
+        </p>
+
+        <div style={{ marginTop: '32px' }}>
+          <button onClick={() => setStep('theme')} style={{
+            width: '100%', padding: '16px', borderRadius: '16px',
+            background: primary, color: '#fff', fontSize: '15px',
+            fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+          }}>
+            다음 →
+          </button>
+        </div>
       </div>
-    </div>
-  )
-}
+    )
+  }
+
+  // ── Step: 테마 선택 ──
+  if (step === 'theme') {
+    return (
+      <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
+        <ProgressBar current={1} total={3} color={primary} />
+        <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '8px' }}>
+          나만의 감성을 골라봐요 🎨
+        </h1>
+        <p style={{ fontSize: '15px', color: '#B8A8AC', marginBottom: '32px' }}>
+          언제든지 설정에서 바꿀 수 있어요
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '32px' }}>
+          {THEME_LIST.map(({ key, emoji, desc }) => {
+            const t = THEMES[key]
+            const selected = theme === key
+            return (
+              <button key={key} onClick={() => setTheme(key)} style={{
+                padding: '20px 16px', borderRadius: '20px',
+                border: selected ? `2.5px solid ${t.primary}` : '2px solid transparent',
+                background: selected ? t.primaryLight : '#fff',
+                boxShadow: selected ? `0 0 0 1px ${t.primary}20` : '0 1px 4px rgba(0,0,0,0.06)',
+                cursor: 'pointer', fontFamily: 'inherit',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
+                transition: 'all 0.15s',
+              }}>
+                {/* 컬러 스와치 */}
+                <div style={{
+                  width: '100%', height: '40px', borderRadius: '10px',
+                  background: t.primary,
+                }} />
+                <span style={{ fontSize: '20px' }}>{emoji}</span>
+                <span style={{ fontSize: '13px', fontWeight: '700', color: t.primary }}>{t.name}</span>
+                <span style={{ fontSize: '11px', color: '#9ca3af' }}>{desc}</span>
+                {selected && <span style={{ fontSize: '16px' }}>✓</span>}
+              </button>
+            )
+          })}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
