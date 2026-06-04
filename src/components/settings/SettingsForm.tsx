@@ -3,33 +3,36 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { THEMES } from '@/lib/themes'
-import { Theme, Budget } from '@/types'
-import DarkModeToggle from '@/components/ui/DarkModeToggle'
-import BudgetForm from '@/components/budget/BudgetForm'
+import type { Theme } from '@/types'
+
+const BASIC_THEMES: Theme[] = ['Burgundy', 'Sage', 'Lavender', 'Terracotta']
+const PREMIUM_THEMES = [
+  { key: 'Oatmeal', color: '#C8B8A2', label: 'Oatmeal' },
+  { key: 'WarmGray', color: '#9E9E9E', label: 'Warm Gray' },
+  { key: 'Midnight', color: '#1A237E', label: 'Midnight' },
+  { key: 'Indigo', color: '#3949AB', label: 'Indigo' },
+]
 
 interface Props {
   profile: any
   userId: string
   email: string
-  provider?: string
-  budgets: Budget[]
-  expenses: { category: string; amount: number }[]
-  thisMonth: string
+  provider: string
 }
 
-
-export default function SettingsForm({ profile, userId, email, provider, budgets, expenses, thisMonth }: Props) {
+export default function SettingsForm({ profile, userId, email, provider }: Props) {
   const router = useRouter()
   const supabase = createClient()
-  const [tab, setTab] = useState<'profile' | 'category' | 'display' | 'login'>('profile')
-  const [name, setName] = useState(profile?.name ?? '')
   const [theme, setTheme] = useState<Theme>(profile?.theme ?? 'Burgundy')
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [confirmWithdraw, setConfirmWithdraw] = useState(false)
-  const [withdrawing, setWithdrawing] = useState(false)
+  const [name, setName] = useState(profile?.name ?? '')
+  const [editingName, setEditingName] = useState(false)
+  const [savingName, setSavingName] = useState(false)
+  const [notifications, setNotifications] = useState({
+    all: true, card: true, report: true, reminder: true,
+  })
+  const [loggingOut, setLoggingOut] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
-  // 테마 즉시 적용
   function applyTheme(t: Theme) {
     setTheme(t)
     const colors = THEMES[t]
@@ -38,208 +41,212 @@ export default function SettingsForm({ profile, userId, email, provider, budgets
     root.style.setProperty('--color-primary-mid', colors.primaryMid)
     root.style.setProperty('--color-primary-light', colors.primaryLight)
     root.style.setProperty('--color-accent', colors.accent)
-    root.style.setProperty('--color-accent', colors.accent)
     root.style.setProperty('--color-bg', colors.bg)
     document.body.style.background = colors.bg
-    // 즉시 DB 저장
-    supabase.from('users').upsert({ id: userId, theme: t }).then(() => {
-      router.refresh()
-    })
+    supabase.from('users').upsert({ id: userId, theme: t }).then(() => router.refresh())
   }
 
-  async function handleSaveProfile() {
-    setSaving(true)
-    await supabase.from('users').upsert({
-      id: userId,
-      name: name.trim() || profile?.name,
-    })
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+  async function saveName() {
+    if (!name.trim()) return
+    setSavingName(true)
+    await supabase.from('users').update({ name: name.trim() }).eq('id', userId)
+    setSavingName(false)
+    setEditingName(false)
     router.refresh()
-  }
-
-  async function handleWithdraw() {
-    setWithdrawing(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await Promise.all([
-        supabase.from('users').delete().eq('id', user.id),
-        supabase.from('expenses').delete().eq('user_id', user.id),
-        supabase.from('budgets').delete().eq('user_id', user.id),
-        supabase.from('fixed_costs').delete().eq('user_id', user.id),
-      ])
-    }
-    await supabase.auth.signOut()
-    router.push('/login')
   }
 
   async function handleLogout() {
+    setLoggingOut(true)
     await supabase.auth.signOut()
     router.push('/login')
-    router.refresh()
   }
 
-  const card = { background: '#fff', borderRadius: '16px', border: '1px solid #f0f0f0', padding: '16px', marginBottom: '12px' }
-  const inputStyle = {
-    width: '100%', padding: '10px 12px', borderRadius: '12px',
-    border: '1.5px solid #EDE3E5', background: '#fafafa',
-    fontSize: '14px', color: '#3D2020', outline: 'none',
-    boxSizing: 'border-box' as const, fontFamily: 'inherit',
+  async function handleDeleteAccount() {
+    await supabase.from('users').delete().eq('id', userId)
+    await supabase.auth.signOut()
+    router.push('/login')
   }
-  const label = { fontSize: '11px', color: '#aaa', marginBottom: '6px', display: 'block' as const }
 
-  const TABS = [
-    { id: 'profile', label: '프로필' },
-    { id: 'category', label: '예산' },
-    { id: 'display', label: '화면' },
-    { id: 'login', label: '계정' },
-  ] as const
+  const card: React.CSSProperties = { background: '#fff', borderRadius: 18, border: '1px solid #f0f0f0', marginBottom: 10, overflow: 'hidden' }
+  const sectionHeader: React.CSSProperties = { fontSize: 12, fontWeight: 700, color: '#9ca3af', padding: '14px 16px 6px', letterSpacing: '0.05em' }
+  const rowStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 16px', borderBottom: '1px solid #f9fafb' }
 
   return (
     <div>
-      {/* 탭 */}
-      <div style={{ display: 'flex', background: '#F0EAEC', borderRadius: '16px', padding: '4px', marginBottom: '20px', gap: '4px' }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
-            flex: 1, padding: '8px', borderRadius: '12px', fontSize: '13px', fontWeight: '600',
-            border: 'none', cursor: 'pointer',
-            background: tab === t.id ? 'var(--color-primary)' : 'transparent',
-            color: tab === t.id ? '#fff' : '#B8A8AC', fontFamily: 'inherit',
+      {/* 프로필 상단 */}
+      <div style={{ ...card, padding: '24px 16px', textAlign: 'center' as const, marginBottom: 16 }}>
+        <div style={{ fontSize: 48, marginBottom: 12 }}>🌿</div>
+        {editingName ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', marginBottom: 8 }}>
+            <input value={name} onChange={e => setName(e.target.value)}
+              style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-accent)', border: '1.5px solid var(--color-primary-light)', borderRadius: 10, padding: '6px 12px', outline: 'none', fontFamily: 'inherit', textAlign: 'center' as const }}
+              maxLength={12} autoFocus />
+            <button onClick={saveName} disabled={savingName}
+              style={{ fontSize: 12, padding: '6px 12px', borderRadius: 10, border: 'none', background: 'var(--color-primary)', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+              {savingName ? '...' : '저장'}
+            </button>
+            <button onClick={() => setEditingName(false)}
+              style={{ fontSize: 12, padding: '6px 10px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
+          </div>
+        ) : (
+          <div style={{ marginBottom: 4 }}>
+            <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-accent)' }}>{profile?.name ?? '이름 없음'}</span>
+            <button onClick={() => setEditingName(true)}
+              style={{ marginLeft: 8, fontSize: 11, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>✏️</button>
+          </div>
+        )}
+        <p style={{ fontSize: 13, color: '#9ca3af', marginBottom: 16 }}>{email}</p>
+        <button onClick={() => router.push('/premium')}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '10px 24px', borderRadius: 12,
+            background: 'linear-gradient(135deg, #f59e0b, #ef4444)',
+            color: '#fff', fontSize: 14, fontWeight: 700,
+            border: 'none', cursor: 'pointer', fontFamily: 'inherit',
           }}>
-            {t.label}
-          </button>
+          💎 Premium
+        </button>
+      </div>
+
+      {/* 계정 섹션 */}
+      <div style={card}>
+        <p style={sectionHeader}>👤 계정</p>
+        <div style={rowStyle}>
+          <span style={{ fontSize: 14, color: '#374151' }}>로그인 방식</span>
+          <span style={{ fontSize: 13, color: '#6b7280' }}>
+            {provider === 'google' ? 'Google' : provider === 'kakao' ? '카카오' : '이메일'}
+          </span>
+        </div>
+        <div style={{ ...rowStyle, borderBottom: 'none' }}>
+          <span style={{ fontSize: 14, color: '#374151' }}>이메일</span>
+          <span style={{ fontSize: 13, color: '#6b7280' }}>{email}</span>
+        </div>
+      </div>
+
+      {/* 테마 섹션 */}
+      <div style={card}>
+        <p style={sectionHeader}>🎨 테마</p>
+        <div style={{ padding: '0 16px 16px' }}>
+          <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 10, fontWeight: 600 }}>기본</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+            {BASIC_THEMES.map(key => {
+              const t = THEMES[key]
+              const selected = theme === key
+              return (
+                <button key={key} onClick={() => applyTheme(key)} style={{
+                  padding: '12px', borderRadius: 14,
+                  border: selected ? '2.5px solid ' + t.primary : '2px solid transparent',
+                  background: selected ? t.primaryLight : '#f9fafb',
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  transition: 'all 0.15s',
+                }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: t.primary, flexShrink: 0 }} />
+                  <div style={{ textAlign: 'left' as const }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: t.primary }}>{t.name}</p>
+                    {selected && <p style={{ fontSize: 10, color: t.primaryMid }}>적용 중 ✓</p>}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+          <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 10, fontWeight: 600 }}>프리미엄 ✨</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {PREMIUM_THEMES.map(t => (
+              <button key={t.key} onClick={() => router.push('/premium')} style={{
+                padding: '12px', borderRadius: 14,
+                border: '2px solid transparent',
+                background: '#f9fafb',
+                cursor: 'pointer', fontFamily: 'inherit',
+                display: 'flex', alignItems: 'center', gap: 10,
+                opacity: 0.6,
+              }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: t.color, flexShrink: 0, position: 'relative' as const }}>
+                  <span style={{ position: 'absolute' as const, top: -4, right: -4, fontSize: 12 }}>🔒</span>
+                </div>
+                <p style={{ fontSize: 12, fontWeight: 700, color: '#6b7280' }}>{t.label}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 알림 섹션 */}
+      <div style={card}>
+        <p style={sectionHeader}>🔔 알림</p>
+        {[
+          { key: 'all', label: '전체 알림', desc: '' },
+          { key: 'card', label: '카드 납부 리마인드', desc: '납부일 3일 전 알림' },
+          { key: 'report', label: '월간 리포트 공개', desc: '매월 1일 리포트 알림' },
+          { key: 'reminder', label: '지출 입력 리마인드', desc: '점심(12:00) · 저녁(19:00)' },
+        ].map((item, i, arr) => (
+          <div key={item.key} style={{ ...rowStyle, borderBottom: i < arr.length - 1 ? '1px solid #f9fafb' : 'none' }}>
+            <div>
+              <p style={{ fontSize: 14, color: '#374151' }}>{item.label}</p>
+              {item.desc && <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{item.desc}</p>}
+            </div>
+            <button onClick={() => setNotifications(n => ({ ...n, [item.key]: !n[item.key as keyof typeof n] }))}
+              style={{
+                width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+                background: notifications[item.key as keyof typeof notifications] ? 'var(--color-primary)' : '#d1d5db',
+                transition: 'background 0.2s', position: 'relative' as const, flexShrink: 0,
+              }}>
+              <div style={{
+                position: 'absolute' as const, top: 3,
+                left: notifications[item.key as keyof typeof notifications] ? 22 : 3,
+                width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+              }} />
+            </button>
+          </div>
         ))}
       </div>
 
-      {/* 프로필 탭 */}
-      {tab === 'profile' && (
-        <div>
-          <div style={card}>
-            <p style={{ ...label, fontWeight: '600', color: '#555', fontSize: '12px', marginBottom: '14px' }}>프로필 정보</p>
-            <div>
-              <label style={label}>닉네임</label>
-              <input style={inputStyle} value={name} onChange={e => setName(e.target.value)} placeholder="닉네임" maxLength={12} />
-            </div>
-          </div>
-          <button onClick={handleSaveProfile} disabled={saving} style={{
-            width: '100%', padding: '14px', borderRadius: '14px',
-            background: saved ? '#2E7D52' : 'var(--color-primary)',
-            color: '#fff', fontSize: '14px', fontWeight: '600',
-            border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-            transition: 'background 0.3s', marginBottom: '12px',
-          }}>
-            {saving ? '저장 중...' : saved ? '✓ 저장됨' : '변경사항 저장'}
+      {/* 앱 정보 */}
+      <div style={card}>
+        <p style={sectionHeader}>ℹ️ 앱 정보</p>
+        <div style={rowStyle}>
+          <span style={{ fontSize: 14, color: '#374151' }}>버전</span>
+          <span style={{ fontSize: 13, color: '#9ca3af' }}>1.0.0</span>
+        </div>
+        <div style={{ ...rowStyle, borderBottom: 'none' }}>
+          <span style={{ fontSize: 14, color: '#374151' }}>개인정보 처리방침</span>
+          <span style={{ fontSize: 14, color: '#9ca3af' }}>›</span>
+        </div>
+      </div>
+
+      {/* 계정 관리 */}
+      <div style={card}>
+        <p style={sectionHeader}>⚠️ 계정 관리</p>
+        <button onClick={handleLogout} disabled={loggingOut}
+          style={{ ...rowStyle, width: '100%', textAlign: 'left' as const, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', borderBottom: '1px solid #f9fafb' }}>
+          <span style={{ fontSize: 14, color: '#374151' }}>{loggingOut ? '로그아웃 중...' : '로그아웃'}</span>
+          <span style={{ fontSize: 14, color: '#9ca3af' }}>›</span>
+        </button>
+        {!confirmDelete ? (
+          <button onClick={() => setConfirmDelete(true)}
+            style={{ ...rowStyle, width: '100%', textAlign: 'left' as const, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', borderBottom: 'none' }}>
+            <span style={{ fontSize: 14, color: '#ef4444' }}>회원 탈퇴</span>
+            <span style={{ fontSize: 14, color: '#9ca3af' }}>›</span>
           </button>
-        </div>
-      )}
-
-      {/* 예산 탭 */}
-      {tab === 'category' && (
-        <div>
-          <p className="text-xs text-gray-400 mb-3">{thisMonth.replace('-', '년 ')}월 카테고리별 목표 예산</p>
-          <BudgetForm
-            userId={userId}
-            initialBudgets={budgets}
-            expenses={expenses}
-            thisMonth={thisMonth}
-            income={profile?.income ?? 0}
-          />
-        </div>
-      )}
-
-      {/* 화면 탭 */}
-      {tab === 'display' && (
-        <div>
-          <div style={card}>
-            <DarkModeToggle />
-          </div>
-          <div style={card}>
-            <p style={{ ...label, fontWeight: '600', color: '#555', fontSize: '12px', marginBottom: '14px' }}>테마</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              {(Object.keys(THEMES) as Theme[]).map((key) => {
-                const t = THEMES[key]
-                const selected = theme === key
-                return (
-                  <button key={key} onClick={() => applyTheme(key)} style={{
-                    display: 'flex', alignItems: 'center', gap: '10px',
-                    padding: '12px', borderRadius: '12px',
-                    border: selected ? `2px solid ${t.primary}` : '2px solid transparent',
-                    background: selected ? t.primaryLight : '#fafafa',
-                    cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
-                  }}>
-                    <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: t.primary, flexShrink: 0 }} />
-                    <span style={{ fontSize: '13px', fontWeight: '600', color: t.accent }}>{t.name}</span>
-                  </button>
-                )
-              })}
+        ) : (
+          <div style={{ padding: '12px 16px' }}>
+            <p style={{ fontSize: 13, color: '#374151', marginBottom: 10 }}>
+              정말 탈퇴하시겠어요? 모든 데이터가 삭제되며 복구할 수 없어요.
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={handleDeleteAccount}
+                style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: '#ef4444', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                탈퇴하기
+              </button>
+              <button onClick={() => setConfirmDelete(false)}
+                style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                취소
+              </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* 계정 탭 */}
-      {tab === 'login' && (
-        <div>
-          <div style={card}>
-            <p style={{ ...label, fontWeight: '600', color: '#555', fontSize: '12px', marginBottom: '14px' }}>로그인 정보</p>
-            <div style={{ marginBottom: '10px' }}>
-              <label style={label}>이메일</label>
-              <input style={{ ...inputStyle, color: '#aaa' }} value={email} disabled />
-            </div>
-            <div style={{ padding: '10px 12px', borderRadius: '12px', background: '#f8f8f8', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {provider === 'google' ? (
-                <>
-                  <svg width="16" height="16" viewBox="0 0 48 48">
-                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                  </svg>
-                  <span style={{ fontSize: '13px', color: '#555' }}>Google 계정으로 로그인됨</span>
-                </>
-              ) : (
-                <>
-                  <span style={{ fontSize: '13px' }}>✉️</span>
-                  <span style={{ fontSize: '13px', color: '#555' }}>이메일로 로그인됨</span>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div style={card}>
-            <button onClick={handleLogout} style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: '#E05070', fontSize: '14px', fontWeight: '600',
-              padding: '4px 0', fontFamily: 'inherit', display: 'block', width: '100%', textAlign: 'left' as const,
-            }}>
-              로그아웃
-            </button>
-            <div style={{ borderTop: '1px solid #f0f0f0', marginTop: '12px', paddingTop: '12px' }}>
-              {!confirmWithdraw ? (
-                <button onClick={() => setConfirmWithdraw(true)} style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  color: '#ccc', fontSize: '12px', padding: 0, fontFamily: 'inherit',
-                }}>계정 탈퇴</button>
-              ) : (
-                <div>
-                  <p style={{ fontSize: '12px', color: '#E05070', marginBottom: '8px' }}>정말 탈퇴하시겠어요? 모든 데이터가 삭제됩니다.</p>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => setConfirmWithdraw(false)} style={{
-                      flex: 1, padding: '8px', borderRadius: '10px', background: '#f5f5f5',
-                      border: 'none', cursor: 'pointer', fontSize: '12px', color: '#888', fontFamily: 'inherit',
-                    }}>취소</button>
-                    <button onClick={handleWithdraw} disabled={withdrawing} style={{
-                      flex: 1, padding: '8px', borderRadius: '10px', background: '#E05070',
-                      border: 'none', cursor: 'pointer', fontSize: '12px', color: '#fff', fontWeight: '600', fontFamily: 'inherit',
-                    }}>{withdrawing ? '처리 중...' : '탈퇴 확인'}</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

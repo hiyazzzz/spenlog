@@ -379,7 +379,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
               <p style={{ fontSize: 13, fontWeight: 600, color: '#1f2937' }}>{card.name}</p>
               <p style={{ fontSize: 11, color: '#9ca3af' }}>
                 {card.bank}{card.due_day ? ' · 결제일 매월 ' + card.due_day + '일' : ''}
-                {card.linked_account_id ? ' · ' + (localAccounts.find(a => a.id === card.linked_account_id)?.name ?? '') : ''}
+                {card.linked_account ? ' · ' + (localAccounts.find(a => a.id === card.linked_account)?.name ?? '') : ''}
               </p>
             </div>
             <button onClick={() => deleteCard(card.id)} style={{ fontSize: 11, color: '#ef4444', background: '#fef2f2', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
