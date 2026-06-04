@@ -5,18 +5,31 @@ import { useState } from 'react'
 export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const supabase = createClient()
 
   async function handleGoogle() {
     setLoading(true)
     setError('')
-    const { error: err } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-    if (err) { setError(err.message); setLoading(false) }
+    try {
+      const supabase = createClient()
+      const { error: err } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      })
+      if (err) {
+        setError(err.message)
+        setLoading(false)
+      }
+      // 정상이면 Google 페이지로 리다이렉트됨 (loading 유지)
+    } catch (e: any) {
+      setError(e?.message ?? '구글 로그인 중 오류가 발생했어요')
+      setLoading(false)
+    }
   }
 
   return (
@@ -32,11 +45,14 @@ export default function LoginPage() {
       margin: '0 auto',
     }}>
       {/* 로고 */}
-      <div style={{ textAlign: 'center' as const, marginBottom: '56px' }}>
-        <h1 style={{ fontSize: '48px', fontWeight: '800', color: '#6B1E2E', letterSpacing: '-2px', marginBottom: '8px' }}>
+      <div style={{ textAlign: 'center' as const, marginBottom: '64px' }}>
+        <h1 style={{
+          fontSize: '52px', fontWeight: '800', color: '#6B1E2E',
+          letterSpacing: '-2px', marginBottom: '12px', lineHeight: 1,
+        }}>
           Spenlog
         </h1>
-        <p style={{ fontSize: '14px', color: '#B8A8AC', letterSpacing: '0.05em' }}>
+        <p style={{ fontSize: '13px', color: '#C4A0A8', letterSpacing: '0.08em', fontWeight: '400' }}>
           spend · log · reflect
         </p>
       </div>
@@ -49,22 +65,30 @@ export default function LoginPage() {
           width: '100%',
           padding: '16px',
           borderRadius: '16px',
-          background: loading ? '#C4A0A8' : '#fff',
+          background: loading ? '#F5EFED' : '#fff',
           border: '1.5px solid #EDE3E5',
           fontSize: '15px',
           fontWeight: '600',
-          color: '#3D2020',
+          color: loading ? '#C4A0A8' : '#3D2020',
           cursor: loading ? 'not-allowed' : 'pointer',
           fontFamily: 'inherit',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           gap: '12px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          boxShadow: loading ? 'none' : '0 2px 8px rgba(0,0,0,0.06)',
+          transition: 'all 0.2s',
         }}
       >
         {loading ? (
-          <span>연결 중...</span>
+          <>
+            <div style={{
+              width: 20, height: 20, borderRadius: '50%',
+              border: '2px solid #EDE3E5', borderTopColor: '#6B1E2E',
+              animation: 'spin 0.8s linear infinite',
+            }} />
+            연결 중...
+          </>
         ) : (
           <>
             <svg width="20" height="20" viewBox="0 0 48 48">
@@ -79,16 +103,31 @@ export default function LoginPage() {
       </button>
 
       {error && (
-        <p style={{ fontSize: '13px', color: '#E05070', marginTop: '16px', textAlign: 'center' as const }}>
-          {error}
-        </p>
+        <div style={{
+          marginTop: '16px', padding: '12px 16px',
+          background: '#FFF5F7', border: '1px solid #F5D0D8',
+          borderRadius: '12px', width: '100%',
+        }}>
+          <p style={{ fontSize: '13px', color: '#C0405A', margin: 0, textAlign: 'center' as const }}>
+            {error}
+          </p>
+        </div>
       )}
 
       {/* 약관 안내 */}
-      <p style={{ fontSize: '11px', color: '#C4A0A8', marginTop: '32px', textAlign: 'center' as const, lineHeight: 1.6 }}>
-        계속하면 <span style={{ textDecoration: 'underline' }}>이용약관</span> 및{' '}
-        <span style={{ textDecoration: 'underline' }}>개인정보처리방침</span>에{'\n'}동의하게 됩니다
+      <p style={{
+        fontSize: '11px', color: '#C4A0A8', marginTop: '32px',
+        textAlign: 'center' as const, lineHeight: 1.8,
+      }}>
+        계속하면 <span style={{ textDecoration: 'underline', textUnderlineOffset: '2px' }}>이용약관</span> 및{' '}
+        <span style={{ textDecoration: 'underline', textUnderlineOffset: '2px' }}>개인정보처리방침</span>에 동의하게 됩니다
       </p>
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   )
 }
