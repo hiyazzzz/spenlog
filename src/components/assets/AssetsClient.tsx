@@ -146,7 +146,7 @@ function BudgetRow({ category, budgetAmt, spent, onSave }: {
   )
 }
 
-export default function AssetsClient({ profile, userId, accounts, cards, fixedCosts, budgets, thisMonthSpent, categorySpent, thisMonth }: Props) {
+export default function AssetsClient({ profile, userId, accounts, cards, fixedCosts, budgets, thisMonthSpent, categorySpent, thisMonth, customCategories }: Props) {
   const supabase = createClient()
   const router = useRouter()
   const [localAccounts, setLocalAccounts] = useState(accounts)
