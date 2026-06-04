@@ -26,11 +26,12 @@ export async function POST(req: Request) {
     const today = kst.toISOString().split('T')[0]
 
     const prompt = [
-      'JSON만 출력. 설명 금지. 마크다운 금지.',
+      'JSON 배열만 출력. 설명/마크다운 금지.',
       `입력: "${text.trim()}"`,
       `오늘: ${today}`,
       cardList ? `유저카드: ${cardList}` : null,
-      '출력형식(반드시 이 구조만): {"name":"항목명","amount":숫자,"category":"카테고리","payment_method":null또는문자열,"date":"YYYY-MM-DD","memo":null}',
+      '출력형식(반드시 배열): [{"name":"항목명","amount":숫자,"category":"카테고리","payment_method":null또는문자열,"date":"YYYY-MM-DD","memo":null}, ...]',
+      '여러 지출 항목이 있으면 각각 분리해서 배열에 넣기. 1개여도 배열로 감싸기.',
       'amount규칙: 삼천=3000 오천=5000 만=10000 만오천=15000 이만=20000 삼만=30000 | 3천=3000 5천=5000 1만=10000 | 숫자+원/천원/만원 계산',
       'name약어: 아아/아아이스→아이스아메리카노 따아→아메리카노 배민→배달의민족 편의점/편→편의점 맥날→맥도날드 스벅→스타벅스',
       'category선택(하나만): 활동비(카페배달외식음료쇼핑) 생활비(마트편의점식료품) 고정비(구독월세통신) 친목비(술모임선물) 예비비(기타)',
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 256, temperature: 0.1 },
+          generationConfig: { maxOutputTokens: 512, temperature: 0.1 },
         }),
       }
     )
@@ -58,22 +59,29 @@ export async function POST(req: Request) {
     const raw = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
     if (!raw) throw new Error('Gemini 응답 없음')
 
-    // JSON 추출
+    // JSON 추출 (배열)
     const codeMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
     const jsonStr = codeMatch ? codeMatch[1].trim() : raw
-    const objMatch = jsonStr.match(/\{[\s\S]*\}/)
-    if (!objMatch) throw new Error('JSON not found: ' + raw.slice(0, 80))
+    const arrMatch = jsonStr.match(/\[[\s\S]*\]/)
+    if (!arrMatch) throw new Error('JSON array not found: ' + raw.slice(0, 80))
 
-    const parsed = JSON.parse(objMatch[0])
+    const parsed: any[] = JSON.parse(arrMatch[0])
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      throw new Error('파싱 결과가 비어있습니다')
+    }
 
-    if (!parsed.amount || typeof parsed.amount !== 'number' || parsed.amount <= 0) {
+    const validItems = parsed.filter(
+      (item) => item.amount && typeof item.amount === 'number' && item.amount > 0
+    )
+
+    if (validItems.length === 0) {
       return NextResponse.json(
         { error: '금액을 인식하지 못했어요. 예) 아아 3000원 / 커피 삼천원' },
         { status: 422 }
       )
     }
 
-    return NextResponse.json({ result: parsed, cards: cards ?? [] })
+    return NextResponse.json({ results: validItems, cards: cards ?? [] })
 
   } catch (error: any) {
     const msg = error?.message || String(error)

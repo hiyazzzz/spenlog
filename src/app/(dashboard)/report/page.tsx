@@ -73,17 +73,17 @@ export default async function ReportPage({ searchParams }: Props) {
       <div className="rounded-2xl p-5 mb-4 text-white" style={{ background: goalAchieved ? '#10B981' : 'var(--color-primary)' }}>
         <p className="text-sm opacity-80 mb-1">{monthLabel} 소비 총평</p>
         <p className="text-2xl font-bold mb-3">
-          {goalAchieved ? '🎉 저축 목표 달성!' : savingGoal > 0 ? `목표까지 ${(savingGoal - savedAmount).toLocaleString()}원` : `${totalSpent.toLocaleString()}원 지출`}
+          {goalAchieved ? '🎉 저축 목표 달성!' : savingGoal > 0 ? `목표까지 ₩${(savingGoal - savedAmount).toLocaleString()}` : `₩${totalSpent.toLocaleString()} 지출`}
         </p>
         <div className="flex gap-6 text-sm flex-wrap">
           <div>
             <p className="opacity-70 text-xs">총 지출</p>
-            <p className="font-bold">{totalSpent.toLocaleString()}원</p>
+            <p className="font-bold">₩{totalSpent.toLocaleString()}</p>
           </div>
           {income > 0 && (
             <div>
               <p className="opacity-70 text-xs">실제 저축</p>
-              <p className="font-bold">{savedAmount.toLocaleString()}원</p>
+              <p className="font-bold">₩{savedAmount.toLocaleString()}</p>
             </div>
           )}
           {savingGoal > 0 && (
@@ -103,7 +103,7 @@ export default async function ReportPage({ searchParams }: Props) {
             {spendingDiff > 0 ? '▲' : '▼'} {Math.abs(spendingDiff)}%
           </p>
           <p className="text-xs text-gray-400 mt-1">
-            {dayjs(prevMonth).format('M월')} {prevTotalSpent.toLocaleString()}원 → {dayjs(currentMonth).format('M월')} {totalSpent.toLocaleString()}원
+            {dayjs(prevMonth).format('M월')} ₩{prevTotalSpent.toLocaleString()} → {dayjs(currentMonth).format('M월')} ₩{totalSpent.toLocaleString()}
           </p>
         </div>
       )}
@@ -122,7 +122,7 @@ export default async function ReportPage({ searchParams }: Props) {
                 <div className="flex-1">
                   <div className="flex justify-between text-xs mb-1">
                     <span className="font-medium text-gray-700">{cat}</span>
-                    <span className="font-bold text-gray-800">{amount.toLocaleString()}원</span>
+                    <span className="font-bold text-gray-800">₩{amount.toLocaleString()}</span>
                   </div>
                   <div className="bg-gray-100 rounded-full h-1.5 overflow-hidden">
                     <div className="h-full rounded-full" style={{
@@ -145,7 +145,7 @@ export default async function ReportPage({ searchParams }: Props) {
           <p className="text-xs text-gray-400 mb-2">최다 지출일</p>
           <div className="flex justify-between items-center">
             <p className="font-semibold text-gray-800">{dayjs(topDay[0]).format('M월 D일 (ddd)')}</p>
-            <p className="font-bold" style={{ color: 'var(--color-primary)' }}>{topDay[1].toLocaleString()}원</p>
+            <p className="font-bold" style={{ color: 'var(--color-primary)' }}>₩{topDay[1].toLocaleString()}</p>
           </div>
         </div>
       )}

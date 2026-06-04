@@ -38,7 +38,9 @@ export default function SettingsForm({ profile, userId, email, provider, budgets
     root.style.setProperty('--color-primary-mid', colors.primaryMid)
     root.style.setProperty('--color-primary-light', colors.primaryLight)
     root.style.setProperty('--color-accent', colors.accent)
+    root.style.setProperty('--color-accent', colors.accent)
     root.style.setProperty('--color-bg', colors.bg)
+    document.body.style.background = colors.bg
     // 즉시 DB 저장
     supabase.from('users').upsert({ id: userId, theme: t }).then(() => {
       router.refresh()
