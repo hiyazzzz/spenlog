@@ -9,6 +9,7 @@ export default async function AssetsPage() {
   if (!user) redirect('/login')
 
   const thisMonth = dayjs().format('YYYY-MM')
+  const nextMonth = dayjs().add(1, 'month').format('YYYY-MM')
 
   const [
     { data: profile },
@@ -16,25 +17,17 @@ export default async function AssetsPage() {
     { data: cards },
     { data: fixedCosts },
     { data: expenses },
+    { data: budgets },
   ] = await Promise.all([
     supabase.from('users').select('*').eq('id', user.id).single(),
     supabase.from('accounts').select('*').eq('user_id', user.id),
     supabase.from('cards').select('*').eq('user_id', user.id),
     supabase.from('fixed_costs').select('*').eq('user_id', user.id),
-    supabase.from('expenses').select('amount').eq('user_id', user.id)
-      .gte('date', `${thisMonth}-01`)
-      .lt('date', `${dayjs().add(1, 'month').format('YYYY-MM')}-01`),
+    supabase.from('expenses').select('amount, category').eq('user_id', user.id)
+      .gte('date', `${thisMonth}-01`).lt('date', `${nextMonth}-01`),
+    supabase.from('budgets').select('*').eq('user_id', user.id).eq('month', thisMonth),
   ])
 
-  return (
-    <AssetsClient
-      profile={profile}
-      userId={user.id}
-      accounts={accounts ?? []}
-      cards={cards ?? []}
-      fixedCosts={fixedCosts ?? []}
-      thisMonthSpent={expenses?.reduce((s, e) => s + e.amount, 0) ?? 0}
-      thisMonth={thisMonth}
-    />
-  )
-}
+  const categorySpent: Record<string, number> = {}
+  expenses?.forEach(e => {
+    categorySpent[e.category] = (categorySpent[e.category] ??
