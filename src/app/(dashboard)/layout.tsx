@@ -20,7 +20,7 @@ export default async function DashboardLayout({
     const { data: profile } = await supabase
       .from('users').select('theme, guide_completed').eq('id', user.id).single()
     theme = profile?.theme ?? 'Burgundy'
-    guideCompleted = profile?.guide_completed ?? false
+    guideCompleted = profile?.guide_completed ?? true  // 기본값 true: 신규 유저만 가이드 노출
     userId = user.id
   }
 

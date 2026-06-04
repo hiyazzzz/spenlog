@@ -69,3 +69,36 @@ BEGIN
     CREATE POLICY incomes_own ON incomes FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
   END IF;
 END $$;
+
+-- 7. reports 테이블 (AI 코치 캐싱)
+CREATE TABLE IF NOT EXISTS reports (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      uuid REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+  year_month   text NOT NULL,
+  total_expense integer DEFAULT 0,
+  ai_coach     jsonb,
+  generated_at timestamptz,
+  created_at   timestamptz DEFAULT now(),
+  UNIQUE(user_id, year_month)
+);
+
+ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'reports' AND policyname = 'reports_own'
+  ) THEN
+    CREATE POLICY reports_own ON reports FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
+
+
+-- =============================================
+-- Sprint 1 Migration: 지출 저장 오류 수정
+-- =============================================
+
+-- expenses 테이블 source 컬럼 (없으면 추가)
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS source text DEFAULT 'manual';
+
+-- expenses RLS 정

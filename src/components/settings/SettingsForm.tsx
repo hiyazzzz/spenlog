@@ -57,14 +57,24 @@ export default function SettingsForm({ profile, userId, email, provider }: Props
 
   async function handleLogout() {
     setLoggingOut(true)
-    await supabase.auth.signOut()
-    router.push('/login')
+    // Google OAuth 캐시 방지: signOut 후 강제 로그인 화면 이동
+    await supabase.auth.signOut({ scope: 'global' })
+    // 브라우저 세션 스토리지 초기화
+    if (typeof window !== 'undefined') {
+      sessionStorage.clear()
+      localStorage.removeItem('spenlog_offline_queue')
+    }
+    window.location.href = '/login'
   }
 
   async function handleDeleteAccount() {
     await supabase.from('users').delete().eq('id', userId)
-    await supabase.auth.signOut()
-    router.push('/login')
+    await supabase.auth.signOut({ scope: 'global' })
+    if (typeof window !== 'undefined') {
+      sessionStorage.clear()
+      localStorage.clear()
+    }
+    window.location.href = '/login'
   }
 
   const card: React.CSSProperties = { background: '#fff', borderRadius: 18, border: '1px solid #f0f0f0', marginBottom: 10, overflow: 'hidden' }

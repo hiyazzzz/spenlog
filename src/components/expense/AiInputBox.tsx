@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useAiInputStore } from '@/store/useAiInputStore'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { CATEGORIES } from '@/lib/themes'
@@ -21,6 +22,7 @@ export default function AiInputBox({ userId }: { userId: string }) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
   const router = useRouter()
   const supabase = createClient()
+  const { setPrefill } = useAiInputStore()
 
   async function handleSubmit() {
     if (!text.trim()) return
@@ -40,14 +42,15 @@ export default function AiInputBox({ userId }: { userId: string }) {
       } else {
         const errMsg = data.error || '분류 실패'
         setError(errMsg + ' — 직접 입력할게요')
-        setTimeout(() => {
-          const params = new URLSearchParams()
-          const numMatch = text.match(/(\d[\d,]+)/)
-          if (numMatch) params.set('amount', numMatch[1].replace(/,/g, ''))
-          const nameGuess = text.split(/\s+/)[0]
-          if (nameGuess) params.set('name', nameGuess)
-          router.push('/add?' + params.toString())
-        }, 1200)
+        // Zustand store에 파싱 가능한 데이터 저장
+        const numMatch = text.match(/(\d[\d,]+)/)
+        const nameGuess = text.trim().split(/\s+/)[0]
+        setPrefill({
+          name: nameGuess || undefined,
+          amount: numMatch ? parseInt(numMatch[1].replace(/,/g, '')) : undefined,
+          originalText: text,
+        })
+        setTimeout(() => router.push('/add'), 1200)
       }
     } catch {
       setError('네트워크 오류 — 직접 입력할게요')
@@ -59,7 +62,15 @@ export default function AiInputBox({ userId }: { userId: string }) {
 
   async function handleConfirmAll() {
     if (previews.length === 0) return
-    await Promise.all(previews.map(p => supabase.from('expenses').insert({ user_id: userId, ...p })))
+    const results = await Promise.all(
+      previews.map(p => supabase.from('expenses').insert({ user_id: userId, ...p, source: 'ai_input' }))
+    )
+    const failed = results.filter(r => r.error)
+    if (failed.length > 0) {
+      console.error('[AiInput save error]', failed[0].error)
+      setError('저장 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.')
+      return
+    }
     setPreviews([])
     setText('')
     setEditingIdx(null)

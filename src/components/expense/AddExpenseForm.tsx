@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useAiInputStore } from '@/store/useAiInputStore'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { CATEGORIES } from '@/lib/themes'
@@ -20,10 +21,13 @@ function formatAmount(val: string): string {
 export default function AddExpenseForm({ prefill }: Props) {
   const router = useRouter()
   const supabase = createClient()
+  const { prefill: storePrefill, clearPrefill } = useAiInputStore()
+  // props prefill 우선, 없으면 store prefill
+  const effectivePrefill = prefill ?? storePrefill
   const [type, setType] = useState<'expense' | 'income'>('expense')
   const [form, setForm] = useState({
-    name: prefill?.name ?? '',
-    amount: prefill?.amount ? prefill.amount.toLocaleString() : '',
+    name: effectivePrefill?.name ?? '',
+    amount: effectivePrefill?.amount ? effectivePrefill.amount.toLocaleString() : '',
     category: prefill?.category ?? '생활비',
     date: dayjs().format('YYYY-MM-DD'),
     payment_method: '',
@@ -83,6 +87,7 @@ export default function AddExpenseForm({ prefill }: Props) {
         })
         if (saveErr) throw saveErr
       }
+      clearPrefill() // AI fallback store 클리어
       showToast(type === 'expense' ? '지출이 저장됐어요!' : '수입이 저장됐어요!')
       setForm({ name: '', amount: '', category: '생활비', date: dayjs().format('YYYY-MM-DD'), payment_method: '', memo: '' })
       router.refresh()

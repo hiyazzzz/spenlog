@@ -182,22 +182,34 @@ export default function OnboardingForm({ userId, email }: Props) {
           <div>
             <label style={{ fontSize: '13px', color: '#9A7A80', marginBottom: '8px', display: 'block', fontWeight: '600' }}>월 수입 (세후)</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '18px', fontWeight: '700', color: primary }}>₩</span>
-              <input type="text" inputMode="numeric" placeholder="0" value={income}
+              <input type="text" inputMode="numeric" placeholder="300"
+                value={income}
                 onChange={e => setIncome(formatWon(e.target.value))}
                 style={{ ...inputStyle, flex: 1 }} autoFocus />
+              <span style={{ fontSize: '15px', color: primary, fontWeight: '600', whiteSpace: 'nowrap' as const }}>만 원</span>
             </div>
+            {income && (
+              <p style={{ fontSize: '12px', color: '#9A7A80', marginTop: '6px' }}>
+                = ₩{(parseInt(income.replace(/,/g, '')) * 10000).toLocaleString()}
+              </p>
+            )}
           </div>
           <div>
             <label style={{ fontSize: '13px', color: '#9A7A80', marginBottom: '8px', display: 'block', fontWeight: '600' }}>
               저축 목표 <span style={{ fontWeight: '400', color: '#C4A0A8' }}>(선택)</span>
             </label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '18px', fontWeight: '700', color: primary }}>₩</span>
-              <input type="text" inputMode="numeric" placeholder="0" value={goal}
+              <input type="text" inputMode="numeric" placeholder="50"
+                value={goal}
                 onChange={e => setGoal(formatWon(e.target.value))}
                 style={{ ...inputStyle, flex: 1 }} />
+              <span style={{ fontSize: '15px', color: primary, fontWeight: '600', whiteSpace: 'nowrap' as const }}>만 원</span>
             </div>
+            {goal && (
+              <p style={{ fontSize: '12px', color: '#9A7A80', marginTop: '6px' }}>
+                = ₩{(parseInt(goal.replace(/,/g, '')) * 10000).toLocaleString()}
+              </p>
+            )}
             <p style={{ fontSize: '11px', color: '#C4A0A8', marginTop: '6px' }}>💡 입력하면 저축 달성률을 볼 수 있어요</p>
           </div>
         </div>
