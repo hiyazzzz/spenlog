@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import BottomNav from '@/components/ui/BottomNav'
 import ThemeProvider from '@/components/ui/ThemeProvider'
 import GuideOverlay from '@/components/onboarding/GuideOverlay'
+import OfflineBanner from '@/components/ui/OfflineBanner'
 
 export default async function DashboardLayout({
   children,
@@ -30,6 +31,7 @@ export default async function DashboardLayout({
         {children}
       </main>
       <BottomNav />
+      <OfflineBanner />
       {!guideCompleted && userId && (
         <GuideOverlay userId={userId} />
       )}

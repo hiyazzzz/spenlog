@@ -60,17 +60,28 @@ export default function AddExpenseForm({ prefill }: Props) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
       if (type === 'expense') {
-        await supabase.from('expenses').insert({
+        const { error: saveErr } = await supabase.from('expenses').insert({
           user_id: user.id, name: form.name.trim(), amount,
           category: form.category, date: form.date,
           payment_method: form.payment_method || null,
           memo: form.memo || null, source: 'manual',
         })
+        if (saveErr) {
+          if (!navigator.onLine) {
+            const queue = JSON.parse(localStorage.getItem('spenlog_offline_queue') || '[]')
+            queue.push({ name: form.name.trim(), amount, category: form.category, date: form.date, payment_method: form.payment_method || null, memo: form.memo || null, source: 'manual' })
+            localStorage.setItem('spenlog_offline_queue', JSON.stringify(queue))
+            showToast('임시 저장했어요. 인터넷 연결 후 자동 반영돼요')
+          } else {
+            throw saveErr
+          }
+        }
       } else {
-        await supabase.from('incomes').insert({
+        const { error: saveErr } = await supabase.from('incomes').insert({
           user_id: user.id, name: form.name.trim(), amount,
           date: form.date, memo: form.memo || null, source: 'manual',
         })
+        if (saveErr) throw saveErr
       }
       showToast(type === 'expense' ? '지출이 저장됐어요!' : '수입이 저장됐어요!')
       setForm({ name: '', amount: '', category: '생활비', date: dayjs().format('YYYY-MM-DD'), payment_method: '', memo: '' })
