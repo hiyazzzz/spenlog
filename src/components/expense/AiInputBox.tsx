@@ -43,10 +43,23 @@ export default function AiInputBox({ userId }: { userId: string }) {
         setCards(data.cards ?? [])
         setEditingIdx(null)
       } else {
-        setError(data.error || '분류 실패')
+        // AI 오류 → 수동 입력 fallback
+        const errMsg = data.error || '분류 실패'
+        setError(`${errMsg} — 직접 입력할게요`)
+        setTimeout(() => {
+          const params = new URLSearchParams()
+          // 텍스트에서 숫자 추출 시도
+          const numMatch = text.match(/(\d[\d,]+)/)
+          if (numMatch) params.set('amount', numMatch[1].replace(/,/g, ''))
+          // 첫 단어를 이름으로
+          const nameGuess = text.split(/\s+/)[0]
+          if (nameGuess) params.set('name', nameGuess)
+          router.push(`/add?${params.toString()}`)
+        }, 1200)
       }
     } catch {
-      setError('네트워크 오류가 발생했어요')
+      setError('네트워크 오류 — 직접 입력할게요')
+      setTimeout(() => router.push('/add'), 1200)
     } finally {
       setLoading(false)
     }
@@ -210,19 +223,4 @@ export default function AiInputBox({ userId }: { userId: string }) {
             </div>
           ))}
 
-          <div className="flex gap-2 mt-1">
-            <button onClick={handleConfirmAll}
-              className="flex-1 text-white text-sm py-2.5 rounded-xl font-medium"
-              style={{ background: 'var(--color-primary)' }}>
-              {previews.length > 1 ? `${previews.length}건 전체 저장` : '저장'}
-            </button>
-            <button onClick={() => { setPreviews([]); setText(''); setEditingIdx(null) }}
-              className="flex-1 bg-white text-gray-500 text-sm py-2.5 rounded-xl border border-gray-200">
-              취소
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+         

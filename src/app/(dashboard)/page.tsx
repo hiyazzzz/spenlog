@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import dayjs from "dayjs";
 import AiInputBox from "@/components/expense/AiInputBox";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import Link from "next/link";
 import CategorySummary from "@/components/dashboard/CategorySummary";
 import RecentExpenses from "@/components/dashboard/RecentExpenses";
 
@@ -41,11 +42,7 @@ export default async function DashboardHomePage() {
         theme={profile?.theme ?? "Burgundy"}
       />
       <div className="p-5 bg-white rounded-2xl shadow-sm border border-gray-100">
-        <h2 className="text-sm font-bold text-gray-900 mb-3">한 줄 기록</h2>
-        <AiInputBox userId={user.id} />
-      </div>
-      <CategorySummary expenses={expenses ?? []} budgets={budgets ?? []} />
-      <RecentExpenses expenses={expenses ?? []} />
-    </div>
-  );
-}
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-bold text-gray-900">한 줄 기록</h2>
+          <Link href="/add"
+            className="w-8 h-8 flex items-center justify-center rounded-full t

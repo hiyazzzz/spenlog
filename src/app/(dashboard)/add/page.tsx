@@ -1,23 +1,23 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import AddTabs from '@/components/expense/AddTabs'
+import AddExpenseForm from '@/components/expense/AddExpenseForm'
+import Link from 'next/link'
 
-export default async function AddExpensePage() {
+interface Props {
+  searchParams: Promise<{ name?: string; amount?: string; category?: string }>
+}
+
+export default async function AddExpensePage({ searchParams }: Props) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: expenses } = await supabase
-    .from('expenses')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('date', { ascending: false })
-    .limit(100)
+  const params = await searchParams
+  const prefill = {
+    name: params.name,
+    amount: params.amount ? parseInt(params.amount) : undefined,
+    category: params.category,
+  }
 
   return (
-    <div className="min-h-screen bg-[#FAF7F4] pb-20">
-      <h1 className="text-lg font-semibold text-[#4A1220] mb-5">지출 관리</h1>
-      <AddTabs expenses={expenses ?? []} />
-    </div>
-  )
-}
+    <div className="m
