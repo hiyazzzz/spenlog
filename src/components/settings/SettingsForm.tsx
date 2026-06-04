@@ -31,7 +31,8 @@ export default function SettingsForm({ profile, userId, email, provider }: Props
     all: true, card: true, report: true, reminder: true,
   })
   const [loggingOut, setLoggingOut] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<boolean | 1 | 2>(false)
+  const [deleteConfirmName, setDeleteConfirmName] = useState('')
 
   function applyTheme(t: Theme) {
     setTheme(t)
@@ -239,17 +240,44 @@ export default function SettingsForm({ profile, userId, email, provider }: Props
             <span style={{ fontSize: 14, color: '#ef4444' }}>회원 탈퇴</span>
             <span style={{ fontSize: 14, color: '#9ca3af' }}>›</span>
           </button>
-        ) : (
+        ) : confirmDelete === 1 ? (
           <div style={{ padding: '12px 16px' }}>
-            <p style={{ fontSize: 13, color: '#374151', marginBottom: 10 }}>
-              정말 탈퇴하시겠어요? 모든 데이터가 삭제되며 복구할 수 없어요.
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 6 }}>탈퇴하시겠어요?</p>
+            <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12, lineHeight: 1.6 }}>
+              • 모든 지출 내역 / 자산 설정 / 구독 이력이 삭제돼요
             </p>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={handleDeleteAccount}
+              <button onClick={() => setConfirmDelete(2)}
                 style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: '#ef4444', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                탈퇴하기
+                계속
               </button>
               <button onClick={() => setConfirmDelete(false)}
+                style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                취소
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: '12px 16px' }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 4 }}>닉네임을 입력해 본인 확인</p>
+            <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 10 }}>
+              "{profile?.name ?? '닉네임'}"을 그대로 입력해주세요
+            </p>
+            <input
+              type="text"
+              placeholder={profile?.name ?? '닉네임'}
+              value={deleteConfirmName}
+              onChange={e => setDeleteConfirmName(e.target.value)}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit', marginBottom: 10, boxSizing: 'border-box' as const }}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirmName !== profile?.name}
+                style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: deleteConfirmName === profile?.name ? '#ef4444' : '#f3f4f6', color: deleteConfirmName === profile?.name ? '#fff' : '#9ca3af', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                탈퇴하기
+              </button>
+              <button onClick={() => { setConfirmDelete(false); setDeleteConfirmName('') }}
                 style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
                 취소
               </button>

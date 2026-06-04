@@ -101,4 +101,21 @@ END $$;
 -- expenses 테이블 source 컬럼 (없으면 추가)
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS source text DEFAULT 'manual';
 
--- expenses RLS 정
+-- expenses RLS 정책 재정비
+ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
+
+-- 기존 정책 삭제 후 재생성 (중복 방지)
+DROP POLICY IF EXISTS "expenses_select_own" ON expenses;
+DROP POLICY IF EXISTS "expenses_insert_own" ON expenses;
+DROP POLICY IF EXISTS "expenses_update_own" ON expenses;
+DROP POLICY IF EXISTS "expenses_delete_own" ON expenses;
+
+CREATE POLICY "expenses_select_own" ON expenses FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "expenses_insert_own" ON expenses FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "expenses_update_own" ON expenses FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "expenses_delete_own" ON expenses FOR DELETE USING (auth.uid() = user_id);
+
+
+-- =============================================
+-- Sprint 2: 카테고리 소프트 삭제
+-- ==============

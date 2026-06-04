@@ -15,7 +15,7 @@ export default function DashboardHeader({ totalSpent, savingGoal, income, userNa
   const isGoalMet = savingGoal > 0 && savedAmount >= savingGoal;
 
   return (
-    <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 mb-4">
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-4" style={{ minHeight: 160, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
       <div className="mb-4">
         <h1 className="text-xl font-bold text-gray-900">
           안녕하세요, <span style={{ color: 'var(--color-primary)' }}>{displayName}</span>님!

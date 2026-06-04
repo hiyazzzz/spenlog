@@ -13,7 +13,7 @@ export default function CategorySummary({ expenses, budgets }: Props) {
   const overallOver = totalSpent > totalBudget && totalBudget > 0
 
   return (
-    <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100">
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden" style={{ minHeight: 160, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-sm font-bold text-gray-900">카테고리별 지출 현황</h2>
         {totalBudget > 0 && (
