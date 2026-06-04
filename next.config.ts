@@ -12,6 +12,7 @@ const pwaConfig = withPWA({
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   turbopack: {},
+  serverExternalPackages: ['@supabase/supabase-js'],
 };
 
 export default pwaConfig(nextConfig);
