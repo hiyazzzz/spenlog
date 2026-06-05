@@ -6,13 +6,15 @@ import { CATEGORIES } from '@/lib/themes'
 import { Budget } from '@/types'
 
 interface Expense { category: string; amount: number }
+interface RecentExpense { category: string; amount: number; month: string }
 interface Props {
   userId: string
   initialBudgets: Budget[]
   expenses: Expense[]
   thisMonth: string
   income: number
-  fixedSavings?: number  // 고정저축 합계 (fixed_costs에서 kind='고정저축')
+  fixedSavings?: number
+  recentExpenses?: RecentExpense[]
 }
 
 // 저축 플랜 — 감각적 네이밍
@@ -48,13 +50,16 @@ function getInitialAmounts(initialBudgets: Budget[]) {
   ]))
 }
 
-export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth, income, fixedSavings = 0 }: Props) {
+export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth, income, fixedSavings = 0, recentExpenses = [] }: Props) {
   const supabase = createClient()
   const router = useRouter()
   const [tab, setTab] = useState<'manual' | 'ai'>('manual')
   const [loading, setLoading] = useState(false)
   const [savedOk, setSavedOk] = useState(false)
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiReason, setAiReason] = useState<string | null>(null)
+  const [aiToast, setAiToast] = useState<string | null>(null)
 
   // savedAmounts: DB 저장된 값 (탭 전환해도 유지)
   const savedAmounts = useMemo(() => getInitialAmounts(initialBudgets), [initialBudgets])
@@ -100,6 +105,59 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
     setAmounts(newAmounts)
   }
 
+  async function handleAiRecommend() {
+    if (!income) {
+      setAiToast('자산 탭에서 월 수입을 먼저 입력해주세요')
+      setTimeout(() => setAiToast(null), 3000)
+      return
+    }
+    setAiLoading(true)
+    setAiReason(null)
+    try {
+      const res = await fetch('/api/budget-recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          income,
+          fixedSavings,
+          recentExpenses,
+          currentBudgets: initialBudgets.map(b => ({ category: b.category, amount: b.amount })),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.error) throw new Error(data.error ?? 'API_ERROR')
+
+      const newAmounts = Object.fromEntries(
+        Object.entries(data.amounts as Record<string, number>).map(([k, v]) => [k, String(v)])
+      )
+      setAiAmounts(newAmounts)
+      setAmounts(newAmounts)
+      setSelectedPreset('ai-custom')
+      setAiReason(data.reason ?? null)
+
+      if (data.usedFallback) {
+        setAiToast('AI 추천에 실패해 균형 플랜을 적용했어요')
+        setTimeout(() => setAiToast(null), 3000)
+      }
+    } catch {
+      const fallback = fallbackAmounts(income, fixedSavings)
+      const newAmounts = Object.fromEntries(Object.entries(fallback).map(([k, v]) => [k, String(v)]))
+      setAiAmounts(newAmounts)
+      setAmounts(newAmounts)
+      setSelectedPreset('ai-custom')
+      setAiToast('AI 추천에 실패해 균형 플랜을 적용했어요')
+      setTimeout(() => setAiToast(null), 3000)
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  function fallbackAmounts(inc: number, fixed: number): Record<string, number> {
+    const spendBudget = inc - Math.round(inc * 0.25)
+    const dist: Record<string, number> = { 생활비: 0.30, 활동비: 0.25, 고정비: 0.25, 친목비: 0.12, 예비비: 0.08 }
+    return Object.fromEntries(CATEGORIES.map(cat => [cat, Math.round(spendBudget * dist[cat])]))
+  }
+
   async function handleSave() {
     setLoading(true)
     const upsertData = CATEGORIES.map(cat => ({
@@ -122,6 +180,17 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
 
   return (
     <div className="space-y-4">
+      {/* 토스트 */}
+      {aiToast && (
+        <div style={{
+          position: 'fixed', top: 60, left: '50%', transform: 'translateX(-50%)',
+          background: '#1f2937', color: '#fff', borderRadius: 12, padding: '10px 20px',
+          fontSize: 13, zIndex: 9999, whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+        }}>
+          {aiToast}
+        </div>
+      )}
+
       {/* 탭 */}
       <div style={{ display: 'flex', background: '#F0EAEC', borderRadius: '16px', padding: '4px', gap: '4px' }}>
         {(['manual', 'ai'] as const).map(t => (
@@ -157,11 +226,10 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
           )}
 
           {/* 플랜 카드 */}
-          <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="grid grid-cols-3 gap-2 mb-3">
             {PRESETS.map(preset => {
               const selected = selectedPreset === preset.key
               const targetSave = income ? Math.round(income * preset.savingRate) : 0
-              const addSave = Math.max(0, targetSave - fixedSavings)
               const spendBudget = income ? income - targetSave : 0
 
               return (
@@ -184,6 +252,39 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
               )
             })}
           </div>
+
+          {/* AI 맞춤 추천 버튼 */}
+          <button
+            onClick={handleAiRecommend}
+            disabled={aiLoading}
+            style={{
+              width: '100%', padding: '12px', borderRadius: '14px', marginBottom: '12px',
+              border: selectedPreset === 'ai-custom' ? '2px solid var(--color-primary)' : '2px dashed #d1d5db',
+              background: selectedPreset === 'ai-custom' ? 'var(--color-primary-light)' : '#fafafa',
+              color: selectedPreset === 'ai-custom' ? 'var(--color-primary)' : '#6b7280',
+              fontSize: '13px', fontWeight: '600', cursor: aiLoading ? 'not-allowed' : 'pointer',
+              fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+            }}
+          >
+            {aiLoading ? (
+              <>
+                <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⟳</span>
+                내 소비 패턴 분석 중...
+              </>
+            ) : (
+              <>✨ 내 소비패턴 기반 AI 맞춤 추천</>
+            )}
+          </button>
+
+          {/* AI 추천 근거 */}
+          {aiReason && selectedPreset === 'ai-custom' && (
+            <div style={{
+              background: 'rgba(107,30,46,0.06)', borderRadius: 12, padding: '10px 12px',
+              marginBottom: 12, fontSize: 12, color: 'var(--color-accent)', lineHeight: 1.6,
+            }}>
+              💡 {aiReason}
+            </div>
+          )}
 
           {/* 저축 분석 */}
           {selectedPreset && income > 0 && (() => {
@@ -228,15 +329,101 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
             </div>
           )}
 
-          {selectedPreset && income > 0 && (
+          {(selectedPreset && income > 0) && (
             <button onClick={handleSave} disabled={loading} style={{
-              width: '100%', marginTop: '12px', padding: '12px', borderRadius: '14px',
+              width: '100%', marginTop: '4px', padding: '12px', borderRadius: '14px',
               background: savedOk ? '#2E7D52' : 'var(--color-primary)',
               color: '#fff', fontSize: '13px', fontWeight: '600', border: 'none',
               cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
             }}>
               {loading ? '저장 중...' : savedOk ? '✓ 저장됨' : '이 플랜으로 저장하기'}
             </button>
+          )}
+        </div>
+      )}
+
+      {/* 수동 탭: 전체 요약 */}
+      {tab === 'manual' && totalBudget > 0 && (
+        <div className="bg-white rounded-2xl p-4 border border-gray-100">
+          <div className="flex justify-between text-xs mb-2">
+            <span className="text-gray-500 font-medium">전체 예산 달성률</span>
+            <span className={`font-bold ${overallPct > 100 ? 'text-rose-500' : overallPct >= 80 ? 'text-amber-500' : 'text-emerald-600'}`}>
+              {overallPct}%
+            </span>
+          </div>
+          <div className="bg-gray-100 rounded-full h-2 overflow-hidden">
+            <div className="h-full rounded-full transition-all" style={{
+              width: `${Math.min(overallPct, 100)}%`,
+              background: overallPct > 100 ? '#EF4444' : overallPct >= 80 ? '#F59E0B' : 'var(--color-primary)',
+            }} />
+          </div>
+          <div className="flex justify-between text-[11px] text-gray-400 mt-1.5">
+            <span>지출 {totalSpent.toLocaleString()}원</span>
+            <span>예산 {totalBudget.toLocaleString()}원</span>
+          </div>
+        </div>
+      )}
+
+      {/* 수동 입력 */}
+      {tab === 'manual' && (
+        <>
+          <div className="space-y-3">
+            {CATEGORIES.map((cat) => {
+              const spent = expenses.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0)
+              const budget = parseInt(amounts[cat] || '0') || 0
+              const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0
+              const over = spent > budget && budget > 0
+
+              return (
+                <div key={cat} className="bg-white rounded-2xl p-4 border border-gray-100">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-gray-700">{cat}</span>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text" inputMode="numeric"
+                        className="w-32 text-right text-sm font-semibold outline-none text-gray-800 placeholder:text-gray-300"
+                        placeholder="예산 미설정"
+                        value={amounts[cat] ? Number(amounts[cat]).toLocaleString() : ''}
+                        onChange={(e) => handleChange(cat, e.target.value.replace(/,/g, ''))}
+                      />
+                      <span className="text-gray-400 text-sm">원</span>
+                    </div>
+                  </div>
+                  {budget > 0 && (
+                    <div>
+                      <div className="bg-gray-100 rounded-full h-1.5 overflow-hidden mb-1">
+                        <div className="h-full rounded-full" style={{
+                          width: `${Math.min(pct, 100)}%`,
+                          background: over ? '#EF4444' : pct >= 80 ? '#F59E0B' : 'var(--color-primary)',
+                        }} />
+                      </div>
+                      <div className="flex justify-between text-[10px] text-gray-400">
+                        <span className={over ? 'text-rose-400 font-medium' : ''}>
+                          {spent > 0 ? `지출 ${spent.toLocaleString()}원` : '지출 없음'}
+                        </span>
+                        <span>{pct}%{over ? ' 초과!' : ''}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          <button onClick={handleSave} disabled={loading} style={{
+            width: '100%', padding: '14px', borderRadius: '16px',
+            background: savedOk ? '#2E7D52' : 'var(--color-primary)',
+            color: '#fff', fontSize: '14px', fontWeight: '600', border: 'none',
+            cursor: loading ? 'not-allowed' : 'pointer', transition: 'background 0.3s', fontFamily: 'inherit',
+          }}>
+            {loading ? '저장 중...' : savedOk ? '✓ 저장됨' : '예산 저장하기'}
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+on>
           )}
         </div>
       )}

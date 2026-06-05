@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/push/send?type=due_date_reminder",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/push/send?type=due_date_unprocessed",
+      "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/push/send?type=report",
+      "schedule": "0 8 1 * *"
+    }
+  ]
+}

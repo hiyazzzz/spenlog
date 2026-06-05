@@ -7,6 +7,9 @@ const pwaConfig = withPWA({
   disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
+  customWorkerSrc: "src/worker",
+  customWorkerDest: "public",
+  customWorkerPrefix: "push-handler",
 });
 
 const nextConfig: NextConfig = {

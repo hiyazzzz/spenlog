@@ -1,9 +1,10 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { THEMES } from '@/lib/themes'
 import type { Theme } from '@/types'
+import { subscribePush, unsubscribePush, isSubscribed } from '@/lib/push'
 
 function ToggleSwitch({ on, onToggle, disabled }: { on: boolean; onToggle: () => void; disabled?: boolean }) {
   return (
@@ -58,6 +59,11 @@ export default function SettingsForm({ profile, userId, email, provider }: Props
   const isPremium = profile?.premium_status === 'active'
   const [loggingOut, setLoggingOut] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<boolean | 1 | 2>(false)
+  const [pushSubscribed, setPushSubscribed] = useState(false)
+
+  useEffect(() => {
+    isSubscribed().then(setPushSubscribed)
+  }, [])
   const [deleteConfirmName, setDeleteConfirmName] = useState('')
 
   function applyTheme(t: Theme) {
@@ -228,13 +234,23 @@ export default function SettingsForm({ profile, userId, email, provider }: Props
 
         {/* 전체 알림 토글 */}
         <div style={{ ...rowStyle, borderBottom: '1px solid #f9fafb' }}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>전체 알림</p>
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>전체 알림</p>
+            {pushSubscribed && <p style={{ fontSize: 11, color: '#10b981', marginTop: 2 }}>✓ 알림 구독 중</p>}
+          </div>
           <ToggleSwitch
             on={notifications.all}
-            onToggle={() => {
+            onToggle={async () => {
               const next = !notifications.all
               setNotifications(n => ({ ...n, all: next }))
               supabase.from('users').update({ push_enabled: next }).eq('id', userId)
+              if (next && !pushSubscribed) {
+                const ok = await subscribePush(userId)
+                setPushSubscribed(ok)
+              } else if (!next && pushSubscribed) {
+                await unsubscribePush(userId)
+                setPushSubscribed(false)
+              }
             }}
           />
         </div>
@@ -419,6 +435,21 @@ export default function SettingsForm({ profile, userId, email, provider }: Props
                 style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
                 취소
               </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+nd: deleteConfirmName !== profile?.name ? '#e5e7eb' : '#ef4444',
+                    color: deleteConfirmName !== profile?.name ? '#9ca3af' : '#fff',
+                    fontSize: 13, fontWeight: 600,
+                    cursor: deleteConfirmName !== profile?.name ? 'not-allowed' : 'pointer',
+                    fontFamily: 'inherit',
+                  }}>탈퇴 확인</button>
+              <button onClick={() => { setConfirmDelete(false); setDeleteConfirmName('') }}
+                style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
             </div>
           </div>
         )}

@@ -9,17 +9,30 @@ export default async function BudgetPage() {
   if (!user) redirect('/login')
 
   const thisMonth = dayjs().format('YYYY-MM')
+  const nextMonth = dayjs().add(1, 'month').format('YYYY-MM')
+  const threeMonthsAgo = dayjs().subtract(2, 'month').format('YYYY-MM')
 
-  const [{ data: budgets }, { data: expenses }, { data: profile }, { data: fixedCosts }] = await Promise.all([
+  const [{ data: budgets }, { data: expenses }, { data: profile }, { data: fixedCosts }, { data: recentExpenses }] = await Promise.all([
     supabase.from('budgets').select('*').eq('user_id', user.id).eq('month', thisMonth),
     supabase.from('expenses').select('category, amount').eq('user_id', user.id)
       .gte('date', `${thisMonth}-01`)
-      .lt('date', `${dayjs().add(1, 'month').format('YYYY-MM')}-01`),
+      .lt('date', `${nextMonth}-01`),
     supabase.from('users').select('income').eq('id', user.id).single(),
     supabase.from('fixed_costs').select('amount, kind').eq('user_id', user.id),
+    // AI 추천용: 최근 3개월 지출 (transfer 제외)
+    supabase.from('expenses').select('category, amount, date').eq('user_id', user.id)
+      .neq('type', 'transfer')
+      .gte('date', `${threeMonthsAgo}-01`)
+      .lt('date', `${nextMonth}-01`),
   ])
 
   const fixedSavings = fixedCosts?.filter(f => f.kind === '고정저축').reduce((s, f) => s + f.amount, 0) ?? 0
+
+  const recentExpensesWithMonth = (recentExpenses ?? []).map(e => ({
+    category: e.category,
+    amount: e.amount,
+    month: (e.date as string).slice(0, 7),
+  }))
 
   return (
     <div className="min-h-screen pb-20" style={{ background: 'var(--color-bg)' }}>
@@ -34,6 +47,7 @@ export default async function BudgetPage() {
         thisMonth={thisMonth}
         income={profile?.income ?? 0}
         fixedSavings={fixedSavings}
+        recentExpenses={recentExpensesWithMonth}
       />
     </div>
   )

@@ -6,6 +6,7 @@ import { CATEGORIES } from '@/lib/themes'
 import CategoryManager from './CategoryManager'
 import RoutineBanner from './RoutineBanner'
 import { Account, Card, FixedCost } from '@/types'
+import { formatCurrency } from '@/lib/format'
 
 interface Budget { id: string; category: string; amount: number; month: string }
 interface Expense { id: string; name: string; amount: number; category: string; date: string; payment_method: string | null }
@@ -127,7 +128,7 @@ function FixedRow({ item, accountName, targetAccountName, onDelete, onEdit }: {
         </p>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>₩{item.amount.toLocaleString()}</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>{formatCurrency(item.amount)}</span>
         <button onClick={() => setEditing(true)} style={{ fontSize: 11, color: 'var(--color-primary-mid)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>수정</button>
         <button onClick={onDelete} style={{ fontSize: 11, color: '#ef4444', background: '#fef2f2', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
       </div>
@@ -162,7 +163,7 @@ function BudgetRow({ category, budgetAmt, spent, onSave }: {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {budgetAmt > 0 ? (
               <span style={{ fontSize: 13, fontWeight: 700, color: over ? '#ef4444' : '#374151' }}>
-                ₩{spent.toLocaleString()} / ₩{budgetAmt.toLocaleString()}{over ? ' ⚠️' : ''}
+                {formatCurrency(spent)} / {formatCurrency(budgetAmt)}{over ? ' ⚠️' : ''}
               </span>
             ) : <span style={{ fontSize: 11, color: '#9ca3af' }}>미설정</span>}
             <button onClick={() => setEditing(true)} style={{ fontSize: 10, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>✏️</button>
@@ -304,11 +305,11 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       />
 
       {/* 1. 월 수입 */}
-      <Section icon="💰" title="월 수입" summary={monthlyIncome > 0 ? '₩' + monthlyIncome.toLocaleString() : '미설정'} defaultOpen={!monthlyIncome}>
+      <Section icon="💰" title="월 수입" summary={monthlyIncome > 0 ? formatCurrency(monthlyIncome) : '미설정'} defaultOpen={!monthlyIncome}>
         {!editingIncome ? (
           <div>
-            <p style={{ fontSize: 24, fontWeight: 800, color: 'var(--color-accent)', marginBottom: 8 }}>₩{monthlyIncome.toLocaleString()}</p>
-            {profile?.saving_goal > 0 && <p style={{ fontSize: 12, color: '#6b7280' }}>저축 목표 ₩{Number(profile.saving_goal).toLocaleString()}</p>}
+            <p style={{ fontSize: 24, fontWeight: 800, color: 'var(--color-accent)', marginBottom: 8 }}>{formatCurrency(monthlyIncome)}</p>
+            {profile?.saving_goal > 0 && <p style={{ fontSize: 12, color: '#6b7280' }}>저축 목표 {formatCurrency(Number(profile.saving_goal))}</p>}
             <button onClick={() => setEditingIncome(true)} style={{ marginTop: 10, fontSize: 12, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>✏️ 수정</button>
           </div>
         ) : (
@@ -340,7 +341,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       </Section>
 
       {/* 2. 예산 */}
-      <Section icon="🎯" title="예산" summary={totalBudget > 0 ? '총 ₩' + totalBudget.toLocaleString() + ' 설정' : '미설정'}>
+      <Section icon="🎯" title="예산" summary={totalBudget > 0 ? `총 ${formatCurrency(totalBudget)} 설정` : '미설정'}>
         {(CATEGORIES as readonly string[]).map(cat => (
           <BudgetRow key={cat} category={cat}
             budgetAmt={localBudgets.find(b => b.category === cat)?.amount ?? 0}
@@ -350,7 +351,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
         {totalBudget > 0 && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>총 예산</span>
-            <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-accent)' }}>₩{totalBudget.toLocaleString()}</span>
+            <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-accent)' }}>{formatCurrency(totalBudget)}</span>
           </div>
         )}
         <CategoryManager
@@ -361,7 +362,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       </Section>
 
       {/* 3. 계좌/현금 */}
-      <Section icon="🏦" title="계좌 / 현금" summary={'총 잔액 ₩' + totalBalance.toLocaleString()}>
+      <Section icon="🏦" title="계좌 / 현금" summary={`총 잔액 ${formatCurrency(totalBalance)}`}>
         {showAddAccount && (
           <InlineForm
             fields={[
@@ -381,7 +382,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
               <p style={{ fontSize: 11, color: '#9ca3af' }}>{acc.bank} · {acc.type}</p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-accent)' }}>₩{(acc.balance ?? 0).toLocaleString()}</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-accent)' }}>{formatCurrency(acc.balance ?? 0)}</span>
               <button onClick={() => deleteAccount(acc.id)} style={{ fontSize: 11, color: '#ef4444', background: '#fef2f2', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
             </div>
           </div>
@@ -421,7 +422,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                   <button
                     onClick={() => setExpandedCardId(isExpanded ? null : card.id)}
                     style={{ fontSize: 11, color: 'var(--color-primary)', background: 'var(--color-primary-light)', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}
-                  >{isExpanded ? '접기' : `이번달 내역${cardTotal > 0 ? ' ₩' + cardTotal.toLocaleString() : ''}`}</button>
+                  >{isExpanded ? '접기' : `이번달 내역${cardTotal > 0 ? ' ' + formatCurrency(cardTotal) : ''}`}</button>
                   <button onClick={() => deleteCard(card.id)} style={{ fontSize: 11, color: '#ef4444', background: '#fef2f2', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
                 </div>
               </div>
@@ -436,13 +437,13 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                           <p style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>{e.name}</p>
                           <p style={{ fontSize: 10, color: '#9ca3af' }}>{e.date.slice(5)} · {e.category}</p>
                         </div>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#f87171' }}>-₩{Number(e.amount).toLocaleString()}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#f87171' }}>-{formatCurrency(Number(e.amount))}</span>
                       </div>
                     ))
                   )}
                   {cardExpenses.length > 0 && (
                     <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-primary)', marginTop: 6, textAlign: 'right' }}>
-                      이번달 합계 ₩{cardTotal.toLocaleString()}
+                      이번달 합계 {formatCurrency(cardTotal)}
                     </p>
                   )}
                 </div>
@@ -454,7 +455,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       </Section>
 
       {/* 5. 고정비 */}
-      <Section icon="📌" title="고정비" summary={'월 ₩' + fixedExpenseTotal.toLocaleString() + ' 지출'}>
+      <Section icon="📌" title="고정비" summary={`월 ${formatCurrency(fixedExpenseTotal)} 지출`}>
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>고정 지출</span>
@@ -476,7 +477,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             accountName={localAccounts.find(a => a.id === (f as any).linked_account_id)?.name}
             onDelete={() => deleteFixed(f.id)}
             onEdit={(u: Record<string, unknown>) => editFixed(f.id, u)} />)}
-          <p style={{ fontSize: 12, color: '#6b7280', marginTop: 6, fontWeight: 600 }}>소계 ₩{fixedExpenseTotal.toLocaleString()}</p>
+          <p style={{ fontSize: 12, color: '#6b7280', marginTop: 6, fontWeight: 600 }}>소계 {formatCurrency(fixedExpenseTotal)}</p>
         </div>
         <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -501,7 +502,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             targetAccountName={localAccounts.find(a => a.id === (f as any).linked_target_account_id)?.name}
             onDelete={() => deleteFixed(f.id)}
             onEdit={(u: Record<string, unknown>) => editFixed(f.id, u)} />)}
-          <p style={{ fontSize: 12, color: '#059669', marginTop: 6, fontWeight: 600 }}>소계 ₩{fixedSavingTotal.toLocaleString()}</p>
+          <p style={{ fontSize: 12, color: '#059669', marginTop: 6, fontWeight: 600 }}>소계 {formatCurrency(fixedSavingTotal)}</p>
         </div>
       </Section>
     </div>
