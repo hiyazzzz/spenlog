@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { CATEGORIES } from '@/lib/themes'
@@ -88,17 +88,47 @@ function InlineForm({ fields, onSave, onCancel }: {
   )
 }
 
-function FixedRow({ item, accountName, onDelete }: { item: FixedCost; accountName?: string; onDelete: () => void }) {
+function FixedRow({ item, accountName, targetAccountName, onDelete, onEdit }: {
+  item: FixedCost; accountName?: string; targetAccountName?: string
+  onDelete: () => Promise<void>; onEdit: (updates: Record<string, unknown>) => Promise<void>
+}) {
+  const [editing, setEditing] = useState(false)
+  const [vals, setVals] = useState({ name: item.name, amount: String(item.amount), due_day: String((item as any).due_day ?? '') })
+
+  if (editing) {
+    return (
+      <div style={{ padding: '10px 0', borderBottom: '1px solid #f9fafb' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <input value={vals.name} onChange={e => setVals(p => ({ ...p, name: e.target.value }))}
+            style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit' }} placeholder="이름" />
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input value={vals.amount} onChange={e => setVals(p => ({ ...p, amount: e.target.value }))} type="number"
+              style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit' }} placeholder="금액" />
+            <input value={vals.due_day} onChange={e => setVals(p => ({ ...p, due_day: e.target.value }))} type="number"
+              style={{ width: 60, padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit' }} placeholder="출금일" />
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={() => { onEdit({ name: vals.name, amount: parseInt(vals.amount) || item.amount, due_day: parseInt(vals.due_day) || null }); setEditing(false) }}
+              style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', background: 'var(--color-primary)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>저장</button>
+            <button onClick={() => setEditing(false)}
+              style={{ flex: 1, padding: '8px', borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f9fafb' }}>
       <div>
         <p style={{ fontSize: 13, fontWeight: 500, color: '#1f2937' }}>{item.name}</p>
         <p style={{ fontSize: 11, color: '#9ca3af' }}>
           {(item as any).due_day ? '매월 ' + (item as any).due_day + '일' : ''}{accountName ? ' · ' + accountName : ''}
+          {targetAccountName && <span style={{ color: '#3b82f6' }}> → {targetAccountName}</span>}
         </p>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>₩{item.amount.toLocaleString()}</span>
+        <button onClick={() => setEditing(true)} style={{ fontSize: 11, color: 'var(--color-primary-mid)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>수정</button>
         <button onClick={onDelete} style={{ fontSize: 11, color: '#ef4444', background: '#fef2f2', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
       </div>
     </div>
@@ -221,9 +251,18 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       user_id: userId, name: vals.name, amount: parse(vals.amount),
       kind, due_day: parseInt(vals.due_day) || null,
       linked_account_id: linkedId, type: '월정액',
+      linked_target_account_id: (() => {
+        const raw = vals.linked_target_account_id || ''
+        return raw.includes('|') ? raw.split('|')[0] : raw || null
+      })(),
     }).select().single()
     if (data) setLocalFixed(f => [...f, data])
     setShowAddFixed(null)
+  }
+
+  async function editFixed(id: string, updates: any) {
+    await supabase.from('fixed_costs').update(updates).eq('id', id)
+    setLocalFixed(f => f.map(fc => fc.id === id ? { ...fc, ...updates } : fc))
   }
 
   async function deleteFixed(id: string) {
@@ -433,7 +472,10 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
               onCancel={() => setShowAddFixed(null)} />
           )}
           {fixedExpenses.length === 0 && <p style={{ fontSize: 12, color: '#9ca3af' }}>고정 지출이 없어요</p>}
-          {fixedExpenses.map(f => <FixedRow key={f.id} item={f} accountName={localAccounts.find(a => a.id === (f as any).linked_account_id)?.name} onDelete={() => deleteFixed(f.id)} />)}
+          {fixedExpenses.map(f => <FixedRow key={f.id} item={f}
+            accountName={localAccounts.find(a => a.id === (f as any).linked_account_id)?.name}
+            onDelete={() => deleteFixed(f.id)}
+            onEdit={(u: Record<string, unknown>) => editFixed(f.id, u)} />)}
           <p style={{ fontSize: 12, color: '#6b7280', marginTop: 6, fontWeight: 600 }}>소계 ₩{fixedExpenseTotal.toLocaleString()}</p>
         </div>
         <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 14 }}>
@@ -444,16 +486,21 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
           {showAddFixed === 'saving' && (
             <InlineForm
               fields={[
-                { label: '이름', key: 'name', placeholder: '예) 신한 적금' },
+                { label: '이름', key: 'name', placeholder: '예) 석열 적금' },
                 { label: '금액', key: 'amount', type: 'number', placeholder: '0' },
                 { label: '빠져나가는 날', key: 'due_day', placeholder: '예) 5' },
-                { label: '연결 계좌/카드', key: 'linked_account_id', options: linkedOptions },
+                { label: '출금 계좌 (돈이 나가는 곳)', key: 'linked_account_id', options: linkedOptions },
+                { label: '입금 계좌 (적금 계좌)', key: 'linked_target_account_id', options: linkedOptions },
               ]}
               onSave={v => addFixed(v, '고정저축')}
               onCancel={() => setShowAddFixed(null)} />
           )}
           {fixedSavings.length === 0 && <p style={{ fontSize: 12, color: '#9ca3af' }}>고정 저축이 없어요</p>}
-          {fixedSavings.map(f => <FixedRow key={f.id} item={f} accountName={localAccounts.find(a => a.id === (f as any).linked_account_id)?.name} onDelete={() => deleteFixed(f.id)} />)}
+          {fixedSavings.map(f => <FixedRow key={f.id} item={f}
+            accountName={localAccounts.find(a => a.id === (f as any).linked_account_id)?.name}
+            targetAccountName={localAccounts.find(a => a.id === (f as any).linked_target_account_id)?.name}
+            onDelete={() => deleteFixed(f.id)}
+            onEdit={(u: Record<string, unknown>) => editFixed(f.id, u)} />)}
           <p style={{ fontSize: 12, color: '#059669', marginTop: 6, fontWeight: 600 }}>소계 ₩{fixedSavingTotal.toLocaleString()}</p>
         </div>
       </Section>

@@ -23,8 +23,8 @@ export default async function DashboardHomePage() {
   ])
 
   const allExpenses = expenses ?? []
-  const totalSpent = allExpenses.filter(e => e.type !== 'income').reduce((s, e) => s + e.amount, 0)
-  const recentExpenses = allExpenses.filter(e => e.type !== 'income').slice(0, 3)
+  const totalSpent = allExpenses.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
+  const recentExpenses = allExpenses.filter(e => e.type === 'expense').slice(0, 3)
   const savingGoal = profile?.saving_goal ?? 0
   const displayName = profile?.name || '소비요정'
   const isPremium = profile?.premium_status === 'active'

@@ -37,17 +37,17 @@ export default async function ReportPage({ searchParams }: Props) {
     supabase.from('users').select('*').eq('id', user.id).single(),
     supabase.from('expenses').select('*').eq('user_id', user.id)
       .gte('date', `${safeMonth}-01`).lt('date', `${nextMonth}-01`),
-    supabase.from('expenses').select('amount, category').eq('user_id', user.id)
+    supabase.from('expenses').select('amount, category, type').eq('user_id', user.id)
       .gte('date', `${prevMonth}-01`).lt('date', `${safeMonth}-01`),
-    supabase.from('expenses').select('amount').eq('user_id', user.id)
+    supabase.from('expenses').select('amount, type').eq('user_id', user.id)
       .gte('date', `${prev2Month}-01`).lt('date', `${prevMonth}-01`),
     supabase.from('budgets').select('*').eq('user_id', user.id).eq('month', safeMonth),
     supabase.from('reports').select('ai_coach').eq('user_id', user.id).eq('year_month', safeMonth).single(),
   ])
 
-  const totalSpent = expenses?.reduce((s, e) => s + e.amount, 0) ?? 0
-  const prevTotalSpent = prevExpenses?.reduce((s, e) => s + e.amount, 0) ?? 0
-  const prev2TotalSpent = prev2Expenses?.reduce((s, e) => s + e.amount, 0) ?? 0
+  const totalSpent = expenses?.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0) ?? 0
+  const prevTotalSpent = prevExpenses?.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0) ?? 0
+  const prev2TotalSpent = prev2Expenses?.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0) ?? 0
   const income = profile?.income ?? 0
   const savingGoal = profile?.saving_goal ?? 0
   const savedAmount = income > 0 ? Math.max(0, income - totalSpent) : 0
@@ -55,7 +55,7 @@ export default async function ReportPage({ searchParams }: Props) {
   const spendingDiff = prevTotalSpent > 0 ? Math.round(((totalSpent - prevTotalSpent) / prevTotalSpent) * 100) : null
 
   const catData = (CATEGORIES as readonly string[]).map(cat => {
-    const amount = expenses?.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0) ?? 0
+    const amount = expenses?.filter(e => e.category === cat && e.type === 'expense').reduce((s, e) => s + e.amount, 0) ?? 0
     const prevAmount = prevExpenses?.filter((e: any) => e.category === cat).reduce((s: number, e: any) => s + e.amount, 0) ?? 0
     const budget = budgets?.find(b => b.category === cat)?.amount ?? 0
     const budgetPct = budget > 0 ? Math.min(Math.round((amount / budget) * 100), 100) : 0

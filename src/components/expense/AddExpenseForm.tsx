@@ -37,14 +37,14 @@ export default function AddExpenseForm({ prefill }: Props) {
     memo: '',
   })
   const [cards, setCards] = useState<{ name: string }[]>([])
+  const [accounts, setAccounts] = useState<{ id: string; name: string; balance: number }[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
 
   useEffect(() => {
-    supabase.from('cards').select('name').then(({ data }) => {
-      if (data) setCards(data)
-    })
+    supabase.from('cards').select('name').then(({ data }) => { if (data) setCards(data) })
+    supabase.from('accounts').select('id, name, balance').then(({ data }) => { if (data) setAccounts(data) })
   }, [])
 
   function update(key: string, value: string) {
@@ -61,7 +61,7 @@ export default function AddExpenseForm({ prefill }: Props) {
     const amount = parseInt(form.amount.replace(/,/g, ''))
     if (!amount || amount <= 0) { setError('금액을 입력해주세요'); return }
     if (!form.name.trim()) { setError('항목명을 입력해주세요'); return }
-    if (type === 'expense' && !form.category) { setError('카테고리를 선택해주세요'); return }
+    if (type === 'expense' && !form.payment_method) { setError('결제 / 수입 수단을 선택해주세요'); return }
     setSaving(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -93,7 +93,15 @@ export default function AddExpenseForm({ prefill }: Props) {
         })
         if (saveErr) throw saveErr
       }
-      clearPrefill() // AI fallback store 클리어
+      // 계좌 결제 시 잔액 즉시 변동
+      const selectedAccount = accounts.find(a => a.name === form.payment_method)
+      if (selectedAccount) {
+        const delta = type === 'income' ? amount : -amount
+        await supabase.from('accounts')
+          .update({ balance: (selectedAccount.balance ?? 0) + delta })
+          .eq('id', selectedAccount.id)
+      }
+      clearPrefill()
       showToast(type === 'expense' ? '지출이 저장됐어요!' : '수입이 저장됐어요!')
       setForm({ name: '', amount: '', category: '생활비', date: dayjs().format('YYYY-MM-DD'), payment_method: '', memo: '' })
       // 1초 후 내역 탭으로 이동
@@ -102,9 +110,10 @@ export default function AddExpenseForm({ prefill }: Props) {
     finally { setSaving(false) }
   }
 
+  const accountNames = accounts.map(a => a.name)
   const paymentOptions = type === 'income'
-    ? INCOME_METHODS
-    : [...cards.map(c => c.name), ...EXPENSE_METHODS.filter(m => !cards.some(c => c.name === m))]
+    ? [...accountNames, ...INCOME_METHODS.filter(m => !accountNames.includes(m))]
+    : [...cards.map(c => c.name), ...accountNames.filter(n => !cards.some(c => c.name === n)), ...EXPENSE_METHODS.filter(m => !cards.some(c => c.name === m) && !accountNames.includes(m))]
 
   return (
     <div className="space-y-3 relative">
@@ -158,9 +167,9 @@ export default function AddExpenseForm({ prefill }: Props) {
         <input type="date" className="w-full text-sm outline-none text-gray-800"
           value={form.date} onChange={e => update('date', e.target.value)} />
       </div>
-      {type === 'expense' && (
+      {(
         <div className="bg-white rounded-2xl p-4 border border-gray-100">
-          <label className="text-xs text-gray-400 mb-2 block">결제수단 (선택)</label>
+          <label className="text-xs text-gray-400 mb-2 block">{type === 'expense' ? '결제수단' : '수입 경로'} <span className="text-rose-400">*</span></label>
           <div className="flex flex-wrap gap-2">
             {paymentOptions.slice(0, 6).map(method => (
               <button key={method}

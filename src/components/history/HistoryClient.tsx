@@ -15,7 +15,7 @@ interface Expense {
   date: string
   payment_method: string | null
   memo: string | null
-  type: 'expense' | 'income'
+  type: 'expense' | 'income' | 'transfer'
 }
 
 interface Props {
@@ -26,7 +26,7 @@ interface Props {
 
 type ViewMode = 'list' | 'calendar'
 type SortKey = 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc'
-type TypeFilter = '' | 'expense' | 'income'
+type TypeFilter = '' | 'expense' | 'income' | 'transfer'
 
 export default function HistoryClient({ userId, initialExpenses, paymentMethods }: Props) {
   const supabase = createClient()
@@ -175,7 +175,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods 
             </div>
           )}
           {grouped.map(([date, items]) => {
-            const expenseSum = items.filter(e => e.type !== 'income').reduce((s, e) => s + e.amount, 0)
+            const expenseSum = items.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
             const incomeSum = items.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
             return (
               <div key={date} className="mb-4">
@@ -185,8 +185,12 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods 
                     {date === today && <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full text-white" style={{ background: 'var(--color-primary)' }}>오늘</span>}
                   </span>
                   <div className="flex gap-2 text-xs font-bold">
-                    {incomeSum > 0 && <span className="text-emerald-500">+{incomeSum.toLocaleString()}원</span>}
-                    {expenseSum > 0 && <span className="text-rose-400">-{expenseSum.toLocaleString()}원</span>}
+                    {(() => {
+                      const net = expenseSum - incomeSum
+                      if (net > 0) return <span className="text-rose-400">-{net.toLocaleString()}원</span>
+                      if (net < 0) return <span className="text-emerald-500">+{Math.abs(net).toLocaleString()}원</span>
+                      return null
+                    })()}
                   </div>
                 </div>
                 <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
@@ -226,11 +230,12 @@ function ExpenseRow({ expense, onTap }: { expense: Expense; onTap: () => void })
         <div className="flex items-center gap-1.5">
           <p className="text-sm font-semibold text-gray-800">{expense.name}</p>
           {isIncome && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-semibold">수입</span>}
+          {expense.type === 'transfer' && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-500 font-semibold">이체</span>}
         </div>
         <p className="text-xs text-gray-400 mt-0.5">{expense.category}{expense.payment_method && ` · ${expense.payment_method}`}</p>
       </div>
-      <span className={`text-sm font-bold ${isIncome ? 'text-emerald-500' : 'text-rose-400'}`}>
-        {isIncome ? '+' : '-'}₩{expense.amount.toLocaleString()}
+      <span className={`text-sm font-bold ${isIncome ? 'text-emerald-500' : expense.type === 'transfer' ? 'text-blue-500' : 'text-rose-400'}`}>
+        {isIncome ? '+' : expense.type === 'transfer' ? '↔' : '-'}₩{expense.amount.toLocaleString()}
       </span>
     </button>
   )
@@ -364,7 +369,7 @@ function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, to
                     style={{ color: isToday ? 'white' : dow === 0 ? '#ef4444' : dow === 6 ? '#3b82f6' : '#374151', background: isToday ? 'var(--color-primary)' : undefined, width: 22, height: 22, borderRadius: '50%' }}>
                     {parseInt(date.split('-')[2])}
                   </span>
-                  {amt ? <span className="text-[9px] font-bold text-rose-400">-{amt >= 10000 ? `${Math.round(amt / 1000)}k` : amt.toLocaleString()}</span> : null}
+                  {amt ? <span className="text-[9px] font-bold text-rose-400">-{amt >= 1000000 ? `${(amt/1000000).toFixed(1)}M` : amt >= 10000 ? `${Math.round(amt/1000)}k` : amt.toLocaleString()}</span> : null}
                   {hasIncome && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />}
                 </button>
               )

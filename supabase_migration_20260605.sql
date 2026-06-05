@@ -127,5 +127,16 @@ ALTER TABLE users
 -- 또는 SQL로:
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('user-assets', 'user-assets', true) ON CONFLICT DO NOTHING;
 
+
+-- 16. expenses type에 'transfer' 추가 (이체 = 지출 통계 제외)
+ALTER TABLE expenses
+  DROP CONSTRAINT IF EXISTS expenses_type_check;
+ALTER TABLE expenses
+  ADD CONSTRAINT expenses_type_check CHECK (type IN ('expense', 'income', 'transfer'));
+
+-- 17. fixed_costs에 이체 대상 계좌 컬럼 추가 (고정저축 → 적금계좌)
+ALTER TABLE fixed_costs
+  ADD COLUMN IF NOT EXISTS linked_target_account_id UUID REFERENCES accounts(id) ON DELETE SET NULL;
+
 -- 완료 확인
 SELECT 'Migration completed successfully' AS status;

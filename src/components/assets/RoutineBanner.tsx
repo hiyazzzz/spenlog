@@ -6,6 +6,7 @@ import dayjs from 'dayjs'
 interface FixedCost {
   id: string; name: string; amount: number; kind: string; due_day?: number
   linked_account_id?: string | null
+  linked_target_account_id?: string | null
 }
 
 interface Props {
@@ -62,6 +63,7 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth }: Props) 
       })
 
       // 2. expenses 테이블에 내역 저장 (내역 탭 반영)
+      const isTransfer = fc.kind === '고정저축'
       await supabase.from('expenses').insert({
         user_id: userId,
         name: fc.name,
@@ -69,21 +71,30 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth }: Props) 
         category: '고정비',
         date: today,
         payment_method: null,
-        type: 'expense',
+        type: isTransfer ? 'transfer' : 'expense',
         source: 'routine',
-        memo: fc.kind === '고정저축' ? '고정 저축 납입' : '고정 지출 처리',
+        memo: isTransfer ? '고정 저축 이체' : '고정 지출 처리',
       })
 
       // 3. 연결 계좌 잔액 변동
       if (fc.linked_account_id) {
-        const { data: acc } = await supabase
+        const { data: srcAcc } = await supabase
           .from('accounts').select('balance').eq('id', fc.linked_account_id).single()
-        if (acc != null) {
-          const current = acc.balance ?? 0
-          const next = fc.kind === '고정저축'
-            ? current + fc.amount   // 적금: 잔액 증가
-            : current - fc.amount   // 지출: 잔액 감소
-          await supabase.from('accounts').update({ balance: next }).eq('id', fc.linked_account_id)
+        if (srcAcc != null) {
+          // 출금 계좌는 항상 감소
+          await supabase.from('accounts')
+            .update({ balance: (srcAcc.balance ?? 0) - fc.amount })
+            .eq('id', fc.linked_account_id)
+        }
+      }
+      // 이체(저축): 입금 계좌 잔액 증가
+      if (fc.kind === '고정저축' && fc.linked_target_account_id) {
+        const { data: tgtAcc } = await supabase
+          .from('accounts').select('balance').eq('id', fc.linked_target_account_id).single()
+        if (tgtAcc != null) {
+          await supabase.from('accounts')
+            .update({ balance: (tgtAcc.balance ?? 0) + fc.amount })
+            .eq('id', fc.linked_target_account_id)
         }
       }
 
