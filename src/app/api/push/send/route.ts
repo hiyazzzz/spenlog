@@ -10,7 +10,7 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY ?? '',
 )
 
-type NotifType = 'due_date_reminder' | 'due_date_unprocessed' | 'report'
+type NotifType = 'due_date_reminder' | 'due_date_unprocessed' | 'report' | 'daily'
 
 interface PushSubscription {
   user_id: string
@@ -44,6 +44,15 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const type = searchParams.get('type') as NotifType | null
   if (!type) return NextResponse.json({ error: 'type required' }, { status: 400 })
+
+  // daily = due_date_reminder(오전 9시) + due_date_unprocessed(저녁 처리) 통합
+  if (type === 'daily') {
+    const hour = dayjs().hour()
+    const subType: NotifType = hour < 15 ? 'due_date_reminder' : 'due_date_unprocessed'
+    const url = new URL(req.url)
+    url.searchParams.set('type', subType)
+    return GET(new Request(url.toString(), req))
+  }
 
   const supabase = await createClient()
   const today = dayjs()

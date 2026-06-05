@@ -442,18 +442,3 @@ export default function SettingsForm({ profile, userId, email, provider }: Props
     </div>
   )
 }
-nd: deleteConfirmName !== profile?.name ? '#e5e7eb' : '#ef4444',
-                    color: deleteConfirmName !== profile?.name ? '#9ca3af' : '#fff',
-                    fontSize: 13, fontWeight: 600,
-                    cursor: deleteConfirmName !== profile?.name ? 'not-allowed' : 'pointer',
-                    fontFamily: 'inherit',
-                  }}>탈퇴 확인</button>
-              <button onClick={() => { setConfirmDelete(false); setDeleteConfirmName('') }}
-                style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
