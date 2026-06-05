@@ -12,7 +12,7 @@ export default async function BudgetPage() {
   const nextMonth = dayjs().add(1, 'month').format('YYYY-MM')
   const threeMonthsAgo = dayjs().subtract(2, 'month').format('YYYY-MM')
 
-  const [{ data: budgets }, { data: expenses }, { data: profile }, { data: fixedCosts }, { data: recentExpenses }] = await Promise.all([
+  const [{ data: budgets }, { data: expenses }, { data: profile }, { data: fixedCosts }, { data: recentExpenses }, { data: categories }] = await Promise.all([
     supabase.from('budgets').select('*').eq('user_id', user.id).eq('month', thisMonth),
     supabase.from('expenses').select('category, amount').eq('user_id', user.id)
       .gte('date', `${thisMonth}-01`)
@@ -24,6 +24,8 @@ export default async function BudgetPage() {
       .neq('type', 'transfer')
       .gte('date', `${threeMonthsAgo}-01`)
       .lt('date', `${nextMonth}-01`),
+    // 유저 커스텀 카테고리
+    supabase.from('categories').select('name, is_hidden').eq('user_id', user.id).order('sort_order'),
   ])
 
   const fixedSavings = fixedCosts?.filter(f => f.kind === '고정저축').reduce((s, f) => s + f.amount, 0) ?? 0
@@ -48,6 +50,7 @@ export default async function BudgetPage() {
         income={profile?.income ?? 0}
         fixedSavings={fixedSavings}
         recentExpenses={recentExpensesWithMonth}
+        customCategories={(categories ?? []).filter(c => !c.is_hidden).map(c => c.name)}
       />
     </div>
   )

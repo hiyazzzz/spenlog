@@ -26,6 +26,8 @@ export default function AiInputBox({ userId, compact }: { userId: string; compac
   const [saveError, setSaveError] = useState('')
   const [saveFailCount, setSaveFailCount] = useState(0)
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
+  const [failModal, setFailModal] = useState(false)
+  const [failMsg, setFailMsg] = useState('')
   const router = useRouter()
   const supabase = createClient()
   const { setPrefill } = useAiInputStore()
@@ -48,7 +50,6 @@ export default function AiInputBox({ userId, compact }: { userId: string; compac
         setEditingIdx(null)
       } else {
         const errMsg = data.error || '분류 실패'
-        setError(errMsg + ' — 직접 입력할게요')
         const numMatch = text.match(/(\d[\d,]+)/)
         const nameGuess = text.trim().split(/\s+/)[0]
         setPrefill({
@@ -56,11 +57,12 @@ export default function AiInputBox({ userId, compact }: { userId: string; compac
           amount: numMatch ? parseInt(numMatch[1].replace(/,/g, '')) : undefined,
           originalText: text,
         })
-        setTimeout(() => router.push('/add'), 1200)
+        setFailMsg(errMsg)
+        setFailModal(true)
       }
     } catch {
-      setError('네트워크 오류 — 직접 입력할게요')
-      setTimeout(() => router.push('/add'), 1200)
+      setFailMsg('네트워크 오류')
+      setFailModal(true)
     } finally {
       setLoading(false)
     }
@@ -121,6 +123,45 @@ export default function AiInputBox({ userId, compact }: { userId: string; compac
 
   return (
     <div>
+      {/* AI 실패 모달 */}
+      {failModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-end',
+        }}>
+          <div style={{
+            width: '100%', background: '#fff', borderRadius: '20px 20px 0 0',
+            padding: '28px 24px 40px', animation: 'slideUp 0.2s ease',
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+              <p style={{ fontSize: 24, marginBottom: 8 }}>😅</p>
+              <p style={{ fontSize: 16, fontWeight: 700, color: '#1f2937', marginBottom: 6 }}>인식에 실패했어요</p>
+              <p style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.5 }}>
+                현재 AI 인식이 불안정해요.<br />직접 입력해 주세요.
+              </p>
+            </div>
+            <button
+              onClick={() => { setFailModal(false); router.push('/add') }}
+              style={{
+                width: '100%', padding: '14px', borderRadius: 14,
+                background: 'var(--color-primary)', color: '#fff',
+                fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer',
+                fontFamily: 'inherit', marginBottom: 10,
+              }}
+            >직접 입력하기</button>
+            <button
+              onClick={() => setFailModal(false)}
+              style={{
+                width: '100%', padding: '12px', borderRadius: 14,
+                background: '#f3f4f6', color: '#6b7280',
+                fontSize: 14, fontWeight: 500, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >다시 시도</button>
+          </div>
+        </div>
+      )}
+
+
       <div className={compact ? '' : 'bg-white rounded-2xl border border-gray-100 p-4 shadow-sm'}>
         <textarea
           className="w-full text-sm resize-none outline-none text-gray-700 placeholder:text-gray-300"
@@ -148,7 +189,6 @@ export default function AiInputBox({ userId, compact }: { userId: string; compac
         </div>
       </div>
 
-      {error && <p className="text-xs text-rose-400 mt-2 px-1">{error}</p>}
 
       {previews.length > 0 && (
         <div className="mt-3 space-y-2">

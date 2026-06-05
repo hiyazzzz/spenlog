@@ -7,6 +7,7 @@ import CategoryManager from './CategoryManager'
 import RoutineBanner from './RoutineBanner'
 import { Account, Card, FixedCost } from '@/types'
 import { formatCurrency } from '@/lib/format'
+import AssetsGuide from './AssetsGuide'
 
 interface Budget { id: string; category: string; amount: number; month: string }
 interface Expense { id: string; name: string; amount: number; category: string; date: string; payment_method: string | null }
@@ -295,6 +296,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
 
   return (
     <div className="min-h-screen pb-20" style={{ background: 'var(--color-bg)' }}>
+      <AssetsGuide />
       <h1 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-accent)' }}>자산</h1>
 
       {/* 루틴 배너 */}
@@ -302,6 +304,14 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
         userId={userId}
         fixedCosts={[...localFixed].map(f => ({ ...f, kind: (f as any).kind ?? '고정지출', due_day: (f.due_day ?? undefined) as number | undefined }))}
         thisMonth={thisMonth}
+        onAccountsChange={(updates) => {
+          setLocalAccounts(prev =>
+            prev.map(acc => {
+              const u = updates.find(u => u.id === acc.id)
+              return u ? { ...acc, balance: u.balance } : acc
+            })
+          )
+        }}
       />
 
       {/* 1. 월 수입 */}
@@ -387,7 +397,20 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             </div>
           </div>
         ))}
-        <button onClick={() => setShowAddAccount(s => !s)} style={fullAddBtn}>+ 계좌 추가</button>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <button
+            onClick={() => {
+              const supabaseClient = createClient()
+              supabaseClient.from('accounts').insert({
+                user_id: userId, name: '현금', bank: '현금', balance: 0, type: '현금',
+              }).select().single().then(({ data }) => {
+                if (data) setLocalAccounts(a => [...a, data])
+              })
+            }}
+            style={{ ...fullAddBtn, flex: 1, background: '#f0fdf4', color: '#059669' }}
+          >💵 현금 추가</button>
+          <button onClick={() => setShowAddAccount(s => !s)} style={{ ...fullAddBtn, flex: 1 }}>+ 계좌 추가</button>
+        </div>
       </Section>
 
       {/* 4. 카드 */}

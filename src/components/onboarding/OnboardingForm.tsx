@@ -5,7 +5,29 @@ import { useRouter } from 'next/navigation'
 import { THEMES } from '@/lib/themes'
 import type { Theme } from '@/types'
 
-type Step = 'name' | 'theme' | 'finance' | 'welcome'
+type Step = 'intro' | 'name' | 'theme' | 'finance' | 'welcome'
+
+
+const INTRO_SLIDES = [
+  {
+    emoji: '🤖',
+    title: '"스타벅스 육천원 카드" 한 줄이면',
+    desc: 'AI가 금액·카테고리·결제수단을 자동으로 분류해줘요',
+    bg: 'linear-gradient(135deg, #6B1E2E 0%, #9B2C45 100%)',
+  },
+  {
+    emoji: '📊',
+    title: '이번 달 지출 현황을 한눈에',
+    desc: '카테고리별 예산 달성률을 대시보드에서 바로 확인해요',
+    bg: 'linear-gradient(135deg, #4A7541 0%, #6AAD5E 100%)',
+  },
+  {
+    emoji: '🏦',
+    title: '계좌·카드·고정비 연결하면',
+    desc: '루틴 기록 한 번으로 잔액이 자동으로 반영돼요',
+    bg: 'linear-gradient(135deg, #5C4B8A 0%, #7B6AAD 100%)',
+  },
+]
 
 const RANDOM_NAMES = [
   '데굴데굴 도토리', '반짝반짝 별님', '폴짝폴짝 토끼',
@@ -14,11 +36,11 @@ const RANDOM_NAMES = [
   '쏙쏙 솔방울', '통통 밤톨', '깜짝깜짝 별똥별',
 ]
 
-const THEME_LIST: { key: Theme; emoji: string; desc: string; premium?: boolean }[] = [
-  { key: 'Burgundy', emoji: '🍷', desc: '고급스러운' },
-  { key: 'Sage', emoji: '🌿', desc: '자연스러운' },
-  { key: 'Lavender', emoji: '💜', desc: '감성적인', premium: true },
-  { key: 'Terracotta', emoji: '🧡', desc: '따뜻한', premium: true },
+const THEME_LIST: { key: Theme; emoji: string; premium?: boolean }[] = [
+  { key: 'Burgundy', emoji: '🩷' },
+  { key: 'Sage', emoji: '🩷' },
+  { key: 'Lavender', emoji: '🩷', premium: true },
+  { key: 'Terracotta', emoji: '🩷', premium: true },
 ]
 
 function randomName() {
@@ -54,7 +76,8 @@ interface Props { userId: string; email: string }
 export default function OnboardingForm({ userId, email }: Props) {
   const router = useRouter()
   const supabase = createClient()
-  const [step, setStep] = useState<Step>('name')
+  const [step, setStep] = useState<Step>('intro')
+  const [introSlide, setIntroSlide] = useState(0)
   const [name, setName] = useState('')
   const [suggestedName, setSuggestedName] = useState(randomName)
   const [theme, setTheme] = useState<Theme>('Burgundy')
@@ -62,6 +85,7 @@ export default function OnboardingForm({ userId, email }: Props) {
   const [goal, setGoal] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showPremiumSheet, setShowPremiumSheet] = useState(false)
 
   useEffect(() => {
     const t = THEMES[theme]
@@ -99,10 +123,65 @@ export default function OnboardingForm({ userId, email }: Props) {
     setTimeout(() => router.push('/'), 2000)
   }
 
+  if (step === 'intro') {
+    const slide = INTRO_SLIDES[introSlide]
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        {/* 건너뛰기 */}
+        <button onClick={() => setStep('name')} style={{
+          position: 'absolute', top: 16, right: 20, zIndex: 10,
+          background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 20,
+          padding: '6px 14px', fontSize: 12, color: '#fff', cursor: 'pointer', fontFamily: 'inherit',
+        }}>건너뛰기</button>
+
+        {/* 슬라이드 영역 */}
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', padding: '60px 32px 40px',
+          background: slide.bg, minHeight: '65vh',
+        }}>
+          <div style={{ fontSize: 64, marginBottom: 24 }}>{slide.emoji}</div>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: '#fff', textAlign: 'center', marginBottom: 12, lineHeight: 1.3 }}>
+            {slide.title}
+          </h2>
+          <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 1.6 }}>
+            {slide.desc}
+          </p>
+        </div>
+
+        {/* 하단 컨트롤 */}
+        <div style={{ padding: '24px 24px 48px', background: '#fff' }}>
+          {/* 페이지 인디케이터 */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 24 }}>
+            {INTRO_SLIDES.map((_, i) => (
+              <div key={i} style={{
+                width: i === introSlide ? 20 : 6, height: 6, borderRadius: 3,
+                background: i === introSlide ? 'var(--color-primary)' : '#e5e7eb',
+                transition: 'all 0.3s',
+              }} />
+            ))}
+          </div>
+
+          {introSlide < INTRO_SLIDES.length - 1 ? (
+            <button onClick={() => setIntroSlide(s => s + 1)} style={{
+              width: '100%', padding: '16px', borderRadius: '16px', background: 'var(--color-primary)',
+              color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+            }}>다음 →</button>
+          ) : (
+            <button onClick={() => setStep('name')} style={{
+              width: '100%', padding: '16px', borderRadius: '16px', background: 'var(--color-primary)',
+              color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+            }}>시작하기 🎉</button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   if (step === 'name') {
     return (
       <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
-        <ProgressBar current={0} total={3} color={primary} />
+        <ProgressBar current={1} total={4} color={primary} />
         <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '8px' }}>
           안녕하세요! 😊
         </h1>
@@ -132,61 +211,83 @@ export default function OnboardingForm({ userId, email }: Props) {
 
   if (step === 'theme') {
     return (
+      <>
       <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
-        <ProgressBar current={1} total={3} color={primary} />
+        <ProgressBar current={2} total={4} color={primary} />
         <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '8px' }}>나만의 감성을 골라봐요 🎨</h1>
         <p style={{ fontSize: '15px', color: '#B8A8AC', marginBottom: '32px' }}>언제든지 설정에서 바꿀 수 있어요</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '32px' }}>
-          {THEME_LIST.map(({ key, emoji, desc, premium }) => {
+          {THEME_LIST.map(({ key, emoji, premium }) => {
             const t = THEMES[key]
             const selected = theme === key
             return (
               <button key={key}
-                onClick={() => { if (!premium) setTheme(key) }}
+                onClick={() => setTheme(key)}
                 style={{
                   padding: '20px 16px', borderRadius: '20px',
                   border: selected ? '2.5px solid ' + t.primary : '2px solid transparent',
                   background: selected ? t.primaryLight : '#fff',
                   boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-                  cursor: premium ? 'default' : 'pointer', fontFamily: 'inherit',
+                  cursor: 'pointer', fontFamily: 'inherit',
                   display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: '8px',
                   transition: 'all 0.15s',
-                  opacity: premium ? 0.6 : 1,
                   position: 'relative' as const,
                 }}>
                 <div style={{ width: '100%', height: '40px', borderRadius: '10px', background: t.primary }} />
                 {premium && (
-                  <div style={{
-                    position: 'absolute' as const, top: 8, right: 8,
-                    background: 'linear-gradient(135deg, #f59e0b, #ef4444)', color: '#fff', fontSize: 9, fontWeight: 700,
-                    padding: '2px 5px', borderRadius: 6,
-                  }}>💎</div>
+                  <span style={{ position: 'absolute' as const, top: 6, right: 8, fontSize: 14 }}>💎</span>
                 )}
                 <span style={{ fontSize: '20px' }}>{emoji}</span>
                 <span style={{ fontSize: '13px', fontWeight: '700', color: premium ? '#9ca3af' : t.primary }}>{t.name}</span>
-                <span style={{ fontSize: '11px', color: '#9ca3af' }}>{premium ? '프리미엄에서 사용 가능' : desc}</span>
                 {selected && !premium && <span style={{ fontSize: '16px' }}>✓</span>}
               </button>
             )
           })}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px' }}>
-          <button onClick={() => setStep('finance')} style={{
-            width: '100%', padding: '16px', borderRadius: '16px', background: primary,
-            color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-          }}>다음 →</button>
+          <button
+            onClick={() => {
+              const isPremium = THEME_LIST.find(t => t.key === theme)?.premium
+              if (isPremium) { setShowPremiumSheet(true) } else { setStep('finance') }
+            }}
+            style={{
+              width: '100%', padding: '16px', borderRadius: '16px', background: primary,
+              color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+            }}>다음 →</button>
           <button onClick={() => setStep('name')} style={{
             background: 'none', border: 'none', color: '#B8A8AC', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit',
           }}>← 이전</button>
         </div>
       </div>
+
+      {/* 프리미엄 Bottom Sheet */}
+      {showPremiumSheet && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-end' }}>
+          <div style={{ width: '100%', background: '#fff', borderRadius: '20px 20px 0 0', padding: '28px 24px 40px' }}>
+            <p style={{ fontSize: 22, textAlign: 'center', marginBottom: 8 }}>💎</p>
+            <p style={{ fontSize: 16, fontWeight: 700, color: '#1f2937', textAlign: 'center', marginBottom: 8 }}>프리미엄 전용 테마예요</p>
+            <p style={{ fontSize: 13, color: '#6b7280', textAlign: 'center', lineHeight: 1.6, marginBottom: 24 }}>
+              지금 업그레이드하면 모든 테마를<br />자유롭게 사용할 수 있어요
+            </p>
+            <button onClick={() => { setShowPremiumSheet(false); router.push('/premium') }}
+              style={{ width: '100%', padding: '14px', borderRadius: 14, background: 'linear-gradient(135deg, #f59e0b, #ef4444)', color: '#fff', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit', marginBottom: 10 }}>
+              프리미엄 시작하기
+            </button>
+            <button onClick={() => { setTheme('Burgundy'); setShowPremiumSheet(false); setStep('finance') }}
+              style={{ width: '100%', padding: '12px', borderRadius: 14, background: '#f3f4f6', color: '#6b7280', fontSize: 14, fontWeight: 500, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+              기본 테마로 계속
+            </button>
+          </div>
+        </div>
+      )}
+      </>
     )
   }
 
   if (step === 'finance') {
     return (
       <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
-        <ProgressBar current={2} total={3} color={primary} />
+        <ProgressBar current={3} total={4} color={primary} />
         <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '8px' }}>한 달 살림을 알려줘요 💰</h1>
         <p style={{ fontSize: '15px', color: '#B8A8AC', marginBottom: '32px' }}>예산 관리의 기준이 돼요. 나중에 바꿀 수 있어요.</p>
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '16px', marginBottom: '8px' }}>

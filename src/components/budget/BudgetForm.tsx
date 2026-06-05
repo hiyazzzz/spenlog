@@ -15,6 +15,7 @@ interface Props {
   income: number
   fixedSavings?: number
   recentExpenses?: RecentExpense[]
+  customCategories?: string[]  // 유저 커스텀 카테고리
 }
 
 // 저축 플랜 — 감각적 네이밍
@@ -50,7 +51,7 @@ function getInitialAmounts(initialBudgets: Budget[]) {
   ]))
 }
 
-export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth, income, fixedSavings = 0, recentExpenses = [] }: Props) {
+export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth, income, fixedSavings = 0, recentExpenses = [], customCategories }: Props) {
   const supabase = createClient()
   const router = useRouter()
   const [tab, setTab] = useState<'manual' | 'ai'>('manual')
@@ -60,6 +61,21 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
   const [aiLoading, setAiLoading] = useState(false)
   const [aiReason, setAiReason] = useState<string | null>(null)
   const [aiToast, setAiToast] = useState<string | null>(null)
+
+  // 유저 커스텀 카테고리가 있으면 우선, 없으면 기본 CATEGORIES
+  const allCategories = customCategories && customCategories.length > 0 ? customCategories : (CATEGORIES as readonly string[])
+  // ON/OFF 토글 - 기본값: 이미 예산 설정된 카테고리는 ON
+  const [enabledCats, setEnabledCats] = useState<Record<string, boolean>>(() => {
+    const map: Record<string, boolean> = {}
+    allCategories.forEach(cat => {
+      map[cat] = initialBudgets.some(b => b.category === cat && b.amount > 0)
+      if (!map[cat]) map[cat] = false
+    })
+    // 설정된 게 하나도 없으면 첫 3개 ON
+    const anyOn = Object.values(map).some(Boolean)
+    if (!anyOn) allCategories.slice(0, 3).forEach(cat => { map[cat] = true })
+    return map
+  })
 
   // savedAmounts: DB 저장된 값 (탭 전환해도 유지)
   const savedAmounts = useMemo(() => getInitialAmounts(initialBudgets), [initialBudgets])
@@ -160,7 +176,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
 
   async function handleSave() {
     setLoading(true)
-    const upsertData = CATEGORIES.map(cat => ({
+    const upsertData = allCategories.filter(cat => enabledCats[cat]).map(cat => ({
       user_id: userId,
       category: cat,
       amount: parseInt(amounts[cat] || '0'),
@@ -174,7 +190,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
   }
 
   const displayAmounts = tab === 'ai' && selectedPreset ? aiAmounts : amounts
-  const totalBudget = CATEGORIES.reduce((s, c) => s + (parseInt(displayAmounts[c] || '0') || 0), 0)
+  const totalBudget = allCategories.filter(c => enabledCats[c]).reduce((s, c) => s + (parseInt(displayAmounts[c] || '0') || 0), 0)
   const totalSpent = expenses.reduce((s, e) => s + e.amount, 0)
   const overallPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0
 
@@ -318,7 +334,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
           {selectedPreset && income > 0 && (
             <div className="space-y-1.5">
               <p className="text-xs text-gray-400 mb-2">📊 지출 예산 배분</p>
-              {CATEGORIES.map(cat => (
+              {allCategories.map(cat => (
                 <div key={cat} className="flex justify-between text-xs py-1 border-b border-gray-50">
                   <span className="text-gray-600">{cat}</span>
                   <span className="font-semibold" style={{ color: 'var(--color-primary)' }}>
@@ -368,16 +384,33 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
       {tab === 'manual' && (
         <>
           <div className="space-y-3">
-            {CATEGORIES.map((cat) => {
+            {allCategories.map((cat) => {
               const spent = expenses.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0)
               const budget = parseInt(amounts[cat] || '0') || 0
               const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0
               const over = spent > budget && budget > 0
 
               return (
-                <div key={cat} className="bg-white rounded-2xl p-4 border border-gray-100">
+                <div key={cat} className="bg-white rounded-2xl p-4 border border-gray-100"
+                  style={{ opacity: enabledCats[cat] ? 1 : 0.45 }}>
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-700">{cat}</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setEnabledCats(prev => ({ ...prev, [cat]: !prev[cat] }))}
+                        style={{
+                          width: 36, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer',
+                          background: enabledCats[cat] ? 'var(--color-primary)' : '#d1d5db',
+                          position: 'relative', flexShrink: 0, transition: 'background 0.2s',
+                        }}
+                      >
+                        <div style={{
+                          position: 'absolute', top: 2, left: enabledCats[cat] ? 18 : 2,
+                          width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                          transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                        }} />
+                      </button>
+                      <span className="text-sm font-medium text-gray-700">{cat}</span>
+                    </div>
                     <div className="flex items-center gap-1">
                       <input
                         type="text" inputMode="numeric"

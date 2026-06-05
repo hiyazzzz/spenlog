@@ -23,16 +23,20 @@ const FIXED_CATS = ['생활비', '활동비', '고정비', '친목비'] as const
 export default function HomeCategoryGrid({ expenses, budgets, categoryImages }: Props) {
   const router = useRouter()
 
+  // net 합계: 지출은 음수, 수입은 양수
   const catMap: Record<string, number> = {}
   ;(expenses || [])
-    .filter(e => e.type !== 'income')
-    .forEach(e => { catMap[e.category] = (catMap[e.category] ?? 0) + Number(e.amount) })
+    .filter(e => e.type !== 'transfer')
+    .forEach(e => {
+      const sign = e.type === 'income' ? 1 : -1
+      catMap[e.category] = (catMap[e.category] ?? 0) + sign * Number(e.amount)
+    })
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <p style={{ fontSize: 13, fontWeight: 700, color: '#1f2937' }}>카테고리별 지출 현황</p>
-        <button onClick={() => router.push('/history')}
+        <p style={{ fontSize: 13, fontWeight: 700, color: '#1f2937' }}>카테고리 현황</p>
+        <button onClick={() => router.push('/category')}
           style={{ fontSize: 12, color: 'var(--color-primary-mid)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
           전체 보기 →
         </button>
@@ -40,7 +44,8 @@ export default function HomeCategoryGrid({ expenses, budgets, categoryImages }: 
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         {FIXED_CATS.map(cat => {
-          const spent = catMap[cat] ?? 0
+          const net = catMap[cat] ?? 0
+          const spent = Math.abs(net)
           const budget = budgets?.find(b => b.category === cat)?.amount ?? 0
           const pct = budget > 0 ? Math.min(Math.round((spent / budget) * 100), 100) : 0
           const over = budget > 0 && spent > budget
@@ -83,8 +88,8 @@ export default function HomeCategoryGrid({ expenses, budgets, categoryImages }: 
               {/* 텍스트 영역 */}
               <div style={{ padding: '10px 12px' }}>
                 <p style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 3 }}>{cat}</p>
-                <p style={{ fontSize: 14, fontWeight: 800, color: spent > 0 ? 'var(--color-primary)' : '#d1d5db' }}>
-                  {spent > 0 ? '-₩' + spent.toLocaleString() : '₩0'}
+                <p style={{ fontSize: 14, fontWeight: 800, color: net !== 0 ? (net > 0 ? '#059669' : 'var(--color-primary)') : '#d1d5db' }}>
+                  {net > 0 ? '+₩' + net.toLocaleString() : net < 0 ? '-₩' + Math.abs(net).toLocaleString() : '₩0'}
                 </p>
                 {budget > 0 && (
                   <div style={{ marginTop: 6 }}>

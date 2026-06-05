@@ -9,18 +9,21 @@ interface FixedCost {
   linked_target_account_id?: string | null
 }
 
+interface AccountUpdate { id: string; balance: number }
+
 interface Props {
   userId: string
   fixedCosts: FixedCost[]
   thisMonth: string
+  onAccountsChange?: (updates: AccountUpdate[]) => void
 }
 
-export default function RoutineBanner({ userId, fixedCosts, thisMonth }: Props) {
+export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccountsChange }: Props) {
   const supabase = createClient()
   const [payments, setPayments] = useState<Record<string, boolean>>({})
   const [loadingPayments, setLoadingPayments] = useState(true)
   const [processing, setProcessing] = useState<string | null>(null)
-  const [expanded, setExpanded] = useState(true)
+  const [expanded, setExpanded] = useState(fixedCosts.length > 0)
   const [toast, setToast] = useState('')
 
   useEffect(() => {
@@ -42,7 +45,15 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth }: Props) 
   }, [userId, thisMonth])
 
   const pending = fixedCosts.filter(f => !payments[f.id])
-  if (fixedCosts.length === 0) return null
+  if (fixedCosts.length === 0) return (
+    <div style={{
+      background: 'var(--color-primary-light)', border: '1.5px dashed var(--color-primary-light)',
+      borderRadius: 16, padding: '14px 16px', marginBottom: 12,
+    }}>
+      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary-mid)', marginBottom: 2 }}>📋 루틴 관리</p>
+      <p style={{ fontSize: 11, color: 'var(--color-primary-mid)' }}>고정비·저축을 추가하면 매달 한 번에 기록할 수 있어요</p>
+    </div>
+  )
   if (loadingPayments) return (
     <div style={{ background: 'var(--color-primary-light)', borderRadius: 16, padding: '14px 16px', marginBottom: 12, opacity: 0.6 }}>
       <p style={{ fontSize: 13, color: 'var(--color-primary-mid)' }}>이번 달 처리할 항목 확인 중...</p>
@@ -76,27 +87,27 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth }: Props) 
         memo: isTransfer ? '고정 저축 이체' : '고정 지출 처리',
       })
 
-      // 3. 연결 계좌 잔액 변동
+      // 3. 연결 계좌 잔액 변동 + 즉각 UI 동기화
+      const accountUpdates: AccountUpdate[] = []
       if (fc.linked_account_id) {
         const { data: srcAcc } = await supabase
           .from('accounts').select('balance').eq('id', fc.linked_account_id).single()
         if (srcAcc != null) {
-          // 출금 계좌는 항상 감소
-          await supabase.from('accounts')
-            .update({ balance: (srcAcc.balance ?? 0) - fc.amount })
-            .eq('id', fc.linked_account_id)
+          const newBalance = (srcAcc.balance ?? 0) - fc.amount
+          await supabase.from('accounts').update({ balance: newBalance }).eq('id', fc.linked_account_id)
+          accountUpdates.push({ id: fc.linked_account_id, balance: newBalance })
         }
       }
-      // 이체(저축): 입금 계좌 잔액 증가
       if (fc.kind === '고정저축' && fc.linked_target_account_id) {
         const { data: tgtAcc } = await supabase
           .from('accounts').select('balance').eq('id', fc.linked_target_account_id).single()
         if (tgtAcc != null) {
-          await supabase.from('accounts')
-            .update({ balance: (tgtAcc.balance ?? 0) + fc.amount })
-            .eq('id', fc.linked_target_account_id)
+          const newBalance = (tgtAcc.balance ?? 0) + fc.amount
+          await supabase.from('accounts').update({ balance: newBalance }).eq('id', fc.linked_target_account_id)
+          accountUpdates.push({ id: fc.linked_target_account_id, balance: newBalance })
         }
       }
+      if (accountUpdates.length > 0) onAccountsChange?.(accountUpdates)
 
       setPayments(p => ({ ...p, [fc.id]: true }))
       setToast(fc.name + ' 기록 완료 ✓')
