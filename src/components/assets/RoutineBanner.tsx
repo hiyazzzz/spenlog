@@ -5,6 +5,7 @@ import dayjs from 'dayjs'
 
 interface FixedCost {
   id: string; name: string; amount: number; kind: string; due_day?: number
+  linked_account_id?: string | null
 }
 
 interface Props {
@@ -16,12 +17,14 @@ interface Props {
 export default function RoutineBanner({ userId, fixedCosts, thisMonth }: Props) {
   const supabase = createClient()
   const [payments, setPayments] = useState<Record<string, boolean>>({})
+  const [loadingPayments, setLoadingPayments] = useState(true)
   const [processing, setProcessing] = useState<string | null>(null)
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(true)
   const [toast, setToast] = useState('')
 
   useEffect(() => {
     async function loadPayments() {
+      setLoadingPayments(true)
       const { data } = await supabase
         .from('savings_payments')
         .select('fixed_cost_id, is_paid')
@@ -32,26 +35,64 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth }: Props) 
         data.forEach(p => { map[p.fixed_cost_id] = p.is_paid })
         setPayments(map)
       }
+      setLoadingPayments(false)
     }
     loadPayments()
   }, [userId, thisMonth])
 
   const pending = fixedCosts.filter(f => !payments[f.id])
-  if (pending.length === 0) return null
+  if (fixedCosts.length === 0) return null
+  if (loadingPayments) return (
+    <div style={{ background: 'var(--color-primary-light)', borderRadius: 16, padding: '14px 16px', marginBottom: 12, opacity: 0.6 }}>
+      <p style={{ fontSize: 13, color: 'var(--color-primary-mid)' }}>이번 달 처리할 항목 확인 중...</p>
+    </div>
+  )
+
+  const allDone = pending.length === 0
 
   async function recordPayment(fc: FixedCost) {
     setProcessing(fc.id)
-    await supabase.from('savings_payments').upsert({
-      user_id: userId,
-      fixed_cost_id: fc.id,
-      year_month: thisMonth,
-      is_paid: true,
-      paid_amount: fc.amount,
-    })
-    setPayments(p => ({ ...p, [fc.id]: true }))
-    setProcessing(null)
-    setToast(`${fc.name} 기록 완료 ✓`)
-    setTimeout(() => setToast(''), 2000)
+    try {
+      const today = new Date().toISOString().split('T')[0]
+
+      // 1. savings_payments 기록
+      await supabase.from('savings_payments').upsert({
+        user_id: userId, fixed_cost_id: fc.id,
+        year_month: thisMonth, is_paid: true, paid_amount: fc.amount,
+      })
+
+      // 2. expenses 테이블에 내역 저장 (내역 탭 반영)
+      await supabase.from('expenses').insert({
+        user_id: userId,
+        name: fc.name,
+        amount: fc.amount,
+        category: '고정비',
+        date: today,
+        payment_method: null,
+        type: 'expense',
+        source: 'routine',
+        memo: fc.kind === '고정저축' ? '고정 저축 납입' : '고정 지출 처리',
+      })
+
+      // 3. 연결 계좌 잔액 변동
+      if (fc.linked_account_id) {
+        const { data: acc } = await supabase
+          .from('accounts').select('balance').eq('id', fc.linked_account_id).single()
+        if (acc != null) {
+          const current = acc.balance ?? 0
+          const next = fc.kind === '고정저축'
+            ? current + fc.amount   // 적금: 잔액 증가
+            : current - fc.amount   // 지출: 잔액 감소
+          await supabase.from('accounts').update({ balance: next }).eq('id', fc.linked_account_id)
+        }
+      }
+
+      setPayments(p => ({ ...p, [fc.id]: true }))
+      setToast(fc.name + ' 기록 완료 ✓')
+      setTimeout(() => setToast(''), 2000)
+    } finally {
+      setProcessing(null)
+    }
   }
 
   const today = parseInt(dayjs().format('D'))
@@ -67,8 +108,10 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth }: Props) 
         }}>{toast}</div>
       )}
       <div style={{
-        background: 'linear-gradient(135deg, var(--color-primary-light), #fff)',
-        border: '1.5px solid var(--color-primary-light)',
+        background: allDone
+          ? 'linear-gradient(135deg, #f0fdf4, #fff)'
+          : 'linear-gradient(135deg, var(--color-primary-light), #fff)',
+        border: '1.5px solid ' + (allDone ? '#bbf7d0' : 'var(--color-primary-light)'),
         borderRadius: 16, padding: '14px 16px', marginBottom: 12,
       }}>
         <button onClick={() => setExpanded(e => !e)} style={{
@@ -76,15 +119,22 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth }: Props) 
           background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>📋</span>
+            <span style={{ fontSize: 16 }}>{allDone ? '🎉' : '📋'}</span>
             <div style={{ textAlign: 'left' as const }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-accent)' }}>
-                이번 달 처리할 항목 {pending.length}건
+              <p style={{ fontSize: 13, fontWeight: 700, color: allDone ? '#059669' : 'var(--color-accent)' }}>
+                {allDone
+                  ? '이번 달 모두 완료!'
+                  : '이번 달 처리할 항목 ' + pending.length + '건'}
               </p>
-              <p style={{ fontSize: 11, color: 'var(--color-primary-mid)' }}>탭해서 확인하기</p>
+              <p style={{ fontSize: 11, color: allDone ? '#6ee7b7' : 'var(--color-primary-mid)' }}>
+                {expanded ? '탭해서 접기' : '탭해서 확인하기'}
+              </p>
             </div>
           </div>
-          <span style={{ fontSize: 14, color: 'var(--color-primary-mid)', transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+          <span style={{
+            fontSize: 14, color: allDone ? '#6ee7b7' : 'var(--color-primary-mid)',
+            transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s',
+          }}>▼</span>
         </button>
 
         {expanded && (
@@ -101,10 +151,14 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth }: Props) 
                   <div>
                     <p style={{ fontSize: 13, fontWeight: 600, color: '#1f2937' }}>
                       {fc.name}
-                      {overdue && !paid && <span style={{ fontSize: 10, color: '#ef4444', marginLeft: 4 }}>⚠️ 출금일 지남</span>}
+                      {overdue && !paid && (
+                        <span style={{ fontSize: 10, color: '#ef4444', marginLeft: 4 }}>
+                          ⚠️ 출금일 지남
+                        </span>
+                      )}
                     </p>
                     <p style={{ fontSize: 11, color: '#9ca3af' }}>
-                      ₩{fc.amount.toLocaleString()} · {fc.due_day ? `매월 ${fc.due_day}일` : ''}
+                      {'₩'}{fc.amount.toLocaleString()} {fc.due_day ? '매월 ' + fc.due_day + '일' : ''}
                     </p>
                   </div>
                   {paid ? (

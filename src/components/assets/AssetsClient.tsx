@@ -8,12 +8,14 @@ import RoutineBanner from './RoutineBanner'
 import { Account, Card, FixedCost } from '@/types'
 
 interface Budget { id: string; category: string; amount: number; month: string }
+interface Expense { id: string; name: string; amount: number; category: string; date: string; payment_method: string | null }
 interface Props {
   profile: any; userId: string
   accounts: Account[]; cards: Card[]; fixedCosts: FixedCost[]
   budgets: Budget[]; thisMonthSpent: number
   categorySpent: Record<string, number>; thisMonth: string
   customCategories?: any[]
+  expenses?: Expense[]
 }
 
 function fmt(v: string) { const n = v.replace(/[^0-9]/g, ''); return n ? Number(n).toLocaleString() : '' }
@@ -146,7 +148,7 @@ function BudgetRow({ category, budgetAmt, spent, onSave }: {
   )
 }
 
-export default function AssetsClient({ profile, userId, accounts, cards, fixedCosts, budgets, thisMonthSpent, categorySpent, thisMonth, customCategories }: Props) {
+export default function AssetsClient({ profile, userId, accounts, cards, fixedCosts, budgets, thisMonthSpent, categorySpent, thisMonth, customCategories, expenses = [] }: Props) {
   const supabase = createClient()
   const router = useRouter()
   const [localAccounts, setLocalAccounts] = useState(accounts)
@@ -155,6 +157,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const [localBudgets, setLocalBudgets] = useState(budgets)
   const [showAddAccount, setShowAddAccount] = useState(false)
   const [showAddCard, setShowAddCard] = useState(false)
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
   const [showAddFixed, setShowAddFixed] = useState<'expense' | 'saving' | null>(null)
   const [editingIncome, setEditingIncome] = useState(false)
   const [income, setIncome] = useState(profile?.income ? Number(profile.income).toLocaleString() : '')
@@ -361,18 +364,53 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             onCancel={() => setShowAddCard(false)} />
         )}
         {localCards.length === 0 && !showAddCard && <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 10 }}>등록된 카드가 없어요</p>}
-        {localCards.map(card => (
-          <div key={card.id} style={rowStyle}>
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#1f2937' }}>{card.name}</p>
-              <p style={{ fontSize: 11, color: '#9ca3af' }}>
-                {card.bank}{card.due_day ? ' · 출금일 매월 ' + card.due_day + '일' : ''}
-                {card.linked_account ? ' · ' + (localAccounts.find(a => a.id === card.linked_account)?.name ?? '') : ''}
-              </p>
+        {localCards.map(card => {
+          const cardExpenses = expenses.filter(e => e.payment_method === card.name)
+          const cardTotal = cardExpenses.reduce((s, e) => s + Number(e.amount), 0)
+          const isExpanded = expandedCardId === card.id
+          return (
+            <div key={card.id} style={{ marginBottom: 2 }}>
+              <div style={{ ...rowStyle, borderBottom: isExpanded ? 'none' : '1px solid #f9fafb' }}>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#1f2937' }}>{card.name}</p>
+                  <p style={{ fontSize: 11, color: '#9ca3af' }}>
+                    {card.bank}{card.due_day ? ' · 출금일 매월 ' + card.due_day + '일' : ''}
+                    {card.linked_account ? ' · ' + (localAccounts.find(a => a.id === card.linked_account)?.name ?? '') : ''}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button
+                    onClick={() => setExpandedCardId(isExpanded ? null : card.id)}
+                    style={{ fontSize: 11, color: 'var(--color-primary)', background: 'var(--color-primary-light)', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}
+                  >{isExpanded ? '접기' : `이번달 내역${cardTotal > 0 ? ' ₩' + cardTotal.toLocaleString() : ''}`}</button>
+                  <button onClick={() => deleteCard(card.id)} style={{ fontSize: 11, color: '#ef4444', background: '#fef2f2', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
+                </div>
+              </div>
+              {isExpanded && (
+                <div style={{ background: '#f9fafb', borderRadius: '0 0 10px 10px', padding: '8px 12px', marginBottom: 4 }}>
+                  {cardExpenses.length === 0 ? (
+                    <p style={{ fontSize: 12, color: '#9ca3af', textAlign: 'center', padding: '8px 0' }}>이 카드로 결제한 내역이 없어요</p>
+                  ) : (
+                    cardExpenses.map(e => (
+                      <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
+                        <div>
+                          <p style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>{e.name}</p>
+                          <p style={{ fontSize: 10, color: '#9ca3af' }}>{e.date.slice(5)} · {e.category}</p>
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#f87171' }}>-₩{Number(e.amount).toLocaleString()}</span>
+                      </div>
+                    ))
+                  )}
+                  {cardExpenses.length > 0 && (
+                    <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-primary)', marginTop: 6, textAlign: 'right' }}>
+                      이번달 합계 ₩{cardTotal.toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
-            <button onClick={() => deleteCard(card.id)} style={{ fontSize: 11, color: '#ef4444', background: '#fef2f2', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
-          </div>
-        ))}
+          )
+        })}
         <button onClick={() => setShowAddCard(s => !s)} style={fullAddBtn}>+ 카드 추가</button>
       </Section>
 

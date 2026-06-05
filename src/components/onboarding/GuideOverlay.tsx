@@ -25,12 +25,12 @@ const STEPS: Step[] = [
   {
     title: '리포트로 패턴 파악',
     desc: '월간 소비 패턴을 보고\nAI와 함께 다음 달을 계획해요',
-    highlight: 'nav-2',
+    highlight: 'nav-3',
   },
   {
     title: '자산을 한 곳에서 관리',
     desc: '계좌·카드·고정비를\n모두 연결해 관리할 수 있어요',
-    highlight: 'nav-3',
+    highlight: 'nav-2',
     isFinal: true,
   },
 ]
@@ -57,7 +57,7 @@ export default function GuideOverlay({ userId }: Props) {
   const current = STEPS[step]
   const isLast = step === STEPS.length - 1
 
-  // BottomNav: 5개 아이템, 각 20% 너비 (0=홈, 1=분석, 2=리포트, 3=자산, 4=설정)
+  // BottomNav: 5개 아이템, 각 20% 너비 (0=홈, 1=내역, 2=자산, 3=리포트, 4=설정)
   function getNavHighlight(idx: number) {
     return {
       position: 'fixed' as const,

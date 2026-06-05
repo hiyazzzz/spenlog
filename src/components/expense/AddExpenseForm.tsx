@@ -6,7 +6,10 @@ import { useRouter } from 'next/navigation'
 import { CATEGORIES } from '@/lib/themes'
 import dayjs from 'dayjs'
 
-const PAYMENT_METHODS = ['카드', '현금', '카카오페이', '네이버페이', '토스', '계좌이체']
+// 지출 수단: 카드(등록된 카드 우선) + 직접결제 수단
+const EXPENSE_METHODS = ['현금', '계좌이체', '카카오페이', '네이버페이', '토스페이', '제로페이']
+// 수입 수단
+const INCOME_METHODS = ['현금', '계좌이체']
 
 interface Props {
   prefill?: { name?: string; amount?: number; category?: string; type?: 'expense' | 'income' }
@@ -81,24 +84,27 @@ export default function AddExpenseForm({ prefill }: Props) {
           }
         }
       } else {
-        const { error: saveErr } = await supabase.from('incomes').insert({
+        // 수입은 expenses 테이블에 type='income'으로 저장 (통합 스키마)
+        const { error: saveErr } = await supabase.from('expenses').insert({
           user_id: user.id, name: form.name.trim(), amount,
-          date: form.date, memo: form.memo || null, source: 'manual',
+          category: '수입', date: form.date,
+          payment_method: null, memo: form.memo || null,
+          source: 'manual', type: 'income',
         })
         if (saveErr) throw saveErr
       }
       clearPrefill() // AI fallback store 클리어
       showToast(type === 'expense' ? '지출이 저장됐어요!' : '수입이 저장됐어요!')
       setForm({ name: '', amount: '', category: '생활비', date: dayjs().format('YYYY-MM-DD'), payment_method: '', memo: '' })
-      router.refresh()
+      // 1초 후 내역 탭으로 이동
+      setTimeout(() => router.push('/history'), 1000)
     } catch { setError('저장 중 오류가 발생했어요') }
     finally { setSaving(false) }
   }
 
-  const paymentOptions = [
-    ...cards.map(c => c.name),
-    ...PAYMENT_METHODS.filter(m => !cards.some(c => c.name === m)),
-  ]
+  const paymentOptions = type === 'income'
+    ? INCOME_METHODS
+    : [...cards.map(c => c.name), ...EXPENSE_METHODS.filter(m => !cards.some(c => c.name === m))]
 
   return (
     <div className="space-y-3 relative">
@@ -177,7 +183,7 @@ export default function AddExpenseForm({ prefill }: Props) {
       <button onClick={handleSave} disabled={saving}
         className="w-full text-white py-3.5 rounded-2xl text-sm font-medium mt-2 disabled:opacity-60"
         style={{ background: 'var(--color-primary)' }}>
-        {saving ? '저장 중…' : type === 'expense' ? '지출 저장' : '수입 저장'}
+        {saving ? '저장 중...' : type === 'expense' ? '지출 저장' : '수입 저장'}
       </button>
     </div>
   )

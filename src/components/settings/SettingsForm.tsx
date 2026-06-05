@@ -1,12 +1,33 @@
 'use client'
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { THEMES } from '@/lib/themes'
 import type { Theme } from '@/types'
 
-const BASIC_THEMES: Theme[] = ['Burgundy', 'Sage', 'Lavender', 'Terracotta']
+function ToggleSwitch({ on, onToggle, disabled }: { on: boolean; onToggle: () => void; disabled?: boolean }) {
+  return (
+    <button onClick={onToggle} disabled={disabled}
+      style={{
+        width: 44, height: 24, borderRadius: 12, border: 'none',
+        cursor: disabled ? 'default' : 'pointer',
+        background: on ? 'var(--color-primary)' : '#d1d5db',
+        transition: 'background 0.2s', position: 'relative', flexShrink: 0,
+      }}>
+      <div style={{
+        position: 'absolute', top: 3,
+        left: on ? 22 : 3,
+        width: 18, height: 18, borderRadius: '50%', background: '#fff',
+        transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+      }} />
+    </button>
+  )
+}
+
+const BASIC_THEMES: Theme[] = ['Burgundy', 'Sage']
 const PREMIUM_THEMES = [
+  { key: 'Lavender', color: THEMES.Lavender.primary, label: '라벤더' },
+  { key: 'Terracotta', color: THEMES.Terracotta.primary, label: '테라코타' },
   { key: 'Oatmeal', color: '#C8B8A2', label: 'Oatmeal' },
   { key: 'WarmGray', color: '#9E9E9E', label: 'Warm Gray' },
   { key: 'Midnight', color: '#1A237E', label: 'Midnight' },
@@ -28,8 +49,13 @@ export default function SettingsForm({ profile, userId, email, provider }: Props
   const [editingName, setEditingName] = useState(false)
   const [savingName, setSavingName] = useState(false)
   const [notifications, setNotifications] = useState({
-    all: true, card: true, report: true, reminder: true,
+    all: profile?.push_enabled ?? true,
+    dueDateReminder: profile?.push_due_date_reminder ?? true,
+    dueDateUnprocessed: profile?.push_due_date_unprocessed ?? true,
+    report: profile?.push_report ?? true,
+    reminder: profile?.push_expense_reminder ?? true,
   })
+  const isPremium = profile?.premium_status === 'active'
   const [loggingOut, setLoggingOut] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<boolean | 1 | 2>(false)
   const [deleteConfirmName, setDeleteConfirmName] = useState('')
@@ -163,21 +189,35 @@ export default function SettingsForm({ profile, userId, email, provider }: Props
           </div>
           <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 10, fontWeight: 600 }}>프리미엄 ✨</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {PREMIUM_THEMES.map(t => (
-              <button key={t.key} onClick={() => router.push('/premium')} style={{
-                padding: '12px', borderRadius: 14,
-                border: '2px solid transparent',
-                background: '#f9fafb',
-                cursor: 'pointer', fontFamily: 'inherit',
-                display: 'flex', alignItems: 'center', gap: 10,
-                opacity: 0.6,
-              }}>
-                <div style={{ width: 28, height: 28, borderRadius: 8, background: t.color, flexShrink: 0, position: 'relative' as const }}>
-                  <span style={{ position: 'absolute' as const, top: -4, right: -4, fontSize: 12 }}>🔒</span>
-                </div>
-                <p style={{ fontSize: 12, fontWeight: 700, color: '#6b7280' }}>{t.label}</p>
-              </button>
-            ))}
+            {PREMIUM_THEMES.map(t => {
+              const isAvailable = t.key in THEMES  // Lavender, Terracotta만 THEMES에 있음
+              const isSelected = theme === t.key
+              const handleClick = () => {
+                if (!isPremium) { router.push('/premium'); return }
+                if (isAvailable) applyTheme(t.key as Theme)
+              }
+              return (
+                <button key={t.key} onClick={handleClick} style={{
+                  padding: '12px', borderRadius: 14,
+                  border: isSelected ? '2.5px solid ' + t.color : '2px solid transparent',
+                  background: isSelected ? (THEMES[t.key as Theme]?.primaryLight ?? '#f9fafb') : '#f9fafb',
+                  cursor: isPremium && isAvailable ? 'pointer' : 'pointer',
+                  fontFamily: 'inherit',
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  opacity: (!isPremium || !isAvailable) ? 0.6 : 1,
+                  transition: 'all 0.15s',
+                }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: t.color, flexShrink: 0, position: 'relative' as const }}>
+                    {!isPremium && <span style={{ position: 'absolute' as const, top: -4, right: -4, fontSize: 12 }}>🔒</span>}
+                    {isPremium && !isAvailable && <span style={{ position: 'absolute' as const, top: -4, right: -4, fontSize: 10, background: '#e5e7eb', borderRadius: 4, padding: '1px 3px', color: '#6b7280' }}>준비중</span>}
+                  </div>
+                  <div style={{ textAlign: 'left' as const }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: isSelected ? t.color : '#6b7280' }}>{t.label}</p>
+                    {isSelected && isPremium && <p style={{ fontSize: 10, color: t.color }}>적용 중 ✓</p>}
+                  </div>
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>
@@ -185,44 +225,142 @@ export default function SettingsForm({ profile, userId, email, provider }: Props
       {/* 알림 섹션 */}
       <div style={card}>
         <p style={sectionHeader}>🔔 알림</p>
-        {[
-          { key: 'all', label: '전체 알림', desc: '' },
-          { key: 'card', label: '카드 납부 리마인드', desc: '납부일 3일 전 알림' },
-          { key: 'report', label: '월간 리포트 공개', desc: '매월 1일 리포트 알림' },
-          { key: 'reminder', label: '지출 입력 리마인드', desc: '점심(12:00) · 저녁(19:00)' },
-        ].map((item, i, arr) => (
-          <div key={item.key} style={{ ...rowStyle, borderBottom: i < arr.length - 1 ? '1px solid #f9fafb' : 'none' }}>
-            <div>
-              <p style={{ fontSize: 14, color: '#374151' }}>{item.label}</p>
-              {item.desc && <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{item.desc}</p>}
-            </div>
-            <button onClick={() => setNotifications(n => ({ ...n, [item.key]: !n[item.key as keyof typeof n] }))}
-              style={{
-                width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
-                background: notifications[item.key as keyof typeof notifications] ? 'var(--color-primary)' : '#d1d5db',
-                transition: 'background 0.2s', position: 'relative' as const, flexShrink: 0,
-              }}>
-              <div style={{
-                position: 'absolute' as const, top: 3,
-                left: notifications[item.key as keyof typeof notifications] ? 22 : 3,
-                width: 18, height: 18, borderRadius: '50%', background: '#fff',
-                transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-              }} />
-            </button>
+
+        {/* 전체 알림 토글 */}
+        <div style={{ ...rowStyle, borderBottom: '1px solid #f9fafb' }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>전체 알림</p>
+          <ToggleSwitch
+            on={notifications.all}
+            onToggle={() => {
+              const next = !notifications.all
+              setNotifications(n => ({ ...n, all: next }))
+              supabase.from('users').update({ push_enabled: next }).eq('id', userId)
+            }}
+          />
+        </div>
+
+        {/* 카드·고정비 납부 리마인드 — 대주제 */}
+        <div style={{ padding: '10px 16px 4px', opacity: notifications.all ? 1 : 0.4 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: '#6b7280' }}>💳 카드 · 고정비 납부 리마인드</p>
+        </div>
+
+        {/* 출금일 리마인드 */}
+        <div style={{ ...rowStyle, paddingLeft: 24, borderBottom: '1px solid #f9fafb', opacity: notifications.all ? 1 : 0.4 }}>
+          <div>
+            <p style={{ fontSize: 13, color: '#374151' }}>출금일 리마인드 알림</p>
+            <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>출금일 D-7일부터 매일 발송</p>
           </div>
-        ))}
+          <ToggleSwitch
+            on={notifications.dueDateReminder && notifications.all}
+            disabled={!notifications.all}
+            onToggle={() => {
+              if (!notifications.all) return
+              const next = !notifications.dueDateReminder
+              setNotifications(n => ({ ...n, dueDateReminder: next }))
+              supabase.from('users').update({ push_due_date_reminder: next }).eq('id', userId)
+            }}
+          />
+        </div>
+
+        {/* 당일 미처리 알림 */}
+        <div style={{ ...rowStyle, paddingLeft: 24, borderBottom: '1px solid #f9fafb', opacity: notifications.all ? 1 : 0.4 }}>
+          <div>
+            <p style={{ fontSize: 13, color: '#374151' }}>당일 미처리 알림</p>
+            <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>출금일 당일 미기록 시 발송</p>
+          </div>
+          <ToggleSwitch
+            on={notifications.dueDateUnprocessed && notifications.all}
+            disabled={!notifications.all}
+            onToggle={() => {
+              if (!notifications.all) return
+              const next = !notifications.dueDateUnprocessed
+              setNotifications(n => ({ ...n, dueDateUnprocessed: next }))
+              supabase.from('users').update({ push_due_date_unprocessed: next }).eq('id', userId)
+            }}
+          />
+        </div>
+
+        {/* 월간 리포트 */}
+        <div style={{ ...rowStyle, borderBottom: '1px solid #f9fafb', opacity: notifications.all ? 1 : 0.4 }}>
+          <div>
+            <p style={{ fontSize: 14, color: '#374151' }}>📊 월간 리포트 공개</p>
+            <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>매월 1일 리포트 알림</p>
+          </div>
+          <ToggleSwitch
+            on={notifications.report && notifications.all}
+            disabled={!notifications.all}
+            onToggle={() => {
+              if (!notifications.all) return
+              const next = !notifications.report
+              setNotifications(n => ({ ...n, report: next }))
+              supabase.from('users').update({ push_report: next }).eq('id', userId)
+            }}
+          />
+        </div>
+
+        {/* 지출 입력 리마인드 */}
+        <div style={{ ...rowStyle, borderBottom: 'none', opacity: notifications.all ? 1 : 0.4 }}>
+          <div>
+            <p style={{ fontSize: 14, color: '#374151' }}>✏️ 지출 입력 리마인드</p>
+            <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>점심(12:00) · 저녁(19:00)</p>
+          </div>
+          <ToggleSwitch
+            on={notifications.reminder && notifications.all}
+            disabled={!notifications.all}
+            onToggle={() => {
+              if (!notifications.all) return
+              const next = !notifications.reminder
+              setNotifications(n => ({ ...n, reminder: next }))
+              supabase.from('users').update({ push_expense_reminder: next }).eq('id', userId)
+            }}
+          />
+        </div>
+      </div>
+
+      {/* 디스플레이 섹션 (프리미엄 전용) */}
+      <div style={{ ...card, opacity: isPremium ? 1 : 0.7, position: 'relative' as const }}>
+        <div style={{ ...sectionHeader as React.CSSProperties, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>🖼️ 디스플레이</span>
+          {!isPremium && (
+            <button onClick={() => router.push('/premium')}
+              style={{ fontSize: 11, color: '#f59e0b', fontWeight: 700, background: '#fef3c7', border: 'none', borderRadius: 8, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>
+              🔒 프리미엄
+            </button>
+          )}
+        </div>
+        <div style={{ ...rowStyle, borderBottom: 'none', pointerEvents: isPremium ? 'auto' : 'none' }}>
+          <div>
+            <p style={{ fontSize: 14, color: '#374151' }}>홈 화면 움직이는 이미지</p>
+            <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>GIF 재생 켜기/끄기</p>
+          </div>
+          <ToggleSwitch
+            on={isPremium && (profile?.gif_autoplay ?? true)}
+            disabled={!isPremium}
+            onToggle={() => {
+              if (!isPremium) return
+              supabase.from('users').update({ gif_autoplay: !(profile?.gif_autoplay ?? true) }).eq('id', userId)
+            }}
+          />
+        </div>
+        {!isPremium && (
+          <div style={{ padding: '0 16px 12px' }} onClick={() => router.push('/premium')}>
+            <p style={{ fontSize: 12, color: '#9ca3af', cursor: 'pointer' }}>
+              프리미엄에서 홈 화면을 나만의 이미지/GIF로 꾸밀 수 있어요
+            </p>
+          </div>
+        )}
       </div>
 
       {/* 앱 정보 */}
       <div style={card}>
         <p style={sectionHeader}>ℹ️ 앱 정보</p>
         <div style={rowStyle}>
-          <span style={{ fontSize: 14, color: '#374151' }}>버전</span>
-          <span style={{ fontSize: 13, color: '#9ca3af' }}>1.0.0</span>
+          <span style={{ fontSize: 14, color: '#374151' }}>앱 가이드 다시 보기</span>
+          <span style={{ fontSize: 14, color: '#9ca3af' }}>›</span>
         </div>
         <div style={{ ...rowStyle, borderBottom: 'none' }}>
-          <span style={{ fontSize: 14, color: '#374151' }}>개인정보 처리방침</span>
-          <span style={{ fontSize: 14, color: '#9ca3af' }}>›</span>
+          <span style={{ fontSize: 14, color: '#374151' }}>버전</span>
+          <span style={{ fontSize: 13, color: '#9ca3af' }}>1.0.0</span>
         </div>
       </div>
 
@@ -244,7 +382,7 @@ export default function SettingsForm({ profile, userId, email, provider }: Props
           <div style={{ padding: '12px 16px' }}>
             <p style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 6 }}>탈퇴하시겠어요?</p>
             <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12, lineHeight: 1.6 }}>
-              • 모든 지출 내역 / 자산 설정 / 구독 이력이 삭제돼요
+              모든 지출 내역, 자산 설정, 구독 이력이 삭제돼요
             </p>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => setConfirmDelete(2)}

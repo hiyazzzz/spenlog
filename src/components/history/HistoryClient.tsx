@@ -1,7 +1,6 @@
 'use client'
 import { useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ko'
 import { CATEGORIES } from '@/lib/themes'
@@ -16,6 +15,7 @@ interface Expense {
   date: string
   payment_method: string | null
   memo: string | null
+  type: 'expense' | 'income'
 }
 
 interface Props {
@@ -26,27 +26,28 @@ interface Props {
 
 type ViewMode = 'list' | 'calendar'
 type SortKey = 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc'
+type TypeFilter = '' | 'expense' | 'income'
 
 export default function HistoryClient({ userId, initialExpenses, paymentMethods }: Props) {
   const supabase = createClient()
-  const router = useRouter()
 
   const [expenses, setExpenses] = useState(initialExpenses)
   const [view, setView] = useState<ViewMode>('list')
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState('')
   const [filterPay, setFilterPay] = useState('')
+  const [filterType, setFilterType] = useState<TypeFilter>('')
   const [sort, setSort] = useState<SortKey>('date_desc')
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [calMonth, setCalMonth] = useState(dayjs().format('YYYY-MM'))
   const [editingId, setEditingId] = useState<string | null>(null)
 
-  // 필터 + 정렬 적용
   const filtered = useMemo(() => {
     let list = expenses.filter(e => {
       if (search && !e.name.toLowerCase().includes(search.toLowerCase())) return false
       if (filterCat && e.category !== filterCat) return false
       if (filterPay && e.payment_method !== filterPay) return false
+      if (filterType && e.type !== filterType) return false
       return true
     })
     switch (sort) {
@@ -55,9 +56,8 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods 
       case 'amount_asc': return [...list].sort((a, b) => a.amount - b.amount)
       default: return [...list].sort((a, b) => b.date.localeCompare(a.date))
     }
-  }, [expenses, search, filterCat, filterPay, sort])
+  }, [expenses, search, filterCat, filterPay, filterType, sort])
 
-  // 날짜별 그룹핑
   const grouped = useMemo(() => {
     const map = new Map<string, Expense[]>()
     filtered.forEach(e => {
@@ -65,19 +65,24 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods 
       list.push(e)
       map.set(e.date, list)
     })
-    return [...map.entries()].sort((a, b) => {
-      if (sort === 'date_asc') return a[0].localeCompare(b[0])
-      return b[0].localeCompare(a[0])
-    })
+    return [...map.entries()].sort((a, b) =>
+      sort === 'date_asc' ? a[0].localeCompare(b[0]) : b[0].localeCompare(a[0])
+    )
   }, [filtered, sort])
 
-  // 캘린더용 날짜별 합계
-  const calMap = useMemo(() => {
-    const map = new Map<string, number>()
-    expenses.filter(e => e.date.startsWith(calMonth)).forEach(e => {
-      map.set(e.date, (map.get(e.date) ?? 0) + e.amount)
-    })
-    return map
+  const { calExpenseMap, calIncomeSet } = useMemo(() => {
+    const calExpenseMap = new Map<string, number>()
+    const calIncomeSet = new Set<string>()
+    expenses
+      .filter(e => e.date.startsWith(calMonth))
+      .forEach(e => {
+        if (e.type === 'income') {
+          calIncomeSet.add(e.date)
+        } else {
+          calExpenseMap.set(e.date, (calExpenseMap.get(e.date) ?? 0) + e.amount)
+        }
+      })
+    return { calExpenseMap, calIncomeSet }
   }, [expenses, calMonth])
 
   async function deleteExpense(id: string) {
@@ -93,11 +98,10 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods 
   }
 
   const today = dayjs().format('YYYY-MM-DD')
-  const hasFilter = !!(search || filterCat || filterPay)
+  const hasFilter = !!(search || filterCat || filterPay || filterType)
 
   return (
     <div className="min-h-screen pb-20" style={{ background: 'var(--color-bg)' }}>
-      {/* 헤더 */}
       <div className="flex items-center justify-between mb-3">
         <h1 className="text-lg font-semibold" style={{ color: 'var(--color-accent)' }}>내역</h1>
         <div className="flex items-center gap-2">
@@ -111,7 +115,6 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods 
         </div>
       </div>
 
-      {/* 검색창 */}
       <div className="relative mb-3">
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
         <input
@@ -126,33 +129,26 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods 
         )}
       </div>
 
-      {/* 필터 칩 */}
       <div className="flex gap-2 overflow-x-auto pb-2 mb-3 no-scrollbar">
-        {/* 카테고리 */}
+        <select value={filterType} onChange={e => setFilterType(e.target.value as TypeFilter)}
+          className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full border cursor-pointer outline-none"
+          style={{ background: filterType ? 'var(--color-primary)' : 'white', color: filterType ? 'white' : '#6b7280', borderColor: filterType ? 'var(--color-primary)' : '#e5e7eb' }}>
+          <option value="">전체</option>
+          <option value="expense">지출</option>
+          <option value="income">수입</option>
+        </select>
         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
           className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full border cursor-pointer outline-none"
-          style={{
-            background: filterCat ? 'var(--color-primary)' : 'white',
-            color: filterCat ? 'white' : '#6b7280',
-            borderColor: filterCat ? 'var(--color-primary)' : '#e5e7eb',
-          }}>
+          style={{ background: filterCat ? 'var(--color-primary)' : 'white', color: filterCat ? 'white' : '#6b7280', borderColor: filterCat ? 'var(--color-primary)' : '#e5e7eb' }}>
           <option value="">카테고리 전체</option>
           {(CATEGORIES as readonly string[]).map(c => <option key={c} value={c}>{c}</option>)}
         </select>
-
-        {/* 결제수단 */}
         <select value={filterPay} onChange={e => setFilterPay(e.target.value)}
           className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full border cursor-pointer outline-none"
-          style={{
-            background: filterPay ? 'var(--color-primary)' : 'white',
-            color: filterPay ? 'white' : '#6b7280',
-            borderColor: filterPay ? 'var(--color-primary)' : '#e5e7eb',
-          }}>
+          style={{ background: filterPay ? 'var(--color-primary)' : 'white', color: filterPay ? 'white' : '#6b7280', borderColor: filterPay ? 'var(--color-primary)' : '#e5e7eb' }}>
           <option value="">결제수단 전체</option>
           {paymentMethods.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
-
-        {/* 정렬 */}
         <select value={sort} onChange={e => setSort(e.target.value as SortKey)}
           className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-500 cursor-pointer outline-none">
           <option value="date_desc">최신순</option>
@@ -160,100 +156,95 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods 
           <option value="amount_desc">금액 높은순</option>
           <option value="amount_asc">금액 낮은순</option>
         </select>
-
         {hasFilter && (
-          <button onClick={() => { setSearch(''); setFilterCat(''); setFilterPay('') }}
+          <button onClick={() => { setSearch(''); setFilterCat(''); setFilterPay(''); setFilterType('') }}
             className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full bg-rose-50 text-rose-400 border border-rose-100">
             초기화 ✕
           </button>
         )}
       </div>
 
-      {/* ── 리스트 뷰 ── */}
       {view === 'list' && (
         <div>
           {filtered.length === 0 && (
             <div className="text-center py-16">
-              <p className="text-gray-400 text-sm">
-                {hasFilter ? '해당 조건의 내역이 없어요' : '아직 기록된 지출이 없어요 🌿'}
-              </p>
+              <p className="text-gray-400 text-sm">{hasFilter ? '해당 조건의 내역이 없어요' : '아직 기록된 내역이 없어요 🌿'}</p>
               {!hasFilter && (
-                <a href="/add" className="mt-3 inline-block text-sm font-medium"
-                  style={{ color: 'var(--color-primary)' }}>첫 기록 남기기 →</a>
+                <a href="/add" className="mt-3 inline-block text-sm font-medium" style={{ color: 'var(--color-primary)' }}>첫 기록 남기기 →</a>
               )}
             </div>
           )}
-          {grouped.map(([date, items]) => (
-            <div key={date} className="mb-4">
-              <div className="flex justify-between items-center mb-2 px-1">
-                <span className="text-xs font-semibold text-gray-500">
-                  {dayjs(date).format('M월 D일 (ddd)')}
-                  {date === today && <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full text-white" style={{ background: 'var(--color-primary)' }}>오늘</span>}
-                </span>
-                <span className="text-xs font-bold text-rose-400">
-                  -{items.reduce((s, e) => s + e.amount, 0).toLocaleString()}원
-                </span>
-              </div>
-              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                {items.map((e, idx) => (
-                  <div key={e.id}>
-                    {editingId === e.id
-                      ? <EditRow expense={e} onSave={u => saveExpense(e.id, u)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} />
-                      : <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} />
-                    }
-                    {idx < items.length - 1 && <div className="h-px bg-gray-50 mx-4" />}
+          {grouped.map(([date, items]) => {
+            const expenseSum = items.filter(e => e.type !== 'income').reduce((s, e) => s + e.amount, 0)
+            const incomeSum = items.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
+            return (
+              <div key={date} className="mb-4">
+                <div className="flex justify-between items-center mb-2 px-1">
+                  <span className="text-xs font-semibold text-gray-500">
+                    {dayjs(date).format('M월 D일 (ddd)')}
+                    {date === today && <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full text-white" style={{ background: 'var(--color-primary)' }}>오늘</span>}
+                  </span>
+                  <div className="flex gap-2 text-xs font-bold">
+                    {incomeSum > 0 && <span className="text-emerald-500">+{incomeSum.toLocaleString()}원</span>}
+                    {expenseSum > 0 && <span className="text-rose-400">-{expenseSum.toLocaleString()}원</span>}
                   </div>
-                ))}
+                </div>
+                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                  {items.map((e, idx) => (
+                    <div key={e.id}>
+                      {editingId === e.id
+                        ? <EditRow expense={e} onSave={u => saveExpense(e.id, u)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} />
+                        : <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} />
+                      }
+                      {idx < items.length - 1 && <div className="h-px bg-gray-50 mx-4" />}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
-      {/* ── 캘린더 뷰 ── */}
       {view === 'calendar' && (
         <CalendarView
-          calMonth={calMonth}
-          onChangeMonth={setCalMonth}
-          calMap={calMap}
-          today={today}
-          selectedDate={selectedDate}
-          onSelectDate={d => setSelectedDate(selectedDate === d ? null : d)}
-          expenses={expenses}
-          editingId={editingId}
-          onEdit={setEditingId}
-          onSave={saveExpense}
-          onDelete={deleteExpense}
-          onCancelEdit={() => setEditingId(null)}
+          calMonth={calMonth} onChangeMonth={setCalMonth} calExpenseMap={calExpenseMap} calIncomeSet={calIncomeSet} today={today}
+          selectedDate={selectedDate} onSelectDate={d => setSelectedDate(selectedDate === d ? null : d)}
+          expenses={expenses} editingId={editingId} onEdit={setEditingId}
+          onSave={saveExpense} onDelete={deleteExpense} onCancelEdit={() => setEditingId(null)}
         />
       )}
     </div>
   )
 }
 
-// ── 내역 행 ──
 function ExpenseRow({ expense, onTap }: { expense: Expense; onTap: () => void }) {
+  const isIncome = expense.type === 'income'
   return (
     <button onClick={onTap} className="w-full flex justify-between items-center p-4 text-left hover:bg-gray-50 transition-colors">
       <div>
-        <p className="text-sm font-semibold text-gray-800">{expense.name}</p>
-        <p className="text-xs text-gray-400 mt-0.5">
-          {expense.category}{expense.payment_method && ` · ${expense.payment_method}`}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-semibold text-gray-800">{expense.name}</p>
+          {isIncome && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-semibold">수입</span>}
+        </div>
+        <p className="text-xs text-gray-400 mt-0.5">{expense.category}{expense.payment_method && ` · ${expense.payment_method}`}</p>
       </div>
-      <span className="text-sm font-bold text-rose-400">-₩{expense.amount.toLocaleString()}</span>
+      <span className={`text-sm font-bold ${isIncome ? 'text-emerald-500' : 'text-rose-400'}`}>
+        {isIncome ? '+' : '-'}₩{expense.amount.toLocaleString()}
+      </span>
     </button>
   )
 }
 
-// ── 수정 행 ──
+const PAYMENT_OPTIONS = ['카드', '현금', '카카오페이', '네이버페이', '토스', '계좌이체']
+
 function EditRow({ expense, onSave, onDelete, onCancel }: {
   expense: Expense
   onSave: (updates: Partial<Expense>) => void
   onDelete: () => void
   onCancel: () => void
 }) {
-  const [form, setForm] = useState({ ...expense, amount: expense.amount.toLocaleString() })
+  const [form, setForm] = useState({ ...expense, amount: expense.amount.toLocaleString(), payment_method: expense.payment_method ?? '' })
   function u(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
 
   return (
@@ -263,58 +254,73 @@ function EditRow({ expense, onSave, onDelete, onCancel }: {
         <button onClick={onCancel} className="text-xs text-gray-400">✕</button>
       </div>
       <div className="space-y-2">
+        <div className="flex bg-white rounded-xl border border-gray-200 p-0.5">
+          {(['expense', 'income'] as const).map(t => (
+            <button key={t} onClick={() => u('type', t)}
+              className="flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              style={{ background: form.type === t ? 'var(--color-primary)' : 'transparent', color: form.type === t ? 'white' : '#9ca3af' }}>
+              {t === 'expense' ? '💸 지출' : '💰 수입'}
+            </button>
+          ))}
+        </div>
         <input value={form.name} onChange={e => u('name', e.target.value)}
           className="w-full text-sm px-3 py-2 rounded-xl bg-white border border-gray-200 outline-none" placeholder="항목명" />
         <input type="text" inputMode="numeric" value={form.amount}
           onChange={e => { const n = e.target.value.replace(/[^0-9]/g, ''); u('amount', n ? Number(n).toLocaleString() : '') }}
           className="w-full text-sm px-3 py-2 rounded-xl bg-white border border-gray-200 outline-none" placeholder="금액" />
-        <div className="flex flex-wrap gap-1.5">
-          {(CATEGORIES as readonly string[]).map(cat => (
-            <button key={cat} onClick={() => u('category', cat)}
-              className="text-xs px-2.5 py-1 rounded-full border transition-all"
-              style={{
-                background: form.category === cat ? 'var(--color-primary)' : 'white',
-                color: form.category === cat ? 'white' : '#9ca3af',
-                borderColor: form.category === cat ? 'var(--color-primary)' : '#e5e7eb',
-              }}>{cat}</button>
-          ))}
-        </div>
+        {form.type !== 'income' && (
+          <div className="flex flex-wrap gap-1.5">
+            {(CATEGORIES as readonly string[]).map(cat => (
+              <button key={cat} onClick={() => u('category', cat)}
+                className="text-xs px-2.5 py-1 rounded-full border transition-all"
+                style={{ background: form.category === cat ? 'var(--color-primary)' : 'white', color: form.category === cat ? 'white' : '#9ca3af', borderColor: form.category === cat ? 'var(--color-primary)' : '#e5e7eb' }}>
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
         <input type="date" value={form.date} onChange={e => u('date', e.target.value)}
           className="w-full text-sm px-3 py-2 rounded-xl bg-white border border-gray-200 outline-none" />
+        <div>
+          <p className="text-[11px] text-gray-400 mb-1">결제수단</p>
+          <div className="flex flex-wrap gap-1.5">
+            <button onClick={() => u('payment_method', '')}
+              className="text-xs px-2.5 py-1 rounded-full border transition-all"
+              style={{ background: !form.payment_method ? 'var(--color-primary)' : 'white', color: !form.payment_method ? 'white' : '#9ca3af', borderColor: !form.payment_method ? 'var(--color-primary)' : '#e5e7eb' }}>없음</button>
+            {PAYMENT_OPTIONS.map(pm => (
+              <button key={pm} onClick={() => u('payment_method', pm)}
+                className="text-xs px-2.5 py-1 rounded-full border transition-all"
+                style={{ background: form.payment_method === pm ? 'var(--color-primary)' : 'white', color: form.payment_method === pm ? 'white' : '#9ca3af', borderColor: form.payment_method === pm ? 'var(--color-primary)' : '#e5e7eb' }}>
+                {pm}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
       <div className="flex gap-2 mt-3">
         <button onClick={() => onSave({
-          name: form.name, amount: parseInt(form.amount.replace(/,/g, '')) || expense.amount,
-          category: form.category, date: form.date,
-        })}
-          className="flex-1 py-2 rounded-xl text-sm font-semibold text-white"
-          style={{ background: 'var(--color-primary)' }}>저장</button>
-        <button onClick={onDelete}
-          className="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-50 text-rose-400 border border-rose-100">삭제</button>
+          name: form.name,
+          amount: parseInt(form.amount.replace(/,/g, '')) || expense.amount,
+          category: form.category as any,
+          date: form.date,
+          payment_method: form.payment_method || null,
+          type: form.type as 'expense' | 'income',
+        })} className="flex-1 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: 'var(--color-primary)' }}>저장</button>
+        <button onClick={onDelete} className="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-50 text-rose-400 border border-rose-100">삭제</button>
       </div>
     </div>
   )
 }
 
-// ── 캘린더 뷰 ──
-function CalendarView({ calMonth, onChangeMonth, calMap, today, selectedDate, onSelectDate, expenses, editingId, onEdit, onSave, onDelete, onCancelEdit }: {
-  calMonth: string
-  onChangeMonth: (m: string) => void
-  calMap: Map<string, number>
-  today: string
-  selectedDate: string | null
-  onSelectDate: (d: string) => void
-  expenses: Expense[]
-  editingId: string | null
-  onEdit: (id: string) => void
-  onSave: (id: string, u: Partial<Expense>) => void
-  onDelete: (id: string) => void
-  onCancelEdit: () => void
+function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, today, selectedDate, onSelectDate, expenses, editingId, onEdit, onSave, onDelete, onCancelEdit }: {
+  calMonth: string; onChangeMonth: (m: string) => void; calExpenseMap: Map<string, number>; calIncomeSet: Set<string>
+  today: string; selectedDate: string | null; onSelectDate: (d: string) => void
+  expenses: Expense[]; editingId: string | null; onEdit: (id: string) => void
+  onSave: (id: string, u: Partial<Expense>) => void; onDelete: (id: string) => void; onCancelEdit: () => void
 }) {
   const startOfMonth = dayjs(calMonth).startOf('month')
   const daysInMonth = startOfMonth.daysInMonth()
-  const firstDow = startOfMonth.day() // 0=일
-
+  const firstDow = startOfMonth.day()
   const weeks: (string | null)[][] = []
   let week: (string | null)[] = Array(firstDow).fill(null)
   for (let d = 1; d <= daysInMonth; d++) {
@@ -323,12 +329,10 @@ function CalendarView({ calMonth, onChangeMonth, calMap, today, selectedDate, on
     if (week.length === 7) { weeks.push(week); week = [] }
   }
   if (week.length > 0) weeks.push([...week, ...Array(7 - week.length).fill(null)])
-
   const selectedItems = selectedDate ? expenses.filter(e => e.date === selectedDate) : []
 
   return (
     <div>
-      {/* 월 네비게이션 */}
       <div className="flex items-center justify-between mb-4">
         <button onClick={() => onChangeMonth(dayjs(calMonth).subtract(1, 'month').format('YYYY-MM'))}
           className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-600">‹</button>
@@ -336,22 +340,19 @@ function CalendarView({ calMonth, onChangeMonth, calMap, today, selectedDate, on
         <button onClick={() => onChangeMonth(dayjs(calMonth).add(1, 'month').format('YYYY-MM'))}
           className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-600">›</button>
       </div>
-
-      {/* 요일 헤더 */}
       <div className="grid grid-cols-7 mb-1">
         {['일','월','화','수','목','금','토'].map((d, i) => (
           <div key={d} className="text-center text-xs text-gray-400 py-1"
             style={{ color: i === 0 ? '#ef4444' : i === 6 ? '#3b82f6' : undefined }}>{d}</div>
         ))}
       </div>
-
-      {/* 날짜 그리드 */}
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
         {weeks.map((week, wi) => (
           <div key={wi} className="grid grid-cols-7">
             {week.map((date, di) => {
               if (!date) return <div key={di} className="h-14" />
-              const amt = calMap.get(date)
+              const amt = calExpenseMap.get(date)
+              const hasIncome = calIncomeSet.has(date)
               const isToday = date === today
               const isSelected = date === selectedDate
               const dow = new Date(date).getDay()
@@ -360,38 +361,30 @@ function CalendarView({ calMonth, onChangeMonth, calMap, today, selectedDate, on
                   className="h-14 flex flex-col items-center justify-center gap-0.5 transition-colors"
                   style={{ background: isSelected ? 'var(--color-primary-light)' : undefined }}>
                   <span className="text-xs font-medium flex items-center justify-center"
-                    style={{
-                      color: isToday ? 'white' : dow === 0 ? '#ef4444' : dow === 6 ? '#3b82f6' : '#374151',
-                      background: isToday ? 'var(--color-primary)' : undefined,
-                      width: 22, height: 22, borderRadius: '50%',
-                    }}>{parseInt(date.split('-')[2])}</span>
-                  {amt ? (
-                    <span className="text-[9px] font-bold text-rose-400">
-                      -{amt >= 10000 ? `${Math.round(amt / 1000)}k` : amt.toLocaleString()}
-                    </span>
-                  ) : null}
+                    style={{ color: isToday ? 'white' : dow === 0 ? '#ef4444' : dow === 6 ? '#3b82f6' : '#374151', background: isToday ? 'var(--color-primary)' : undefined, width: 22, height: 22, borderRadius: '50%' }}>
+                    {parseInt(date.split('-')[2])}
+                  </span>
+                  {amt ? <span className="text-[9px] font-bold text-rose-400">-{amt >= 10000 ? `${Math.round(amt / 1000)}k` : amt.toLocaleString()}</span> : null}
+                  {hasIncome && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />}
                 </button>
               )
             })}
           </div>
         ))}
       </div>
-
-      {/* 선택 날짜 슬라이드업 */}
       {selectedDate && (
         <div className="mt-4 bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="flex justify-between items-center p-4 border-b border-gray-50">
-            <span className="text-sm font-bold text-gray-700">
-              {dayjs(selectedDate).format('M월 D일 (ddd)')}
-            </span>
+            <span className="text-sm font-bold text-gray-700">{dayjs(selectedDate).format('M월 D일 (ddd)')}</span>
             <span className="text-sm font-bold text-rose-400">
-              {selectedItems.length > 0 ? `-₩${selectedItems.reduce((s, e) => s + e.amount, 0).toLocaleString()}` : ''}
+              {selectedItems.filter(e => e.type !== 'income').length > 0
+                ? `-₩${selectedItems.filter(e => e.type !== 'income').reduce((s, e) => s + e.amount, 0).toLocaleString()}`
+                : ''}
             </span>
           </div>
-          {selectedItems.length === 0 ? (
-            <p className="text-center text-sm text-gray-400 py-8">이날은 지출이 없었어요 🌿</p>
-          ) : (
-            selectedItems.map((e, idx) => (
+          {selectedItems.length === 0
+            ? <p className="text-center text-sm text-gray-400 py-8">이날은 내역이 없었어요 🌿</p>
+            : selectedItems.map((e, idx) => (
               <div key={e.id}>
                 {editingId === e.id
                   ? <EditRow expense={e} onSave={u => onSave(e.id, u)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />
@@ -400,7 +393,7 @@ function CalendarView({ calMonth, onChangeMonth, calMap, today, selectedDate, on
                 {idx < selectedItems.length - 1 && <div className="h-px bg-gray-50 mx-4" />}
               </div>
             ))
-          )}
+          }
         </div>
       )}
     </div>

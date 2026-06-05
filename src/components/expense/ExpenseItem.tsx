@@ -12,6 +12,7 @@ interface Expense {
   category: string
   date: string
   payment_method: string | null
+  type?: 'expense' | 'income'
 }
 
 export default function ExpenseItem({ expense }: { expense: Expense }) {
@@ -91,10 +92,17 @@ export default function ExpenseItem({ expense }: { expense: Expense }) {
     )
   }
 
+  const isIncome = expense.type === 'income'
+
   return (
     <div className="flex justify-between items-center py-3 first:pt-0 last:pb-0">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-800 truncate">{expense.name}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-medium text-gray-800 truncate">{expense.name}</p>
+          {isIncome && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-semibold flex-shrink-0">수입</span>
+          )}
+        </div>
         <div className="flex gap-2 mt-0.5 text-[11px] text-gray-400">
           <span>{expense.date ? dayjs(expense.date).format('MM.DD') : ''}</span>
           <span>•</span>
@@ -103,8 +111,8 @@ export default function ExpenseItem({ expense }: { expense: Expense }) {
         </div>
       </div>
       <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
-        <span className="text-sm font-bold text-gray-900 whitespace-nowrap">
-          -{(expense.amount ?? 0).toLocaleString()}원
+        <span className={`text-sm font-bold whitespace-nowrap ${isIncome ? 'text-emerald-500' : 'text-rose-400'}`}>
+          {isIncome ? '+' : '-'}{(expense.amount ?? 0).toLocaleString()}원
         </span>
         <button onClick={() => setMode('edit')}
           className="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-400 hover:bg-blue-50 hover:text-blue-400 transition-colors">

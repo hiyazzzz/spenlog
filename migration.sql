@@ -148,4 +148,41 @@ END $$;
 -- =============================================
 
 CREATE TABLE IF NOT EXISTS savings_payments (
-  id              uuid PRIMARY
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         uuid REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+  fixed_cost_id   uuid REFERENCES fixed_costs(id) ON DELETE CASCADE NOT NULL,
+  year_month      text NOT NULL,
+  is_paid         boolean DEFAULT false,
+  paid_amount     integer,
+  created_at      timestamptz DEFAULT now(),
+  UNIQUE(user_id, fixed_cost_id, year_month)
+);
+
+ALTER TABLE savings_payments ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'savings_payments' AND policyname = 'sp_own'
+  ) THEN
+    CREATE POLICY sp_own ON savings_payments FOR ALL
+      USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
+
+
+-- =============================================
+-- Sprint 4: expenses type 컬럼 + premium 컬럼
+-- =============================================
+
+-- expenses 테이블에 type 컬럼 추가 (expense/income 구분)
+ALTER TABLE expenses
+  ADD COLUMN IF NOT EXISTS type text DEFAULT 'expense'
+    CHECK (type IN ('expense', 'income'));
+
+-- users 테이블 프리미엄 컬럼 추가
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS premium_status text DEFAULT 'free'
+    CHECK (premium_status IN ('free', 'trial', 'premium')),
+  ADD COLUMN IF NOT EXISTS trial_started_at timestamptz,
+  ADD COLUMN IF NOT EXISTS subscription_expires_at timestamptz;

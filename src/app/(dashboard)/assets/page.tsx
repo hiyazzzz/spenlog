@@ -24,8 +24,8 @@ export default async function AssetsPage() {
     supabase.from('accounts').select('*').eq('user_id', user.id),
     supabase.from('cards').select('*').eq('user_id', user.id),
     supabase.from('fixed_costs').select('*').eq('user_id', user.id),
-    supabase.from('expenses').select('amount, category').eq('user_id', user.id)
-      .gte('date', `${thisMonth}-01`).lt('date', `${nextMonth}-01`),
+    supabase.from('expenses').select('id, name, amount, category, date, payment_method').eq('user_id', user.id)
+      .gte('date', `${thisMonth}-01`).lt('date', `${nextMonth}-01`).order('date', { ascending: false }),
     supabase.from('budgets').select('*').eq('user_id', user.id).eq('month', thisMonth),
     supabase.from('categories').select('*').eq('user_id', user.id).order('sort_order'),
   ])
@@ -47,6 +47,7 @@ export default async function AssetsPage() {
       categorySpent={categorySpent}
       thisMonth={thisMonth}
       customCategories={customCategories ?? []}
+      expenses={expenses ?? []}
     />
   )
 }

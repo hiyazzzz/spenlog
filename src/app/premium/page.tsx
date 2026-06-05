@@ -26,6 +26,7 @@ export default function PremiumPage() {
         padding: '48px 24px 32px',
         color: '#fff',
         textAlign: 'center' as const,
+        position: 'relative' as const,
       }}>
         <button onClick={() => router.back()} style={{
           position: 'absolute' as const, top: 16, left: 16,
@@ -34,7 +35,7 @@ export default function PremiumPage() {
         }}>←</button>
         <p style={{ fontSize: 13, opacity: 0.8, marginBottom: 8 }}>💎 Spenlog Premium</p>
         <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 8 }}>
-          3개월이 쌓이면<br />인사이트가 된다 ✨
+          소비 패턴이 보이면<br />더 나은 선택이 보여요
         </h1>
         <p style={{ fontSize: 13, opacity: 0.75 }}>소비 패턴을 분석하고 더 스마트하게 절약해요</p>
       </div>

@@ -44,6 +44,7 @@ export default function ReportClient({
   const [coach, setCoach] = useState<Coach | null>(cachedCoach)
   const [loadingCoach, setLoadingCoach] = useState(false)
   const [coachError, setCoachError] = useState('')
+  const [coachErrorCode, setCoachErrorCode] = useState<'NO_DATA' | 'API_ERROR' | 'PREMIUM_REQUIRED' | ''>('')
 
   const monthLabel = dayjs(currentMonth).format('YYYY년 M월')
   const isOldest = prevMonth < dayjs().subtract(6, 'month').format('YYYY-MM')
@@ -53,7 +54,14 @@ export default function ReportClient({
     if (coach) return
     setLoadingCoach(true)
     setCoachError('')
+    setCoachErrorCode('')
     try {
+      if (totalSpent === 0) {
+        setCoachErrorCode('NO_DATA')
+        setCoachError('이 달 기록된 지출이 없어요')
+        setLoadingCoach(false)
+        return
+      }
       const res = await fetch('/api/ai-coach', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -64,9 +72,17 @@ export default function ReportClient({
         }),
       })
       const data = await res.json()
-      if (data.coach) setCoach(data.coach)
-      else setCoachError('AI 코치를 불러오지 못했어요')
+      if (data.coach) {
+        setCoach(data.coach)
+      } else if (data.error === 'PREMIUM_REQUIRED') {
+        setCoachErrorCode('PREMIUM_REQUIRED')
+        setCoachError('3개월 무료 체험이 끝났어요')
+      } else {
+        setCoachErrorCode('API_ERROR')
+        setCoachError('AI 코치를 일시적으로 이용할 수 없어요')
+      }
     } catch {
+      setCoachErrorCode('API_ERROR')
       setCoachError('네트워크 오류가 발생했어요')
     } finally {
       setLoadingCoach(false)
@@ -266,7 +282,7 @@ export default function ReportClient({
         <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-4">
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs text-gray-400">🤖 AI 코치</p>
-            {!coach && (
+            {!coach && !coachError && (
               <button onClick={loadCoach} disabled={loadingCoach}
                 className="text-xs px-3 py-1.5 rounded-xl text-white font-semibold disabled:opacity-60"
                 style={{ background: 'var(--color-primary)' }}>
@@ -275,27 +291,66 @@ export default function ReportClient({
             )}
           </div>
 
-          {coachError && <p className="text-xs text-rose-400">{coachError}</p>}
+          {/* 로딩 스켈레톤 */}
+          {loadingCoach && (
+            <div className="space-y-3 py-2">
+              <p className="text-xs text-center" style={{ color: 'var(--color-primary-mid)' }}>
+                AI가 분석 중이에요...
+              </p>
+              {[1, 2, 3].map(i => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-3 bg-gray-100 rounded w-24 mb-2" />
+                  <div className="h-4 bg-gray-100 rounded w-full mb-1" />
+                  <div className="h-4 bg-gray-100 rounded w-4/5" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 에러 케이스별 UI */}
+          {coachError && !loadingCoach && (
+            <div className="text-center py-4">
+              <p className="text-sm text-gray-500 mb-3">{coachError}</p>
+              {coachErrorCode === 'NO_DATA' && (
+                <a href="/" className="inline-block text-sm font-semibold px-4 py-2 rounded-xl text-white"
+                  style={{ background: 'var(--color-primary)' }}>
+                  지출 기록하러 가기
+                </a>
+              )}
+              {coachErrorCode === 'API_ERROR' && (
+                <button onClick={() => { setCoachError(''); setCoachErrorCode(''); loadCoach() }}
+                  className="text-sm font-semibold px-4 py-2 rounded-xl text-white"
+                  style={{ background: 'var(--color-primary)' }}>
+                  다시 시도
+                </button>
+              )}
+              {coachErrorCode === 'PREMIUM_REQUIRED' && (
+                <a href="/premium" className="inline-block text-sm font-semibold px-4 py-2 rounded-xl text-white"
+                  style={{ background: 'var(--color-primary)' }}>
+                  프리미엄 시작하기
+                </a>
+              )}
+            </div>
+          )}
 
           {coach ? (
             <div className="space-y-4">
               {([
-                { step: '1️⃣', title: '패턴 진단', content: coach.step1 },
-                { step: '2️⃣', title: '동기부여', content: coach.step2 },
-                { step: '3️⃣', title: '행동 제안', content: coach.step3 },
-              ] as const).map(({ step, title, content }) => (
+                { step: '1', title: '패턴 진단', content: coach.step1 },
+                { step: '2', title: '동기부여', content: coach.step2 },
+                { step: '3', title: '행동 제안', content: coach.step3 },
+              ] as const).map(({ step, title, content: c }) => (
                 <div key={title}>
                   <p className="text-xs font-bold text-gray-700 mb-1">{step} {title}</p>
-                  <p className="text-sm text-gray-600 leading-relaxed">{content}</p>
+                  <p className="text-sm text-gray-600 leading-relaxed">{c}</p>
                 </div>
               ))}
 
-              {/* 다음 달 예산 추천 버튼 */}
               <div className="pt-3 border-t border-gray-50">
                 {hasEnoughData ? (
                   <a href="/assets" className="block w-full py-3 rounded-xl text-center text-sm font-semibold text-white"
                     style={{ background: 'var(--color-primary)' }}>
-                    다음 달 예산 AI 추천받기 →
+                    다음 달 예산 AI 추천받기
                   </a>
                 ) : (
                   <div className="text-center">
@@ -306,7 +361,7 @@ export default function ReportClient({
                 )}
               </div>
             </div>
-          ) : !loadingCoach && (
+          ) : !loadingCoach && !coachError && (
             <div className="text-center py-4">
               <p className="text-sm text-gray-400">AI가 이번 달 소비 패턴을 분석해드려요</p>
             </div>

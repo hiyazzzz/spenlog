@@ -1,45 +1,12 @@
-import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+import Anthropic from '@anthropic-ai/sdk'
 
-export async function POST(req: Request) {
+async function callGemini(prompt: string): Promise<string | null> {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) return null
+
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-    const body = await req.json()
-    const { text } = body
-
-    if (!text || typeof text !== 'string' || !text.trim()) {
-      return NextResponse.json({ error: '입력 텍스트가 없습니다' }, { status: 400 })
-    }
-
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json({ error: '[설정오류] GEMINI_API_KEY가 설정되지 않았습니다' }, { status: 500 })
-    }
-
-    const { data: cards } = await supabase.from('cards').select('name, bank').eq('user_id', user.id)
-    const cardList = cards && cards.length > 0 ? cards.map((c: any) => c.name).join(', ') : null
-
-    const now = new Date()
-    const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000)
-    const today = kst.toISOString().split('T')[0]
-
-    const prompt = [
-      'JSON 배열만 출력. 설명/마크다운 금지.',
-      `입력: "${text.trim()}"`,
-      `오늘: ${today}`,
-      cardList ? `유저카드: ${cardList}` : null,
-      '출력형식(반드시 배열): [{"name":"항목명","amount":숫자,"category":"카테고리","payment_method":null또는문자열,"date":"YYYY-MM-DD","memo":null}, ...]',
-      '여러 지출 항목이 있으면 각각 분리해서 배열에 넣기. 1개여도 배열로 감싸기.',
-      'amount규칙: 삼천=3000 오천=5000 만=10000 만오천=15000 이만=20000 삼만=30000 | 3천=3000 5천=5000 1만=10000 | 숫자+원/천원/만원 계산',
-      'name약어: 아아/아아이스→아이스아메리카노 따아→아메리카노 배민→배달의민족 편의점/편→편의점 맥날→맥도날드 스벅→스타벅스',
-      'category선택(하나만): 활동비(카페배달외식음료쇼핑) 생활비(마트편의점식료품) 고정비(구독월세통신) 친목비(술모임선물) 예비비(기타)',
-      'payment_method: 카드/현금/카카오페이/네이버페이/토스 언급시 그대로 기재, 없으면 null',
-    ].filter(Boolean).join('\n')
-
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -49,46 +16,119 @@ export async function POST(req: Request) {
         }),
       }
     )
+    if (!res.ok) {
+      if (res.status === 429) throw new Error('GEMINI_RATE_LIMIT')
+      return null
+    }
+    const data = await res.json()
+    return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null
+  } catch (e: any) {
+    if (e.message === 'GEMINI_RATE_LIMIT') throw e
+    return null
+  }
+}
 
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text()
-      throw new Error(`Gemini API error ${geminiRes.status}: ${errText.slice(0, 100)}`)
+async function callClaude(prompt: string): Promise<string | null> {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) return null
+
+  const anthropic = new Anthropic({ apiKey })
+  const res = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 512,
+    messages: [{ role: 'user', content: prompt }],
+  })
+  return res.content[0].type === 'text' ? res.content[0].text.trim() : null
+}
+
+function buildPrompt(text: string): string {
+  const now = new Date()
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000)
+  const today = kst.toISOString().split('T')[0]
+  return `오늘: ${today}
+입력: "${text}"
+
+JSON 배열만 반환. 설명 없이.
+형식: [{"name":"항목명","amount":숫자,"category":"카테고리","date":"YYYY-MM-DD","payment_method_hint":"결제수단또는null","type":"expense또는income"}]
+
+카테고리(하나만): 생활비(마트편의점식료품) | 활동비(카페배달외식쇼핑) | 고정비(구독월세통신) | 친목비(술모임선물) | 예비비(기타)
+type: expense(지출) | income(수입 - 월급 급여 용돈 환불 등)
+날짜 없으면 오늘 사용.
+amount 규칙: 삼천=3000 오천=5000 만=10000 이만=20000 | 숫자+원/천원/만원 계산
+name 약어: 아아/아아이스->아이스아메리카노 따아->아메리카노 배민->배달의민족 맥날->맥도날드 스벅/스뱡->스타벅스
+여러 항목이면 각각 분리해서 배열에. 1건이어도 배열로.`
+}
+
+function parseJson(raw: string): any[] | null {
+  const codeMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
+  const jsonStr = codeMatch ? codeMatch[1].trim() : raw
+  const arrMatch = jsonStr.match(/\[[\s\S]*\]/)
+  if (!arrMatch) return null
+  try {
+    const parsed = JSON.parse(arrMatch[0])
+    return Array.isArray(parsed) ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const { text } = await req.json()
+    if (!text?.trim()) {
+      return Response.json({ error: 'EMPTY_INPUT' }, { status: 400 })
     }
 
-    const geminiData = await geminiRes.json()
-    const raw = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
-    if (!raw) throw new Error('Gemini 응답 없음')
+    const prompt = buildPrompt(text.trim())
+    let raw: string | null = null
+    let usedFallback = false
 
-    // JSON 추출 (배열)
-    const codeMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
-    const jsonStr = codeMatch ? codeMatch[1].trim() : raw
-    const arrMatch = jsonStr.match(/\[[\s\S]*\]/)
-    if (!arrMatch) throw new Error('JSON array not found: ' + raw.slice(0, 80))
-
-    const parsed: any[] = JSON.parse(arrMatch[0])
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      throw new Error('파싱 결과가 비어있습니다')
+    // 1차: Gemini
+    try {
+      raw = await callGemini(prompt)
+    } catch (e: any) {
+      if (e.message === 'GEMINI_RATE_LIMIT') {
+        usedFallback = true
+      }
     }
 
-    const validItems = parsed.filter(
-      (item) => item.amount && typeof item.amount === 'number' && item.amount > 0
-    )
+    // 2차: Claude Haiku fallback
+    if (!raw) {
+      raw = await callClaude(prompt)
+      usedFallback = true
+    }
 
-    if (validItems.length === 0) {
-      return NextResponse.json(
+    if (!raw) {
+      return Response.json({ error: 'AI_UNAVAILABLE' }, { status: 503 })
+    }
+
+    const parsed = parseJson(raw)
+    if (!parsed || parsed.length === 0) {
+      return Response.json({ error: 'PARSE_FAILED' }, { status: 422 })
+    }
+
+    const items = parsed
+      .filter(item => item.amount && typeof item.amount === 'number' && item.amount > 0)
+      .map(item => ({
+        name: item.name ?? '항목',
+        amount: item.amount,
+        category: item.category ?? '예비비',
+        date: item.date ?? new Date().toISOString().split('T')[0],
+        payment_method: item.payment_method_hint ?? null,
+        type: (item.type === 'income' ? 'income' : 'expense') as 'expense' | 'income',
+        memo: null as null,
+      }))
+
+    if (items.length === 0) {
+      return Response.json(
         { error: '금액을 인식하지 못했어요. 예) 아아 3000원 / 커피 삼천원' },
         { status: 422 }
       )
     }
 
-    return NextResponse.json({ results: validItems, cards: cards ?? [] })
-
-  } catch (error: any) {
-    const msg = error?.message || String(error)
-    console.error('[ai-input]', msg)
-    return NextResponse.json(
-      { error: `분류 실패: ${msg.slice(0, 120)}` },
-      { status: 500 }
-    )
+    return Response.json({ items, usedFallback })
+  } catch (e: any) {
+    console.error('[ai-input]', e?.message ?? e)
+    return Response.json({ error: e?.message ?? 'UNKNOWN' }, { status: 500 })
   }
 }

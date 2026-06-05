@@ -14,11 +14,11 @@ const RANDOM_NAMES = [
   '쏙쏙 솔방울', '통통 밤톨', '깜짝깜짝 별똥별',
 ]
 
-const THEME_LIST: { key: Theme; emoji: string; desc: string }[] = [
+const THEME_LIST: { key: Theme; emoji: string; desc: string; premium?: boolean }[] = [
   { key: 'Burgundy', emoji: '🍷', desc: '고급스러운' },
   { key: 'Sage', emoji: '🌿', desc: '자연스러운' },
-  { key: 'Lavender', emoji: '💜', desc: '감성적인' },
-  { key: 'Terracotta', emoji: '🧡', desc: '따뜻한' },
+  { key: 'Lavender', emoji: '💜', desc: '감성적인', premium: true },
+  { key: 'Terracotta', emoji: '🧡', desc: '따뜻한', premium: true },
 ]
 
 function randomName() {
@@ -137,24 +137,35 @@ export default function OnboardingForm({ userId, email }: Props) {
         <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '8px' }}>나만의 감성을 골라봐요 🎨</h1>
         <p style={{ fontSize: '15px', color: '#B8A8AC', marginBottom: '32px' }}>언제든지 설정에서 바꿀 수 있어요</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '32px' }}>
-          {THEME_LIST.map(({ key, emoji, desc }) => {
+          {THEME_LIST.map(({ key, emoji, desc, premium }) => {
             const t = THEMES[key]
             const selected = theme === key
             return (
-              <button key={key} onClick={() => setTheme(key)} style={{
-                padding: '20px 16px', borderRadius: '20px',
-                border: selected ? '2.5px solid ' + t.primary : '2px solid transparent',
-                background: selected ? t.primaryLight : '#fff',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-                cursor: 'pointer', fontFamily: 'inherit',
-                display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: '8px',
-                transition: 'all 0.15s',
-              }}>
+              <button key={key}
+                onClick={() => { if (!premium) setTheme(key) }}
+                style={{
+                  padding: '20px 16px', borderRadius: '20px',
+                  border: selected ? '2.5px solid ' + t.primary : '2px solid transparent',
+                  background: selected ? t.primaryLight : '#fff',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                  cursor: premium ? 'default' : 'pointer', fontFamily: 'inherit',
+                  display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: '8px',
+                  transition: 'all 0.15s',
+                  opacity: premium ? 0.6 : 1,
+                  position: 'relative' as const,
+                }}>
                 <div style={{ width: '100%', height: '40px', borderRadius: '10px', background: t.primary }} />
+                {premium && (
+                  <div style={{
+                    position: 'absolute' as const, top: 8, right: 8,
+                    background: 'linear-gradient(135deg, #f59e0b, #ef4444)', color: '#fff', fontSize: 9, fontWeight: 700,
+                    padding: '2px 5px', borderRadius: 6,
+                  }}>💎</div>
+                )}
                 <span style={{ fontSize: '20px' }}>{emoji}</span>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: t.primary }}>{t.name}</span>
-                <span style={{ fontSize: '11px', color: '#9ca3af' }}>{desc}</span>
-                {selected && <span style={{ fontSize: '16px' }}>✓</span>}
+                <span style={{ fontSize: '13px', fontWeight: '700', color: premium ? '#9ca3af' : t.primary }}>{t.name}</span>
+                <span style={{ fontSize: '11px', color: '#9ca3af' }}>{premium ? '프리미엄에서 사용 가능' : desc}</span>
+                {selected && !premium && <span style={{ fontSize: '16px' }}>✓</span>}
               </button>
             )
           })}

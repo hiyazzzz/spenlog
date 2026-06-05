@@ -14,6 +14,13 @@ export default async function SettingsPage() {
 
   const provider = identities?.identities?.[0]?.provider ?? 'email'
 
+  // DB fallback: 무료 유저가 Lavender/Terracotta 테마를 갖고 있으면 Burgundy로 교정
+  const PREMIUM_ONLY_THEMES = ['Lavender', 'Terracotta']
+  if (profile?.theme && PREMIUM_ONLY_THEMES.includes(profile.theme)) {
+    await supabase.from('users').update({ theme: 'Burgundy' }).eq('id', user.id)
+    profile.theme = 'Burgundy'
+  }
+
   return (
     <div className="min-h-screen pb-20" style={{ background: 'var(--color-bg)' }}>
       <h1 className="text-lg font-semibold mb-5" style={{ color: 'var(--color-accent)' }}>설정</h1>
