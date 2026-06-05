@@ -36,11 +36,11 @@ const RANDOM_NAMES = [
   '쏙쏙 솔방울', '통통 밤톨', '깜짝깜짝 별똥별',
 ]
 
-const THEME_LIST: { key: Theme; emoji: string; premium?: boolean }[] = [
-  { key: 'Burgundy', emoji: '🩷' },
-  { key: 'Sage', emoji: '🩷' },
-  { key: 'Lavender', emoji: '🩷', premium: true },
-  { key: 'Terracotta', emoji: '🩷', premium: true },
+const THEME_LIST: { key: Theme; premium?: boolean }[] = [
+  { key: 'Burgundy' },
+  { key: 'Sage' },
+  { key: 'Lavender', premium: true },
+  { key: 'Terracotta', premium: true },
 ]
 
 function randomName() {
@@ -217,14 +217,14 @@ export default function OnboardingForm({ userId, email }: Props) {
         <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '8px' }}>나만의 감성을 골라봐요 🎨</h1>
         <p style={{ fontSize: '15px', color: '#B8A8AC', marginBottom: '32px' }}>언제든지 설정에서 바꿀 수 있어요</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '32px' }}>
-          {THEME_LIST.map(({ key, emoji, premium }) => {
+          {THEME_LIST.map(({ key, premium }) => {
             const t = THEMES[key]
             const selected = theme === key
             return (
               <button key={key}
                 onClick={() => setTheme(key)}
                 style={{
-                  padding: '20px 16px', borderRadius: '20px',
+                  padding: '16px', borderRadius: '20px',
                   border: selected ? '2.5px solid ' + t.primary : '2px solid transparent',
                   background: selected ? t.primaryLight : '#fff',
                   boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
@@ -233,13 +233,13 @@ export default function OnboardingForm({ userId, email }: Props) {
                   transition: 'all 0.15s',
                   position: 'relative' as const,
                 }}>
-                <div style={{ width: '100%', height: '40px', borderRadius: '10px', background: t.primary }} />
+                <div style={{ width: '100%', height: '56px', borderRadius: '12px', background: t.primary, position: 'relative' as const }}>
+                  {selected && <div style={{ position: 'absolute', bottom: 6, right: 8, width: 16, height: 16, borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>✓</div>}
+                </div>
                 {premium && (
                   <span style={{ position: 'absolute' as const, top: 6, right: 8, fontSize: 14 }}>💎</span>
                 )}
-                <span style={{ fontSize: '20px' }}>{emoji}</span>
-                <span style={{ fontSize: '13px', fontWeight: '700', color: premium ? '#9ca3af' : t.primary }}>{t.name}</span>
-                {selected && !premium && <span style={{ fontSize: '16px' }}>✓</span>}
+                <span style={{ fontSize: '13px', fontWeight: '700', color: selected ? t.primary : '#374151' }}>{t.name}</span>
               </button>
             )
           })}
