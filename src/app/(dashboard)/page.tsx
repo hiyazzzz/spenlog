@@ -103,7 +103,7 @@ export default async function DashboardHomePage() {
 
       {/* 카드 C — 카테고리 2x2 그리드 */}
       <div style={card}>
-        <HomeCategoryGrid expenses={allExpenses} budgets={budgets ?? []} categoryImages={categoryUrls} userCategories={userCategories ?? []} />
+        <HomeCategoryGrid expenses={allExpenses} budgets={budgets ?? []} categoryImages={categoryUrls} userCategories={userCategories ?? []} theme={profile?.theme ?? null} />
       </div>
 
       {/* 카드 D — 최근 지출 내역 */}

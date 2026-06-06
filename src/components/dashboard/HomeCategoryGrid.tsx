@@ -1,5 +1,7 @@
 'use client'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { THEME_CARD_PALETTES } from '@/lib/themes'
 
 interface Expense { category: string; amount: number; type?: string }
 interface Budget { category: string; amount: number }
@@ -9,26 +11,26 @@ interface Props {
   expenses: Expense[]
   budgets: Budget[]
   categoryImages?: Record<string, string | null>
-  userCategories?: Category[]  // 유저 커스텀 카테고리 순서
+  userCategories?: Category[]
+  theme?: string | null
 }
 
 const DEFAULT_CATS = ['생활비', '활동비', '고정비', '친목비']
-const CAT_META: Record<string, { bg: string }> = {
-  '생활비': { bg: 'rgba(107,30,46,0.08)' },
-  '활동비': { bg: 'rgba(74,119,65,0.08)' },
-  '고정비': { bg: 'rgba(92,75,138,0.08)' },
-  '친목비': { bg: 'rgba(160,82,45,0.08)' },
-}
+const DEFAULT_PALETTE = THEME_CARD_PALETTES['Burgundy']
 
-export default function HomeCategoryGrid({ expenses, budgets, categoryImages, userCategories }: Props) {
+export default function HomeCategoryGrid({ expenses, budgets, categoryImages, userCategories, theme }: Props) {
   const router = useRouter()
+  const [palette, setPalette] = useState<string[]>(DEFAULT_PALETTE)
 
-  // 표시할 카테고리 상위 4개 (커스텀 순서 or 기본)
+  useEffect(() => {
+    const t = theme ?? (typeof window !== 'undefined' ? localStorage.getItem('spenlog_theme') : null) ?? 'Burgundy'
+    setPalette(THEME_CARD_PALETTES[t] ?? DEFAULT_PALETTE)
+  }, [theme])
+
   const displayCats = userCategories && userCategories.length > 0
     ? userCategories.slice(0, 4).map(c => c.name)
     : DEFAULT_CATS
 
-  // net 합계: 지출 -, 수입 +
   const catMap: Record<string, number> = {}
   ;(expenses || []).filter(e => e.type !== 'transfer').forEach(e => {
     const sign = e.type === 'income' ? 1 : -1
@@ -52,14 +54,10 @@ export default function HomeCategoryGrid({ expenses, budgets, categoryImages, us
           const budget = budgets?.find(b => b.category === cat)?.amount ?? 0
           const pct = budget > 0 ? Math.min(Math.round((spent / budget) * 100), 100) : 0
           const over = budget > 0 && spent > budget
-          const meta = CAT_META[cat] ?? { bg: '#f9fafb' }
           const imgUrl = categoryImages?.[cat]
           const barColor = over ? '#ef4444' : pct >= 70 ? '#f59e0b' : 'var(--color-primary)'
-          // 카테고리별 색상 (커스텀)
-          const userCat = userCategories?.find(c => c.name === cat)
-          const cardBg = imgUrl
-            ? `url(${imgUrl}) center/cover no-repeat`
-            : userCat?.color ?? meta.bg
+          // 이미지 있으면 이미지, 없으면 테마 팔레트[idx]
+          const cardBgColor = palette[idx] ?? palette[0]
 
           return (
             <button key={cat}
@@ -74,7 +72,7 @@ export default function HomeCategoryGrid({ expenses, budgets, categoryImages, us
               }}>
               <div style={{
                 height: 80,
-                background: imgUrl ? `url(${imgUrl}) center/cover no-repeat` : (userCat?.color ?? meta.bg),
+                background: imgUrl ? `url(${imgUrl}) center/cover no-repeat` : cardBgColor,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 position: 'relative',
               }}>
@@ -85,7 +83,6 @@ export default function HomeCategoryGrid({ expenses, budgets, categoryImages, us
                     padding: '2px 6px', borderRadius: 6, fontWeight: 700,
                   }}>초과 ⚠️</span>
                 )}
-                {/* 카테고리명 오버레이 */}
                 <div style={{
                   position: 'absolute', bottom: 0, left: 0, right: 0,
                   background: 'linear-gradient(transparent, rgba(0,0,0,0.35))',

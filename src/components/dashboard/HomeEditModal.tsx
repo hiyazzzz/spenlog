@@ -129,8 +129,13 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
         background: 'rgba(255,255,255,0.9)', border: '1px solid #e5e7eb',
         boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        cursor: 'pointer', fontSize: 16,
-      }}>🎨</button>
+        cursor: 'pointer', color: 'var(--color-primary)',
+      }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+      </button>
 
       {open && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', flexDirection: 'column', background: 'var(--color-bg)' }}>
@@ -243,6 +248,7 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
                         border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8,
                         color: '#fff', fontSize: 10, fontWeight: 700,
                         padding: '4px 8px', cursor: 'pointer', fontFamily: 'inherit',
+                        display: 'flex', alignItems: 'center',
                       }}>
                       📷 변경
                     </button>
@@ -256,57 +262,6 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
               </div>
             </div>
 
-            {/* 프리미엄 안내 배너 */}
-            {!isPremium && (
-              <div style={{ margin: '8px 16px 24px' }}>
-                <div style={{
-                  borderRadius: 16, overflow: 'hidden',
-                  background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
-                  padding: '20px 20px 16px',
-                  position: 'relative',
-                }}>
-                  {/* 배경 장식 */}
-                  <div style={{
-                    position: 'absolute', top: -20, right: -20,
-                    width: 100, height: 100, borderRadius: '50%',
-                    background: 'rgba(255,255,255,0.05)',
-                  }} />
-                  <div style={{
-                    position: 'absolute', bottom: -30, right: 20,
-                    width: 80, height: 80, borderRadius: '50%',
-                    background: 'rgba(255,255,255,0.04)',
-                  }} />
-
-                  <div style={{ position: 'relative' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <span style={{ fontSize: 20 }}>💎</span>
-                      <p style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>프리미엄으로 업그레이드</p>
-                    </div>
-                    <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5, marginBottom: 14 }}>
-                      홈화면 커버 이미지와 카테고리 카드를<br />나만의 감성으로 꾸밀 수 있어요
-                    </p>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <div style={{
-                        flex: 1, padding: '8px 12px', borderRadius: 10,
-                        background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)',
-                        textAlign: 'center',
-                      }}>
-                        <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 2 }}>홈 커버</p>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>자유 설정 ✓</p>
-                      </div>
-                      <div style={{
-                        flex: 1, padding: '8px 12px', borderRadius: 10,
-                        background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)',
-                        textAlign: 'center',
-                      }}>
-                        <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 2 }}>카테고리 이미지</p>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>자유 설정 ✓</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* 프리미엄 Bottom Sheet */}
@@ -327,8 +282,8 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
                   홈화면 꾸미기는 프리미엄 기능이에요
                 </p>
                 <p style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', lineHeight: 1.6, marginBottom: 24 }}>
-                  이미지 변경을 미리 체험해봤죠? 😊<br />
-                  프리미엄으로 업그레이드하면 실제로 적용돼요
+                  홈화면 이미지 편집은 프리미엄 기능이에요.<br />
+                  업그레이드하면 나만의 감성으로 꾸밀 수 있어요.
                 </p>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button onClick={() => setShowPremiumSheet(false)} style={{

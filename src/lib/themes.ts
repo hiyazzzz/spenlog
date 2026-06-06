@@ -34,3 +34,11 @@ export const THEMES = {
 }
 
 export const CATEGORIES = ['생활비', '활동비', '고정비', '친목비', '예비비'] as const
+
+// 카테고리 카드 4종 팔레트 (테마별 색감 계열)
+export const THEME_CARD_PALETTES: Record<string, string[]> = {
+  Burgundy:   ['#6B1E2E', '#4A1220', '#8B3D52', '#B06070'],
+  Sage:       ['#4A6741', '#2E4A2A', '#6A8F67', '#3D5E3A'],
+  Lavender:   ['#5C4B8A', '#3D2E6B', '#7A6AAA', '#4A3A78'],
+  Terracotta: ['#A0522D', '#7A3518', '#C4784A', '#854520'],
+}

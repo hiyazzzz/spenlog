@@ -29,6 +29,10 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
   const [failModal, setFailModal] = useState(false)
   const [failMsg, setFailMsg] = useState('')
+  // 실패 모달 인라인 입력 상태
+  const [inlineForm, setInlineForm] = useState({ name: '', amount: '', category: cats[0] ?? '생활비', payment_method: '카드' })
+  const [inlineSaving, setInlineSaving] = useState(false)
+  const [inlineSaved, setInlineSaved] = useState(false)
   const router = useRouter()
   const supabase = createClient()
   const { setPrefill } = useAiInputStore()
@@ -115,6 +119,30 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
     }
   }
 
+
+  async function handleInlineSave() {
+    const amount = parseInt(inlineForm.amount.replace(/,/g, ''))
+    if (!inlineForm.name.trim() || !amount) return
+    setInlineSaving(true)
+    try {
+      const { error: saveErr } = await supabase.from('expenses').insert({
+        user_id: userId, name: inlineForm.name.trim(), amount,
+        category: inlineForm.category, date: new Date().toISOString().split('T')[0],
+        payment_method: inlineForm.payment_method, source: 'manual', type: 'expense',
+      })
+      if (!saveErr) {
+        setInlineSaved(true)
+        setTimeout(() => {
+          setFailModal(false)
+          setInlineSaved(false)
+          setInlineForm({ name: '', amount: '', category: cats[0] ?? '생활비', payment_method: '카드' })
+          router.push('/history')
+        }, 1000)
+      }
+    } catch { /* ignore */ }
+    finally { setInlineSaving(false) }
+  }
+
   function updatePreview(idx: number, key: keyof PreviewData, value: string | number | null) {
     setPreviews(prev => prev.map((p, i) => i === idx ? { ...p, [key]: value } : p))
   }
@@ -128,28 +156,93 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
       {failModal && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 9999,
-          background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-end',
+          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end',
         }}>
           <div style={{
             width: '100%', background: '#fff', borderRadius: '20px 20px 0 0',
-            padding: '28px 24px 40px', animation: 'slideUp 0.2s ease',
+            padding: '24px 20px 40px', maxHeight: '90vh', overflowY: 'auto',
           }}>
-            <div style={{ textAlign: 'center', marginBottom: 16 }}>
-              <p style={{ fontSize: 24, marginBottom: 8 }}>😅</p>
-              <p style={{ fontSize: 16, fontWeight: 700, color: '#1f2937', marginBottom: 6 }}>인식에 실패했어요</p>
-              <p style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.5 }}>
-                현재 AI 인식이 불안정해요.<br />직접 입력해 주세요.
-              </p>
+            {/* 핸들 */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e5e7eb' }} />
             </div>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <p style={{ fontSize: 20, marginBottom: 6 }}>😅</p>
+              <p style={{ fontSize: 16, fontWeight: 700, color: '#1f2937', marginBottom: 4 }}>인식에 실패했어요</p>
+              <p style={{ fontSize: 13, color: '#9ca3af' }}>여기서 바로 입력할 수 있어요</p>
+            </div>
+
+            {/* 인라인 입력 폼 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+              {/* 금액 */}
+              <div style={{ background: '#f9fafb', borderRadius: 12, padding: '12px 14px' }}>
+                <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>금액 *</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-primary)' }}>₩</span>
+                  <input
+                    type="text" inputMode="numeric" autoFocus
+                    placeholder="0"
+                    value={inlineForm.amount ? Number(inlineForm.amount.replace(/,/g,'')).toLocaleString() : ''}
+                    onChange={e => setInlineForm(p => ({ ...p, amount: e.target.value.replace(/[^0-9]/g,'') }))}
+                    style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 18, fontWeight: 700, outline: 'none', fontFamily: 'inherit', color: '#1f2937' }}
+                  />
+                </div>
+              </div>
+              {/* 항목명 */}
+              <div style={{ background: '#f9fafb', borderRadius: 12, padding: '12px 14px' }}>
+                <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>항목명 *</p>
+                <input
+                  type="text" placeholder="예) 스타벅스"
+                  value={inlineForm.name}
+                  onChange={e => setInlineForm(p => ({ ...p, name: e.target.value }))}
+                  style={{ width: '100%', border: 'none', background: 'transparent', fontSize: 14, outline: 'none', fontFamily: 'inherit', color: '#1f2937' }}
+                />
+              </div>
+              {/* 카테고리 */}
+              <div>
+                <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 6 }}>카테고리</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {cats.filter(c => c !== '수입').map(cat => (
+                    <button key={cat}
+                      onClick={() => setInlineForm(p => ({ ...p, category: cat }))}
+                      style={{
+                        padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer',
+                        background: inlineForm.category === cat ? 'var(--color-primary)' : '#f3f4f6',
+                        color: inlineForm.category === cat ? '#fff' : '#6b7280',
+                        fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+                      }}>{cat}</button>
+                  ))}
+                </div>
+              </div>
+              {/* 결제수단 */}
+              <div>
+                <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 6 }}>결제수단</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {PAYMENT_METHODS.slice(0, 4).map(m => (
+                    <button key={m}
+                      onClick={() => setInlineForm(p => ({ ...p, payment_method: m }))}
+                      style={{
+                        padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer',
+                        background: inlineForm.payment_method === m ? 'var(--color-primary)' : '#f3f4f6',
+                        color: inlineForm.payment_method === m ? '#fff' : '#6b7280',
+                        fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+                      }}>{m}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* 저장 버튼 */}
             <button
-              onClick={() => { setFailModal(false); router.push('/add') }}
+              onClick={handleInlineSave}
+              disabled={inlineSaving || inlineSaved || !inlineForm.name.trim() || !inlineForm.amount}
               style={{
-                width: '100%', padding: '14px', borderRadius: 14,
-                background: 'var(--color-primary)', color: '#fff',
-                fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer',
-                fontFamily: 'inherit', marginBottom: 10,
+                width: '100%', padding: '14px', borderRadius: 14, border: 'none',
+                background: inlineSaved ? '#059669' : 'var(--color-primary)', color: '#fff',
+                fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 10,
+                opacity: (!inlineForm.name.trim() || !inlineForm.amount) ? 0.5 : 1,
               }}
-            >직접 입력하기</button>
+            >{inlineSaved ? '✓ 저장됐어요!' : inlineSaving ? '저장 중...' : '저장하기'}</button>
             <button
               onClick={() => setFailModal(false)}
               style={{
