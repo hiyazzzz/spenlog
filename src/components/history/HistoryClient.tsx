@@ -249,6 +249,7 @@ function EditRow({ expense, onSave, onDelete, onCancel, userCategories }: {
   onSave: (updates: Partial<Expense>) => void
   onDelete: () => void
   onCancel: () => void
+  userCategories?: string[]
 }) {
   const [form, setForm] = useState({ ...expense, amount: expense.amount.toLocaleString(), payment_method: expense.payment_method ?? '' })
   function u(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
