@@ -2,7 +2,6 @@
 import { useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { CATEGORIES } from '@/lib/themes'
 import { Budget } from '@/types'
 
 interface Expense { category: string; amount: number }
@@ -44,8 +43,8 @@ const PRESETS = [
 ] as const
 
 // DB에 저장된 값을 기준으로 초기 amounts 생성
-function getInitialAmounts(initialBudgets: Budget[]) {
-  return Object.fromEntries(CATEGORIES.map(cat => [
+function getInitialAmounts(initialBudgets: Budget[], allCategories: string[]) {
+  return Object.fromEntries(allCategories.map(cat => [
     cat,
     initialBudgets.find(b => b.category === cat)?.amount.toString() || ''
   ]))
@@ -62,8 +61,8 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
   const [aiReason, setAiReason] = useState<string | null>(null)
   const [aiToast, setAiToast] = useState<string | null>(null)
 
-  // 유저 커스텀 카테고리가 있으면 우선, 없으면 기본 CATEGORIES
-  const allCategories = customCategories && customCategories.length > 0 ? customCategories : (CATEGORIES as readonly string[])
+  const DEFAULT_CATEGORIES = ['생활비', '활동비', '고정비', '친목비', '예비비']
+  const allCategories = customCategories && customCategories.length > 0 ? customCategories : DEFAULT_CATEGORIES
   // ON/OFF 토글 - 기본값: 이미 예산 설정된 카테고리는 ON
   const [enabledCats, setEnabledCats] = useState<Record<string, boolean>>(() => {
     const map: Record<string, boolean> = {}
@@ -78,7 +77,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
   })
 
   // savedAmounts: DB 저장된 값 (탭 전환해도 유지)
-  const savedAmounts = useMemo(() => getInitialAmounts(initialBudgets), [initialBudgets])
+  const savedAmounts = useMemo(() => getInitialAmounts(initialBudgets, allCategories), [initialBudgets, allCategories])
 
   // amounts: 현재 입력 필드값 (manual 탭 전용)
   const [amounts, setAmounts] = useState<Record<string, string>>(savedAmounts)
@@ -112,8 +111,16 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
     const additionalSaving = Math.max(0, targetSaving - fixedSavings)
     const spendBudget = income - targetSaving
 
+    const knownDist = preset.dist as Record<string, number>
+    const unknownCats = allCategories.filter(cat => !(cat in knownDist) && cat !== '수입')
+    const knownRatio = allCategories.filter(cat => cat in knownDist).reduce((s, cat) => s + (knownDist[cat] ?? 0), 0)
+    const unknownRatio = unknownCats.length > 0 ? Math.max(0, 1 - knownRatio) / unknownCats.length : 0
     const newAmounts = Object.fromEntries(
-      CATEGORIES.map(cat => [cat, Math.round(spendBudget * (preset.dist as any)[cat]).toString()])
+      allCategories.map(cat => {
+        if (cat === '수입') return [cat, '0']
+        const ratio = cat in knownDist ? (knownDist[cat] ?? 0) : unknownRatio
+        return [cat, Math.round(spendBudget * ratio).toString()]
+      })
     )
     setAiAmounts(newAmounts)
 
@@ -170,8 +177,17 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
 
   function fallbackAmounts(inc: number, fixed: number): Record<string, number> {
     const spendBudget = inc - Math.round(inc * 0.25)
-    const dist: Record<string, number> = { 생활비: 0.30, 활동비: 0.25, 고정비: 0.25, 친목비: 0.12, 예비비: 0.08 }
-    return Object.fromEntries(CATEGORIES.map(cat => [cat, Math.round(spendBudget * dist[cat])]))
+    const dist: Record<string, number> = { '생활비': 0.30, '활동비': 0.25, '고정비': 0.25, '친목비': 0.12, '예비비': 0.08 }
+    const unknownFbCats = allCategories.filter(cat => !(cat in dist) && cat !== '수입')
+    const knownFbRatio = allCategories.filter(cat => cat in dist).reduce((s, cat) => s + (dist[cat] ?? 0), 0)
+    const unknownFbRatio = unknownFbCats.length > 0 ? Math.max(0, 1 - knownFbRatio) / unknownFbCats.length : 0
+    return Object.fromEntries(
+      allCategories.map(cat => {
+        if (cat === '수입') return [cat, 0]
+        const ratio = cat in dist ? (dist[cat] ?? 0) : unknownFbRatio
+        return [cat, Math.round(spendBudget * ratio)]
+      })
+    )
   }
 
   async function handleSave() {

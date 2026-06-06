@@ -3,8 +3,8 @@ import { useState } from 'react'
 import { useAiInputStore } from '@/store/useAiInputStore'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { CATEGORIES } from '@/lib/themes'
 
+const DEFAULT_CATEGORIES = ['생활비', '활동비', '고정비', '친목비', '예비비', '수입']
 const PAYMENT_METHODS = ['카드', '현금', '카카오페이', '네이버페이', '토스', '계좌이체']
 
 interface PreviewData {
@@ -17,7 +17,8 @@ interface PreviewData {
   type: 'expense' | 'income'
 }
 
-export default function AiInputBox({ userId, compact }: { userId: string; compact?: boolean }) {
+export default function AiInputBox({ userId, compact, userCategories }: { userId: string; compact?: boolean; userCategories?: string[] }) {
+  const cats = userCategories && userCategories.length > 0 ? userCategories : DEFAULT_CATEGORIES
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -257,7 +258,7 @@ export default function AiInputBox({ userId, compact }: { userId: string; compac
                     className="w-full text-sm px-3 py-2 rounded-xl bg-white border border-gray-200 outline-none" />
                   {preview.type === 'expense' && (
                     <div className="flex flex-wrap gap-1.5">
-                      {(CATEGORIES as readonly string[]).map(cat => (
+                      {cats.map(cat => (
                         <button key={cat} onClick={() => updatePreview(idx, 'category', cat)}
                           className="text-xs px-3 py-1.5 rounded-full border transition-all"
                           style={{

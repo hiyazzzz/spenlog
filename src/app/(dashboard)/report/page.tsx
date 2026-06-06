@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ko'
-import { CATEGORIES } from '@/lib/themes'
 import ReportClient from '@/components/report/ReportClient'
 
 dayjs.locale('ko')
@@ -33,6 +32,7 @@ export default async function ReportPage({ searchParams }: Props) {
     { data: prev2Expenses },
     { data: budgets },
     { data: cachedReport },
+    { data: categoriesData },
   ] = await Promise.all([
     supabase.from('users').select('*').eq('id', user.id).single(),
     supabase.from('expenses').select('*').eq('user_id', user.id)
@@ -43,6 +43,7 @@ export default async function ReportPage({ searchParams }: Props) {
       .gte('date', `${prev2Month}-01`).lt('date', `${prevMonth}-01`),
     supabase.from('budgets').select('*').eq('user_id', user.id).eq('month', safeMonth),
     supabase.from('reports').select('ai_coach').eq('user_id', user.id).eq('year_month', safeMonth).single(),
+    supabase.from('categories').select('name').eq('user_id', user.id).eq('is_hidden', false).order('sort_order'),
   ])
 
   const totalSpent = expenses?.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0) ?? 0
@@ -54,7 +55,16 @@ export default async function ReportPage({ searchParams }: Props) {
   const savingPct = savingGoal > 0 ? Math.min(Math.round((savedAmount / savingGoal) * 100), 100) : 0
   const spendingDiff = prevTotalSpent > 0 ? Math.round(((totalSpent - prevTotalSpent) / prevTotalSpent) * 100) : null
 
-  const catData = (CATEGORIES as readonly string[]).map(cat => {
+  // 유저 커스텀 카테고리, 없으면 expenses/budgets에서 동적 수집
+  const userCatNames = (categoriesData ?? []).map((c: any) => c.name)
+  const expenseCatNames = [...new Set([
+    ...(expenses ?? []).filter(e => e.type === 'expense').map(e => e.category),
+    ...(prevExpenses ?? []).filter((e: any) => e.type === 'expense').map((e: any) => e.category),
+    ...(budgets ?? []).map((b: any) => b.category),
+  ])]
+  const reportCategories = userCatNames.length > 0 ? userCatNames : expenseCatNames
+
+  const catData = reportCategories.map((cat: string) => {
     const amount = expenses?.filter(e => e.category === cat && e.type === 'expense').reduce((s, e) => s + e.amount, 0) ?? 0
     const prevAmount = prevExpenses?.filter((e: any) => e.category === cat).reduce((s: number, e: any) => s + e.amount, 0) ?? 0
     const budget = budgets?.find(b => b.category === cat)?.amount ?? 0

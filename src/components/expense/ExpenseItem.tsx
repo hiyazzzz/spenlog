@@ -3,7 +3,8 @@ import { useState } from 'react'
 import dayjs from 'dayjs'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { CATEGORIES } from '@/lib/themes'
+
+const DEFAULT_CATEGORIES = ['생활비', '활동비', '고정비', '친목비', '예비비', '수입']
 
 interface Expense {
   id: string
@@ -15,7 +16,13 @@ interface Expense {
   type?: 'expense' | 'income'
 }
 
-export default function ExpenseItem({ expense }: { expense: Expense }) {
+interface Props {
+  expense: Expense
+  userCategories?: string[]
+}
+
+export default function ExpenseItem({ expense, userCategories }: Props) {
+  const cats = userCategories && userCategories.length > 0 ? userCategories : DEFAULT_CATEGORIES
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -76,7 +83,7 @@ export default function ExpenseItem({ expense }: { expense: Expense }) {
               value={form.category}
               onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
             >
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {cats.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div className="flex gap-2">

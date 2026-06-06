@@ -1,29 +1,32 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
-const CAT_KEYS = ['생활비', '활동비', '고정비', '친목비'] as const
-const CAT_FIELD: Record<string, string> = {
-  '생활비': 'category_img_url_1',
-  '활동비': 'category_img_url_2',
-  '고정비': 'category_img_url_3',
-  '친목비': 'category_img_url_4',
-}
+const DEFAULT_CAT_KEYS = ['생활비', '활동비', '고정비', '친목비']
+const CAT_FIELD_IDX = ['category_img_url_1', 'category_img_url_2', 'category_img_url_3', 'category_img_url_4']
 const CAT_EMOJI: Record<string, string> = {
   '생활비': '🛒', '활동비': '☕', '고정비': '📌', '친목비': '👫',
+  '예비비': '🏦', '수입': '💰',
 }
+const CAT_EMOJIS_FALLBACK = ['🛒', '☕', '📌', '👫']
 
 interface Props {
   userId: string
   isPremium: boolean
   currentCoverUrl: string | null
   currentCategoryUrls: Record<string, string | null>
+  displayName?: string
+  totalSpent?: number
+  userCategories?: string[]
 }
 
-export default function HomeEditModal({ userId, isPremium, currentCoverUrl, currentCategoryUrls }: Props) {
+export default function HomeEditModal({ userId, isPremium, currentCoverUrl, currentCategoryUrls, displayName = '소비요정', totalSpent = 0, userCategories }: Props) {
   const supabase = createClient()
   const router = useRouter()
+  // 유저 커스텀 카테고리 상위 4개, 없으면 기본
+  const catKeysToUse = (userCategories && userCategories.length > 0 ? userCategories : DEFAULT_CAT_KEYS).slice(0, 4)
+  const CAT_FIELD: Record<string, string> = Object.fromEntries(catKeysToUse.map((cat, i) => [cat, CAT_FIELD_IDX[i]]))
   const [open, setOpen] = useState(false)
   const [coverPreview, setCoverPreview] = useState<string | null>(currentCoverUrl)
   const [catPreviews, setCatPreviews] = useState<Record<string, string | null>>(currentCategoryUrls)
@@ -34,6 +37,14 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
   const [dirty, setDirty] = useState(false)
   const coverRef = useRef<HTMLInputElement>(null)
   const catRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  // 저장 후 router.refresh() 시 props 변경 → 즉각 state 동기화
+  useEffect(() => {
+    if (!open) {
+      setCoverPreview(currentCoverUrl)
+      setCatPreviews(currentCategoryUrls)
+    }
+  }, [currentCoverUrl, currentCategoryUrls, open])
 
   function handleClose() {
     setOpen(false)
@@ -79,7 +90,7 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
       const url = await uploadFile(coverFile, `${userId}/cover-${Date.now()}`)
       if (url) updates['home_cover_url'] = url
     }
-    for (const cat of CAT_KEYS) {
+    for (const cat of catKeysToUse) {
       if (catFiles[cat]) {
         const url = await uploadFile(catFiles[cat]!, `${userId}/cat-${cat}-${Date.now()}`)
         if (url) updates[CAT_FIELD[cat]] = url
@@ -89,6 +100,14 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
       await supabase.from('users').update(updates).eq('id', userId)
     }
     setSaving(false)
+    // 업로드된 URL로 즉각 state 업데이트 (router.refresh 전 즉각 반영)
+    if (updates['home_cover_url']) setCoverPreview(updates['home_cover_url'])
+    const newCatPreviews = { ...catPreviews }
+    for (const cat of catKeysToUse) {
+      const field = CAT_FIELD[cat]
+      if (field && updates[field]) newCatPreviews[cat] = updates[field]
+    }
+    setCatPreviews(newCatPreviews)
     setOpen(false)
     setDirty(false)
     router.refresh()
@@ -201,7 +220,7 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
             <div style={{ padding: '16px' }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 10 }}>카테고리 현황</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {CAT_KEYS.map(cat => (
+                {catKeysToUse.map((cat, catIdx) => (
                   <div key={cat} style={{ position: 'relative' }}>
                     {/* 카테고리 카드 */}
                     <div style={{
@@ -212,7 +231,7 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       border: '1px solid #f0f0f0',
                     }}>
-                      {!catPreviews[cat] && <span style={{ fontSize: 28 }}>{CAT_EMOJI[cat]}</span>}
+                      {!catPreviews[cat] && <span style={{ fontSize: 28 }}>{CAT_EMOJI[cat] ?? CAT_EMOJIS_FALLBACK[catIdx] ?? '📁'}</span>}
                     </div>
 
                     {/* 편집 버튼 오버레이 */}

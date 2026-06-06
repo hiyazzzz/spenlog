@@ -2,7 +2,6 @@
 import { useState, useMemo } from 'react'
 import dayjs from 'dayjs'
 import ExpenseItem from './ExpenseItem'
-import { CATEGORIES } from '@/lib/themes'
 
 interface Expense {
   id: string
@@ -13,11 +12,19 @@ interface Expense {
   payment_method: string | null
 }
 
-export default function ExpenseFilter({ expenses }: { expenses: Expense[] }) {
+const DEFAULT_CATEGORIES = ['생활비', '활동비', '고정비', '친목비', '예비비', '수입']
+
+interface Props {
+  expenses: Expense[]
+  userCategories?: string[]
+}
+
+export default function ExpenseFilter({ expenses, userCategories }: Props) {
   const [query, setQuery] = useState('')
   const [selectedCat, setSelectedCat] = useState<string>('전체')
 
-  const cats = ['전체', ...CATEGORIES]
+  const baseCats = userCategories && userCategories.length > 0 ? userCategories : DEFAULT_CATEGORIES
+  const cats = ['전체', ...baseCats]
 
   const filtered = useMemo(() => {
     return expenses.filter((e) => {
@@ -77,7 +84,7 @@ export default function ExpenseFilter({ expenses }: { expenses: Expense[] }) {
         ) : (
           <div className="divide-y divide-gray-50 px-4">
             {filtered.map((item) => (
-              <ExpenseItem key={item.id} expense={item} />
+              <ExpenseItem key={item.id} expense={item} userCategories={baseCats} />
             ))}
           </div>
         )}

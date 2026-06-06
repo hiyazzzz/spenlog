@@ -188,6 +188,8 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const [localFixed, setLocalFixed] = useState(fixedCosts)
   const [localBudgets, setLocalBudgets] = useState(budgets)
   const [showAddAccount, setShowAddAccount] = useState(false)
+  const [showCashForm, setShowCashForm] = useState(false)
+  const [cashBalance, setCashBalance] = useState('')
   const [showAddCard, setShowAddCard] = useState(false)
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
   const [showAddFixed, setShowAddFixed] = useState<'expense' | 'saving' | null>(null)
@@ -394,19 +396,71 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             </div>
           </div>
         ))}
+        {showCashForm ? (
+          <div style={{ marginTop: 8, padding: '14px', background: '#f0fdf4', borderRadius: 12, border: '1px solid #bbf7d0' }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: '#065f46', marginBottom: 10 }}>💵 현금 추가</p>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ flex: 1, position: 'relative' }}>
+                <input
+                  type="text" inputMode="numeric" autoFocus
+                  placeholder="보유 현금 잔액"
+                  value={cashBalance ? Number(cashBalance.replace(/,/g, '')).toLocaleString() : ''}
+                  onChange={e => setCashBalance(e.target.value.replace(/[^0-9]/g, ''))}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && cashBalance) {
+                      supabase.from('accounts').insert({
+                        user_id: userId, name: '현금', bank: '현금',
+                        balance: parseInt(cashBalance), type: '현금',
+                      }).select().single().then(({ data }) => {
+                        if (data) setLocalAccounts(a => [...a, data])
+                        setShowCashForm(false); setCashBalance('')
+                      })
+                    }
+                  }}
+                  style={{
+                    width: '100%', padding: '10px 36px 10px 12px',
+                    borderRadius: 10, border: '1.5px solid #6ee7b7',
+                    fontSize: 14, outline: 'none', fontFamily: 'inherit',
+                    background: '#fff', boxSizing: 'border-box',
+                  }}
+                />
+                <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#9ca3af' }}>원</span>
+              </div>
+              <button
+                onClick={() => {
+                  if (!cashBalance) return
+                  supabase.from('accounts').insert({
+                    user_id: userId, name: '현금', bank: '현금',
+                    balance: parseInt(cashBalance), type: '현금',
+                  }).select().single().then(({ data }) => {
+                    if (data) setLocalAccounts(a => [...a, data])
+                    setShowCashForm(false); setCashBalance('')
+                  })
+                }}
+                style={{
+                  padding: '10px 16px', borderRadius: 10, border: 'none',
+                  background: '#059669', color: '#fff',
+                  fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                  whiteSpace: 'nowrap',
+                }}
+              >등록</button>
+              <button
+                onClick={() => { setShowCashForm(false); setCashBalance('') }}
+                style={{
+                  padding: '10px 12px', borderRadius: 10,
+                  border: '1.5px solid #d1fae5', background: '#fff',
+                  fontSize: 12, color: '#6b7280', cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >취소</button>
+            </div>
+          </div>
+        ) : null}
         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
           <button
-            onClick={() => {
-              const supabaseClient = createClient()
-              supabaseClient.from('accounts').insert({
-                user_id: userId, name: '현금', bank: '현금', balance: 0, type: '현금',
-              }).select().single().then(({ data }) => {
-                if (data) setLocalAccounts(a => [...a, data])
-              })
-            }}
+            onClick={() => { setShowCashForm(s => !s); setShowAddAccount(false) }}
             style={{ ...fullAddBtn, flex: 1, background: '#f0fdf4', color: '#059669' }}
           >💵 현금 추가</button>
-          <button onClick={() => setShowAddAccount(s => !s)} style={{ ...fullAddBtn, flex: 1 }}>+ 계좌 추가</button>
+          <button onClick={() => { setShowAddAccount(s => !s); setShowCashForm(false) }} style={{ ...fullAddBtn, flex: 1 }}>+ 계좌 추가</button>
         </div>
       </Section>
 

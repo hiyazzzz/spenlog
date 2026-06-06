@@ -82,6 +82,9 @@ export default async function DashboardHomePage() {
         isPremium={isPremium}
         currentCoverUrl={coverUrl}
         currentCategoryUrls={categoryUrls}
+        displayName={displayName}
+        totalSpent={totalSpent}
+        userCategories={(userCategories ?? []).map(c => c.name)}
       />
 
       {/* 카드 B — 한 줄 기록 */}
@@ -95,7 +98,7 @@ export default async function DashboardHomePage() {
             fontSize: 18, fontWeight: 700, textDecoration: 'none',
           }}>+</Link>
         </div>
-        <AiInputBox userId={user.id} />
+        <AiInputBox userId={user.id} userCategories={(userCategories ?? []).map(c => c.name)} />
       </div>
 
       {/* 카드 C — 카테고리 2x2 그리드 */}

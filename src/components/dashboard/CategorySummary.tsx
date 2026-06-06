@@ -1,5 +1,4 @@
 'use client'
-import { CATEGORIES } from '@/lib/themes'
 
 interface Budget { id: string; category: string; amount: number }
 interface Expense { category: string; amount: number; type?: string }
@@ -8,18 +7,23 @@ interface Props {
   expenses: Expense[]
   budgets: Budget[]
   compact?: boolean
+  userCategories?: string[]
 }
 
-export default function CategorySummary({ expenses, budgets, compact }: Props) {
+export default function CategorySummary({ expenses, budgets, compact, userCategories }: Props) {
   const safeBudgets = budgets || []
-  const safeExpenses = (expenses || []).filter(e => e.type !== 'income')
+  const safeExpenses = (expenses || []).filter(e => e.type !== 'income' && e.type !== 'transfer')
 
   const catMap: Record<string, number> = {}
   safeExpenses.forEach(e => {
     catMap[e.category] = (catMap[e.category] ?? 0) + Number(e.amount)
   })
 
-  const displayCats = (CATEGORIES as readonly string[]).filter(cat =>
+  const allCats = userCategories && userCategories.length > 0
+    ? userCategories
+    : [...new Set([...Object.keys(catMap), ...safeBudgets.map(b => b.category)])]
+
+  const displayCats = allCats.filter(cat =>
     (catMap[cat] ?? 0) > 0 || safeBudgets.find(b => b.category === cat)
   )
 
