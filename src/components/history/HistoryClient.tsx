@@ -244,7 +244,7 @@ function ExpenseRow({ expense, onTap }: { expense: Expense; onTap: () => void })
 
 const PAYMENT_OPTIONS = ['카드', '현금', '카카오페이', '네이버페이', '토스', '계좌이체']
 
-function EditRow({ expense, onSave, onDelete, onCancel }: {
+function EditRow({ expense, onSave, onDelete, onCancel, userCategories }: {
   expense: Expense
   onSave: (updates: Partial<Expense>) => void
   onDelete: () => void
