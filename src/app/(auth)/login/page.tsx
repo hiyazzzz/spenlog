@@ -3,22 +3,15 @@ import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-type Mode = 'login' | 'signup'
-
 export default function LoginPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [guestLoading, setGuestLoading] = useState(false)
   const [error, setError] = useState('')
-  const [mode, setMode] = useState<Mode>('login')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [emailSent, setEmailSent] = useState(false)
-
   const supabase = createClient()
 
   async function handleGoogle() {
-    setLoading(true); setError('')
+    setGoogleLoading(true); setError('')
     try {
       const { error: err } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -27,35 +20,11 @@ export default function LoginPage() {
           queryParams: { access_type: 'offline', prompt: 'consent' },
         },
       })
-      if (err) { setError(err.message); setLoading(false) }
+      if (err) { setError(err.message); setGoogleLoading(false) }
     } catch (e: any) {
       setError(e?.message ?? '구글 로그인 중 오류가 발생했어요')
-      setLoading(false)
+      setGoogleLoading(false)
     }
-  }
-
-  async function handleEmail() {
-    if (!email.trim() || !password.trim()) { setError('이메일과 비밀번호를 입력해주세요'); return }
-    setLoading(true); setError('')
-    try {
-      if (mode === 'login') {
-        const { error: err } = await supabase.auth.signInWithPassword({ email, password })
-        if (err) throw err
-        router.push('/')
-      } else {
-        const { error: err } = await supabase.auth.signUp({
-          email, password,
-          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-        })
-        if (err) throw err
-        setEmailSent(true)
-      }
-    } catch (e: any) {
-      const msg = e?.message ?? ''
-      if (msg.includes('Invalid login credentials')) setError('이메일 또는 비밀번호가 틀렸어요')
-      else if (msg.includes('already registered')) setError('이미 가입된 이메일이에요. 로그인해주세요')
-      else setError(msg || '오류가 발생했어요')
-    } finally { setLoading(false) }
   }
 
   async function handleGuest() {
@@ -65,101 +34,95 @@ export default function LoginPage() {
       if (err) throw err
       router.push('/')
     } catch (e: any) {
-      setError('게스트 모드를 사용할 수 없어요. 회원가입 후 이용해주세요.')
-    } finally { setGuestLoading(false) }
-  }
-
-  const divider = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
-      <div style={{ flex: 1, height: 1, background: '#EDE3E5' }} />
-      <span style={{ fontSize: 12, color: '#C4A0A8' }}>또는</span>
-      <div style={{ flex: 1, height: 1, background: '#EDE3E5' }} />
-    </div>
-  )
-
-  if (emailSent) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '0 32px', background: '#FAF7F4', maxWidth: 420, margin: '0 auto' }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>📬</div>
-        <h2 style={{ fontSize: 20, fontWeight: 800, color: '#6B1E2E', marginBottom: 8 }}>이메일을 확인해주세요</h2>
-        <p style={{ fontSize: 14, color: '#9ca3af', textAlign: 'center', lineHeight: 1.7 }}>
-          {email}로 인증 링크를 보냈어요.<br />링크를 클릭하면 로그인돼요.
-        </p>
-        <button onClick={() => setEmailSent(false)} style={{ marginTop: 24, fontSize: 13, color: '#6B1E2E', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
-          다시 시도
-        </button>
-      </div>
-    )
+      setError('게스트 모드를 사용할 수 없어요.')
+      setGuestLoading(false)
+    }
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '0 32px', background: '#FAF7F4', maxWidth: 420, margin: '0 auto' }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-
-      {/* 로고 */}
-      <div style={{ textAlign: 'center', marginBottom: 48 }}>
-        <h1 style={{ fontSize: 52, fontWeight: 800, color: '#6B1E2E', letterSpacing: '-2px', marginBottom: 12, lineHeight: 1 }}>Spenlog</h1>
-        <p style={{ fontSize: 13, color: '#C4A0A8', letterSpacing: '0.08em' }}>spend · log · reflect</p>
+    <div style={{
+      minHeight: '100vh', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      background: 'var(--color-bg, #FAF7F4)',
+      padding: '0 32px',
+    }}>
+      {/* 로고 영역 */}
+      <div style={{ textAlign: 'center', marginBottom: 56 }}>
+        <div style={{ fontSize: 52, marginBottom: 12 }}>🪴</div>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--color-accent, #6B1E2E)', marginBottom: 8 }}>
+          Spenlog
+        </h1>
+        <p style={{ fontSize: 15, color: '#9ca3af', lineHeight: 1.5 }}>
+          AI가 분류해주는<br />나만의 가계부
+        </p>
       </div>
 
-      <div style={{ width: '100%' }}>
-        {/* 구글 로그인 */}
-        <button onClick={handleGoogle} disabled={loading}
-          style={{ width: '100%', padding: 16, borderRadius: 16, background: loading ? '#F5EFED' : '#fff', border: '1.5px solid #EDE3E5', fontSize: 15, fontWeight: 600, color: loading ? '#C4A0A8' : '#3D2020', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', transition: 'all 0.2s' }}>
-          {loading ? (
-            <><div style={{ width: 20, height: 20, borderRadius: '50%', border: '2px solid #EDE3E5', borderTopColor: '#6B1E2E', animation: 'spin 0.8s linear infinite' }} />연결 중...</>
+      {/* 버튼 영역 */}
+      <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+        {/* Google 로그인 */}
+        <button
+          onClick={handleGoogle}
+          disabled={googleLoading || guestLoading}
+          style={{
+            width: '100%', padding: '16px', borderRadius: 16,
+            background: '#fff', border: '1.5px solid #e5e7eb',
+            fontSize: 15, fontWeight: 600, color: '#1f2937',
+            cursor: 'pointer', fontFamily: 'inherit',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            opacity: (googleLoading || guestLoading) ? 0.7 : 1,
+          }}
+        >
+          {googleLoading ? (
+            <span>로그인 중...</span>
           ) : (
-            <><svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Google로 계속하기</>
+            <>
+              {/* Google 아이콘 SVG */}
+              <svg width="20" height="20" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              Google로 계속하기
+            </>
           )}
         </button>
 
-        {/* 카카오 (비활성) */}
-        <button disabled style={{ width: '100%', marginTop: 10, padding: 16, borderRadius: 16, background: '#f9f9f9', border: '1.5px solid #e5e7eb', fontSize: 15, fontWeight: 600, color: '#9ca3af', cursor: 'not-allowed', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-          <span style={{ fontSize: 20 }}>🟡</span>카카오로 계속하기
-          <span style={{ fontSize: 11, background: '#f3f4f6', padding: '2px 6px', borderRadius: 6 }}>곧 지원</span>
-        </button>
-
-        {divider}
-
-        {/* 이메일 로그인/회원가입 탭 */}
-        <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 12, padding: 4, marginBottom: 16 }}>
-          {(['login', 'signup'] as const).map(m => (
-            <button key={m} onClick={() => { setMode(m); setError('') }}
-              style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s', background: mode === m ? '#fff' : 'transparent', color: mode === m ? '#6B1E2E' : '#9ca3af', boxShadow: mode === m ? '0 1px 4px rgba(0,0,0,0.08)' : 'none' }}>
-              {m === 'login' ? '로그인' : '회원가입'}
-            </button>
-          ))}
+        {/* 구분선 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0' }}>
+          <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
+          <span style={{ fontSize: 12, color: '#9ca3af' }}>또는</span>
+          <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
         </div>
 
-        <input type="email" placeholder="이메일" value={email} onChange={e => { setEmail(e.target.value); setError('') }}
-          style={{ width: '100%', padding: '14px 16px', borderRadius: 12, border: '1.5px solid #EDE3E5', fontSize: 14, outline: 'none', fontFamily: 'inherit', marginBottom: 10, background: '#fff', boxSizing: 'border-box' }} />
-        <input type="password" placeholder="비밀번호" value={password} onChange={e => { setPassword(e.target.value); setError('') }}
-          onKeyDown={e => e.key === 'Enter' && handleEmail()}
-          style={{ width: '100%', padding: '14px 16px', borderRadius: 12, border: '1.5px solid #EDE3E5', fontSize: 14, outline: 'none', fontFamily: 'inherit', marginBottom: 12, background: '#fff', boxSizing: 'border-box' }} />
-
-        <button onClick={handleEmail} disabled={loading}
-          style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: loading ? '#C4A0A8' : '#6B1E2E', color: '#fff', fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-          {loading ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
+        {/* 게스트 로그인 */}
+        <button
+          onClick={handleGuest}
+          disabled={googleLoading || guestLoading}
+          style={{
+            width: '100%', padding: '16px', borderRadius: 16,
+            background: 'var(--color-primary-light, #F8EFF1)',
+            border: '1.5px solid var(--color-primary-light, #F8EFF1)',
+            fontSize: 15, fontWeight: 600,
+            color: 'var(--color-primary, #6B1E2E)',
+            cursor: 'pointer', fontFamily: 'inherit',
+            opacity: (googleLoading || guestLoading) ? 0.7 : 1,
+          }}
+        >
+          {guestLoading ? '입장 중...' : '👤 게스트로 둘러보기'}
         </button>
+
+        {/* 게스트 안내 */}
+        <p style={{ fontSize: 12, color: '#9ca3af', textAlign: 'center', lineHeight: 1.5 }}>
+          게스트 모드는 기기 변경·로그아웃 시 데이터가 사라져요.<br />
+          나중에 Google 계정과 연동해 영구 보관할 수 있어요.
+        </p>
 
         {error && (
-          <div style={{ marginTop: 12, padding: '12px 16px', background: '#FFF5F7', border: '1px solid #F5D0D8', borderRadius: 12 }}>
-            <p style={{ fontSize: 13, color: '#C0405A', margin: 0, textAlign: 'center' }}>{error}</p>
-          </div>
+          <p style={{ fontSize: 13, color: '#ef4444', textAlign: 'center', marginTop: 4 }}>{error}</p>
         )}
-
-        {divider}
-
-        {/* 게스트 모드 */}
-        <button onClick={handleGuest} disabled={guestLoading}
-          style={{ width: '100%', padding: '14px', borderRadius: 16, border: '1.5px dashed #EDE3E5', background: 'transparent', fontSize: 14, color: '#9ca3af', cursor: guestLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-          {guestLoading ? '...' : '게스트로 둘러보기'}
-        </button>
-
-        <p style={{ fontSize: 11, color: '#C4A0A8', marginTop: 20, textAlign: 'center', lineHeight: 1.8 }}>
-          계속하면 <span style={{ textDecoration: 'underline' }}>이용약관</span> 및{' '}
-          <span style={{ textDecoration: 'underline' }}>개인정보처리방침</span>에 동의하게 됩니다
-        </p>
       </div>
     </div>
   )

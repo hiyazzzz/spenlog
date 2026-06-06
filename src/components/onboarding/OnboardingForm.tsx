@@ -302,7 +302,7 @@ export default function OnboardingForm({ userId, email }: Props) {
             </div>
             {income && (
               <p style={{ fontSize: '12px', color: '#9A7A80', marginTop: '6px' }}>
-                = ₩{(parseInt(income.replace(/,/g, '')) * 10000).toLocaleString()}
+                = {(parseInt(income.replace(/,/g, '')) * 10000).toLocaleString()}원
               </p>
             )}
           </div>
@@ -319,7 +319,7 @@ export default function OnboardingForm({ userId, email }: Props) {
             </div>
             {goal && (
               <p style={{ fontSize: '12px', color: '#9A7A80', marginTop: '6px' }}>
-                = ₩{(parseInt(goal.replace(/,/g, '')) * 10000).toLocaleString()}
+                = {(parseInt(goal.replace(/,/g, '')) * 10000).toLocaleString()}원
               </p>
             )}
             <p style={{ fontSize: '11px', color: '#C4A0A8', marginTop: '6px' }}>💡 입력하면 저축 달성률을 볼 수 있어요</p>

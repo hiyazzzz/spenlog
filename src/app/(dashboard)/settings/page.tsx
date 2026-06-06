@@ -13,6 +13,7 @@ export default async function SettingsPage() {
   ])
 
   const provider = identities?.identities?.[0]?.provider ?? 'email'
+  const isGuest = user.is_anonymous ?? false
 
   // DB fallback: 무료 유저가 Lavender/Terracotta 테마를 갖고 있으면 Burgundy로 교정
   const PREMIUM_ONLY_THEMES = ['Lavender', 'Terracotta']
@@ -29,6 +30,7 @@ export default async function SettingsPage() {
         userId={user.id}
         email={user.email ?? ''}
         provider={provider}
+        isGuest={isGuest}
       />
     </div>
   )

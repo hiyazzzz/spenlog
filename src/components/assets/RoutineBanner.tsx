@@ -180,7 +180,7 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccount
                       )}
                     </p>
                     <p style={{ fontSize: 11, color: '#9ca3af' }}>
-                      {'₩'}{fc.amount.toLocaleString()} {fc.due_day ? '매월 ' + fc.due_day + '일' : ''}
+                      {fc.amount.toLocaleString()}원 {fc.due_day ? '매월 ' + fc.due_day + '일' : ''}
                     </p>
                   </div>
                   {paid ? (

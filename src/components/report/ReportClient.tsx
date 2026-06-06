@@ -138,12 +138,12 @@ export default function ReportClient({
           <div className="flex gap-5 text-sm flex-wrap">
             <div>
               <p className="opacity-60 text-xs">총 지출</p>
-              <p className="font-bold">₩{totalSpent.toLocaleString()}</p>
+              <p className="font-bold">{totalSpent.toLocaleString()}원</p>
             </div>
             {savingGoal > 0 && (
               <div>
                 <p className="opacity-60 text-xs">실제 저축</p>
-                <p className="font-bold">₩{savedAmount.toLocaleString()}</p>
+                <p className="font-bold">{savedAmount.toLocaleString()}원</p>
               </div>
             )}
             {savingGoal > 0 && (
@@ -164,11 +164,11 @@ export default function ReportClient({
                 {spendingDiff > 0 ? '▲' : '▼'} {Math.abs(spendingDiff)}%
               </p>
               <p className="text-xs text-gray-400 mb-1">
-                ({spendingDiff > 0 ? '+' : ''}₩{(totalSpent - prevTotalSpent).toLocaleString()})
+                ({spendingDiff > 0 ? '+' : ''}{(totalSpent - prevTotalSpent).toLocaleString()}원)
               </p>
             </div>
             <p className="text-xs text-gray-400 mt-1">
-              전달 ₩{prevTotalSpent.toLocaleString()} → 이번 달 ₩{totalSpent.toLocaleString()}
+              전달 {prevTotalSpent.toLocaleString()}원 → 이번 달 {totalSpent.toLocaleString()}원
             </p>
           </div>
         )}
@@ -180,9 +180,9 @@ export default function ReportClient({
             <div className="flex justify-between items-end mb-2">
               <div>
                 <p className="text-xl font-extrabold" style={{ color: goalAchieved ? '#10B981' : 'var(--color-accent)' }}>
-                  ₩{savedAmount.toLocaleString()}
+                  {savedAmount.toLocaleString()}원
                 </p>
-                <p className="text-xs text-gray-400">목표 ₩{savingGoal.toLocaleString()}</p>
+                <p className="text-xs text-gray-400">목표 {savingGoal.toLocaleString()}원</p>
               </div>
               <p className={`text-3xl font-extrabold ${goalAchieved ? 'text-emerald-500' : savingPct >= 70 ? 'text-amber-500' : 'text-rose-400'}`}>
                 {savingPct}%
@@ -221,7 +221,7 @@ export default function ReportClient({
                         </span>
                       )}
                     </div>
-                    <span className="text-sm font-bold text-gray-800">₩{c.amount.toLocaleString()}</span>
+                    <span className="text-sm font-bold text-gray-800">{c.amount.toLocaleString()}원</span>
                   </div>
                   {c.budget > 0 ? (
                     <>
@@ -265,7 +265,7 @@ export default function ReportClient({
                       }} />
                   </div>
                   <span className="text-xs font-bold text-gray-700 w-20 text-right">
-                    ₩{m.total > 0 ? (m.total >= 10000 ? `${Math.round(m.total / 10000)}만` : m.total.toLocaleString()) : '-'}
+                    {m.total > 0 ? (m.total >= 10000 ? `${Math.round(m.total / 10000)}원만` : m.total.toLocaleString()) : '-'}
                   </span>
                 </div>
               ))}

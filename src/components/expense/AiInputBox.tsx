@@ -232,7 +232,7 @@ export default function AiInputBox({ userId, compact }: { userId: string; compac
                   </div>
                   <p className={`text-lg font-bold ${preview.type === 'income' ? 'text-emerald-600' : ''}`}
                     style={preview.type !== 'income' ? { color: 'var(--color-primary)' } : undefined}>
-                    {preview.type === 'income' ? '+' : ''}₩{preview.amount?.toLocaleString()}
+                    {preview.type === 'income' ? '+' : ''}{preview.amount?.toLocaleString()}원
                   </p>
                 </div>
               ) : (

@@ -27,7 +27,7 @@ export default async function FixedPage() {
       <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-4">
         <p className="text-xs text-gray-400 mb-1">월 고정비 합계</p>
         <p className="text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>
-          ₩{total.toLocaleString()}
+          {total.toLocaleString()}원
         </p>
       </div>
 

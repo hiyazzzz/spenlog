@@ -235,7 +235,7 @@ function ExpenseRow({ expense, onTap }: { expense: Expense; onTap: () => void })
         <p className="text-xs text-gray-400 mt-0.5">{expense.category}{expense.payment_method && ` · ${expense.payment_method}`}</p>
       </div>
       <span className={`text-sm font-bold ${isIncome ? 'text-emerald-500' : expense.type === 'transfer' ? 'text-blue-500' : 'text-rose-400'}`}>
-        {isIncome ? '+' : expense.type === 'transfer' ? '↔' : '-'}₩{expense.amount.toLocaleString()}
+        {isIncome ? '+' : expense.type === 'transfer' ? '↔' : '-'}{expense.amount.toLocaleString()}원
       </span>
     </button>
   )

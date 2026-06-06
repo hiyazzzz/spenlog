@@ -145,7 +145,7 @@ export default function CategoryPage({ userId, initialCategories, spentMap }: Pr
                     <p style={{ fontSize: 14, fontWeight: 600, color: '#1f2937' }}>{cat.name}</p>
                     {spent > 0 && (
                       <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>
-                        이번달 ₩{spent.toLocaleString()}
+                        이번달 {spent.toLocaleString()}원
                       </p>
                     )}
                   </div>
