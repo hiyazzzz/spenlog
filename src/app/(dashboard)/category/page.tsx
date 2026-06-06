@@ -10,7 +10,7 @@ export default async function CategoryRoute() {
   if (!user) redirect('/login')
 
   const [{ data: categories }, { data: expenses }] = await Promise.all([
-    supabase.from('categories').select('*, color').eq('user_id', user.id).order('sort_order'),
+    supabase.from('categories').select('*').eq('user_id', user.id).order('sort_order'),
     supabase.from('expenses').select('category, amount, type')
       .eq('user_id', user.id)
       .gte('date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]),
