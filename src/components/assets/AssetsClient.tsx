@@ -34,7 +34,7 @@ function Section({ icon, title, summary, children, defaultOpen = false }: {
         padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 18 }}>{icon}</span>
+          {icon && <span style={{ fontSize: 18 }}>{icon}</span>}
           <span style={{ fontSize: 14, fontWeight: 700, color: '#1f2937' }}>{title}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -315,7 +315,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       />
 
       {/* 1. 월 수입 */}
-      <Section icon="💰" title="월 수입" summary={monthlyIncome > 0 ? formatCurrency(monthlyIncome) : '미설정'} defaultOpen={!monthlyIncome}>
+      <Section icon="" title="월 수입" summary={monthlyIncome > 0 ? formatCurrency(monthlyIncome) : '미설정'} defaultOpen={!monthlyIncome}>
         {!editingIncome ? (
           <div>
             <p style={{ fontSize: 24, fontWeight: 800, color: 'var(--color-accent)', marginBottom: 8 }}>{formatCurrency(monthlyIncome)}</p>
@@ -351,7 +351,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       </Section>
 
       {/* 2. 예산 */}
-      <Section icon="🎯" title="예산" summary={totalBudget > 0 ? `총 ${formatCurrency(totalBudget)} 설정` : '미설정'}>
+      <Section icon="" title="예산" summary={totalBudget > 0 ? `총 ${formatCurrency(totalBudget)} 설정` : '미설정'}>
         {(CATEGORIES as readonly string[]).map(cat => (
           <BudgetRow key={cat} category={cat}
             budgetAmt={localBudgets.find(b => b.category === cat)?.amount ?? 0}
@@ -372,7 +372,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       </Section>
 
       {/* 3. 계좌/현금 */}
-      <Section icon="🏦" title="계좌 / 현금" summary={`총 잔액 ${formatCurrency(totalBalance)}`}>
+      <Section icon="" title="계좌 / 현금" summary={`총 잔액 ${formatCurrency(totalBalance)}`}>
         {showAddAccount && (
           <InlineForm
             fields={[
@@ -414,7 +414,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       </Section>
 
       {/* 4. 카드 */}
-      <Section icon="💳" title="카드" summary={localCards.length > 0 ? localCards.length + '개 등록' : '미등록'}>
+      <Section icon="" title="카드" summary={localCards.length > 0 ? localCards.length + '개 등록' : '미등록'}>
         {showAddCard && (
           <InlineForm
             fields={[
@@ -478,7 +478,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       </Section>
 
       {/* 5. 고정비 */}
-      <Section icon="📌" title="고정비" summary={`월 ${formatCurrency(fixedExpenseTotal)} 지출`}>
+      <Section icon="" title="고정비" summary={`월 ${formatCurrency(fixedExpenseTotal)} 지출`}>
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>고정 지출</span>

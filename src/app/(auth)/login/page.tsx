@@ -48,12 +48,11 @@ export default function LoginPage() {
     }}>
       {/* 로고 영역 */}
       <div style={{ textAlign: 'center', marginBottom: 56 }}>
-        <div style={{ fontSize: 52, marginBottom: 12 }}>🪴</div>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--color-accent, #6B1E2E)', marginBottom: 8 }}>
+        <h1 style={{ fontSize: 32, fontWeight: 900, color: 'var(--color-accent, #6B1E2E)', marginBottom: 10, letterSpacing: '-0.5px' }}>
           Spenlog
         </h1>
-        <p style={{ fontSize: 15, color: '#9ca3af', lineHeight: 1.5 }}>
-          AI가 분류해주는<br />나만의 가계부
+        <p style={{ fontSize: 15, color: '#9ca3af', lineHeight: 1.6 }}>
+          천천히, 꾸준히<br />나만의 가계부
         </p>
       </div>
 
@@ -111,7 +110,7 @@ export default function LoginPage() {
             opacity: (googleLoading || guestLoading) ? 0.7 : 1,
           }}
         >
-          {guestLoading ? '입장 중...' : '👤 게스트로 둘러보기'}
+          {guestLoading ? '입장 중...' : '게스트로 둘러보기'}
         </button>
 
         {/* 게스트 안내 */}

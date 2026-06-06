@@ -49,7 +49,7 @@ export default function GuideOverlay({ userId }: Props) {
 
   async function dismiss(goAssets = false) {
     setVisible(false)
-    await supabase.from('users').update({ guide_completed: true }).eq('id', userId)
+    await supabase.from('users').upsert({ id: userId, guide_completed: true }, { onConflict: 'id' })
     if (goAssets) router.push('/assets')
     else router.refresh()
   }

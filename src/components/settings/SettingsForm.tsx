@@ -537,9 +537,9 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
           <span style={{ fontSize: 14, color: '#9ca3af' }}>›</span>
         </button>
         {!confirmDelete ? (
-          <button onClick={() => setConfirmDelete(true)}
+          <button onClick={() => isGuest ? setGuestLogoutConfirm(true) : setConfirmDelete(true)}
             style={{ ...rowStyle, width: '100%', textAlign: 'left' as const, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', borderBottom: 'none' }}>
-            <span style={{ fontSize: 14, color: '#ef4444' }}>회원 탈퇴</span>
+            <span style={{ fontSize: 14, color: '#ef4444' }}>{isGuest ? '게스트 탈퇴' : '회원 탈퇴'}</span>
             <span style={{ fontSize: 14, color: '#9ca3af' }}>›</span>
           </button>
         ) : confirmDelete === 1 ? (
