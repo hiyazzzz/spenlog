@@ -22,9 +22,19 @@ export default async function CategoryRoute() {
     const seedData = DEFAULT_CATEGORIES.map((name, i) => ({
       user_id: user.id, name, is_default: true, is_hidden: false, sort_order: i,
     }))
-    const { data: seeded } = await supabase
-      .from('categories').insert(seedData).select()
-    cats = seeded ?? []
+    const { data: seeded, error: seedError } = await supabase
+      .from('categories')
+      .upsert(seedData, { onConflict: 'user_id,name', ignoreDuplicates: false })
+      .select()
+    if (seedError) {
+      console.error('[category seed error]', seedError.code, seedError.message)
+      // upsert 실패 시 insert로 재시도
+      const { data: inserted } = await supabase
+        .from('categories').insert(seedData).select()
+      cats = inserted ?? []
+    } else {
+      cats = seeded ?? []
+    }
   }
 
   const spentMap: Record<string, number> = {}
