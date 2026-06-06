@@ -20,13 +20,18 @@ export default async function AddExpensePage({ searchParams }: Props) {
     type: params.type as 'expense' | 'income' | undefined,
   }
 
+  const { data: categories } = await supabase
+    .from('categories').select('name').eq('user_id', user.id)
+    .eq('is_hidden', false).order('sort_order')
+  const userCategories = (categories ?? []).map(c => c.name)
+
   return (
     <div className="min-h-screen pb-20" style={{ background: 'var(--color-bg)' }}>
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-lg font-semibold" style={{ color: 'var(--color-accent)' }}>직접 입력</h1>
         <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">취소</Link>
       </div>
-      <AddExpenseForm prefill={prefill} />
+      <AddExpenseForm prefill={prefill} userCategories={userCategories} />
     </div>
   )
 }

@@ -22,13 +22,14 @@ interface Props {
   userId: string
   initialExpenses: Expense[]
   paymentMethods: string[]
+  userCategories?: string[]
 }
 
 type ViewMode = 'list' | 'calendar'
 type SortKey = 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc'
 type TypeFilter = '' | 'expense' | 'income' | 'transfer'
 
-export default function HistoryClient({ userId, initialExpenses, paymentMethods }: Props) {
+export default function HistoryClient({ userId, initialExpenses, paymentMethods, userCategories }: Props) {
   const supabase = createClient()
 
   const [expenses, setExpenses] = useState(initialExpenses)
@@ -141,7 +142,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods 
           className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full border cursor-pointer outline-none"
           style={{ background: filterCat ? 'var(--color-primary)' : 'white', color: filterCat ? 'white' : '#6b7280', borderColor: filterCat ? 'var(--color-primary)' : '#e5e7eb' }}>
           <option value="">카테고리 전체</option>
-          {(CATEGORIES as readonly string[]).map(c => <option key={c} value={c}>{c}</option>)}
+          {(userCategories && userCategories.length > 0 ? userCategories : (CATEGORIES as readonly string[])).map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         <select value={filterPay} onChange={e => setFilterPay(e.target.value)}
           className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full border cursor-pointer outline-none"
@@ -275,7 +276,7 @@ function EditRow({ expense, onSave, onDelete, onCancel }: {
           className="w-full text-sm px-3 py-2 rounded-xl bg-white border border-gray-200 outline-none" placeholder="금액" />
         {form.type !== 'income' && (
           <div className="flex flex-wrap gap-1.5">
-            {(CATEGORIES as readonly string[]).map(cat => (
+            {(userCategories && userCategories.length > 0 ? userCategories : (CATEGORIES as readonly string[])).map(cat => (
               <button key={cat} onClick={() => u('category', cat)}
                 className="text-xs px-2.5 py-1 rounded-full border transition-all"
                 style={{ background: form.category === cat ? 'var(--color-primary)' : 'white', color: form.category === cat ? 'white' : '#9ca3af', borderColor: form.category === cat ? 'var(--color-primary)' : '#e5e7eb' }}>

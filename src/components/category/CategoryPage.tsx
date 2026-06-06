@@ -3,8 +3,15 @@ import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
+
+const COLOR_PALETTE = [
+  '#6B1E2E', '#4A7541', '#5C4B8A', '#A0522D',
+  '#1565C0', '#00695C', '#6A1B9A', '#BF360C',
+  '#37474F', '#F57F17', '#2E7D32', '#880E4F',
+]
+
 interface Category {
-  id: string; name: string; is_default: boolean; is_hidden: boolean; sort_order: number
+  id: string; name: string; is_default: boolean; is_hidden: boolean; sort_order: number; color?: string | null
 }
 
 interface Props {
@@ -41,6 +48,12 @@ export default function CategoryPage({ userId, initialCategories, spentMap }: Pr
   async function deleteCategory(id: string) {
     await supabase.from('categories').delete().eq('id', id)
     setCats(prev => prev.filter(c => c.id !== id))
+    router.refresh()
+  }
+
+  async function saveColor(id: string, color: string) {
+    await supabase.from('categories').update({ color }).eq('id', id)
+    setCats(prev => prev.map(c => c.id === id ? { ...c, color } : c))
     router.refresh()
   }
 
@@ -151,6 +164,19 @@ export default function CategoryPage({ userId, initialCategories, spentMap }: Pr
                   </div>
                 )}
               </div>
+
+              {/* 색상 선택 */}
+              {!isEditing && (
+                <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' as const }}>
+                  {COLOR_PALETTE.map(col => (
+                    <button key={col} onClick={() => saveColor(cat.id, col)} style={{
+                      width: 16, height: 16, borderRadius: '50%', background: col,
+                      border: cat.color === col ? '2px solid #1f2937' : '1px solid rgba(0,0,0,0.1)',
+                      cursor: 'pointer', flexShrink: 0,
+                    }} />
+                  ))}
+                </div>
+              )}
 
               {/* 액션 버튼 */}
               {!isEditing && (

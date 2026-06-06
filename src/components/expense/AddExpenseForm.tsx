@@ -13,6 +13,7 @@ const INCOME_METHODS = ['현금', '계좌이체']
 
 interface Props {
   prefill?: { name?: string; amount?: number; category?: string; type?: 'expense' | 'income' }
+  userCategories?: string[]
 }
 
 function formatAmount(val: string): string {
@@ -21,7 +22,7 @@ function formatAmount(val: string): string {
   return Number(num).toLocaleString()
 }
 
-export default function AddExpenseForm({ prefill }: Props) {
+export default function AddExpenseForm({ prefill, userCategories }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const { prefill: storePrefill, clearPrefill } = useAiInputStore()
@@ -152,7 +153,7 @@ export default function AddExpenseForm({ prefill }: Props) {
         <div className="bg-white rounded-2xl p-4 border border-gray-100">
           <label className="text-xs text-gray-400 mb-2 block">카테고리 *</label>
           <div className="flex flex-wrap gap-2">
-            {(CATEGORIES as readonly string[]).map(cat => (
+            {(userCategories && userCategories.length > 0 ? userCategories : (CATEGORIES as readonly string[])).map(cat => (
               <button key={cat} onClick={() => update('category', cat)}
                 className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
                 style={{ background: form.category === cat ? 'var(--color-primary)' : '#f3f4f6', color: form.category === cat ? 'white' : '#6b7280' }}>

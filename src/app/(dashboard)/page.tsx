@@ -15,11 +15,12 @@ export default async function DashboardHomePage() {
   if (!user) redirect('/login')
 
   const thisMonth = dayjs().format('YYYY-MM')
-  const [{ data: profile }, { data: expenses }, { data: budgets }] = await Promise.all([
+  const [{ data: profile }, { data: expenses }, { data: budgets }, { data: userCategories }] = await Promise.all([
     supabase.from('users').select('*').eq('id', user.id).single(),
     supabase.from('expenses').select('*').eq('user_id', user.id)
       .gte('date', thisMonth + '-01').order('date', { ascending: false }),
     supabase.from('budgets').select('*').eq('user_id', user.id).eq('month', thisMonth),
+    supabase.from('categories').select('name, color').eq('user_id', user.id).eq('is_hidden', false).order('sort_order'),
   ])
 
   const allExpenses = expenses ?? []
@@ -29,12 +30,11 @@ export default async function DashboardHomePage() {
   const displayName = profile?.name || '소비요정'
   const isPremium = profile?.premium_status === 'active'
   const coverUrl = profile?.home_cover_url ?? null
-  const categoryUrls = {
-    '생활비': profile?.category_img_url_1 ?? null,
-    '활동비': profile?.category_img_url_2 ?? null,
-    '고정비': profile?.category_img_url_3 ?? null,
-    '친목비': profile?.category_img_url_4 ?? null,
-  }
+  // 상위 4개 카테고리에 이미지 매핑
+  const imgFields = [profile?.category_img_url_1, profile?.category_img_url_2, profile?.category_img_url_3, profile?.category_img_url_4]
+  const topCats = (userCategories ?? []).slice(0, 4)
+  const categoryUrls: Record<string, string | null> = {}
+  topCats.forEach((cat, i) => { categoryUrls[cat.name] = imgFields[i] ?? null })
 
   const card = {
     background: '#fff',
@@ -100,7 +100,7 @@ export default async function DashboardHomePage() {
 
       {/* 카드 C — 카테고리 2x2 그리드 */}
       <div style={card}>
-        <HomeCategoryGrid expenses={allExpenses} budgets={budgets ?? []} categoryImages={categoryUrls} />
+        <HomeCategoryGrid expenses={allExpenses} budgets={budgets ?? []} categoryImages={categoryUrls} userCategories={userCategories ?? []} />
       </div>
 
       {/* 카드 D — 최근 지출 내역 */}

@@ -1,8 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-
-const GUIDE_KEY = 'spenlog_asset_guide_shown'
+import { useState } from 'react'
 
 const GUIDE_STEPS = [
   {
@@ -35,7 +32,6 @@ const GUIDE_STEPS = [
   },
 ]
 
-// 손글씨 스타일 화살표
 function HandArrow({ down }: { down: boolean }) {
   return (
     <svg width="32" height="52" viewBox="0 0 32 52" fill="none"
@@ -51,54 +47,35 @@ function HandArrow({ down }: { down: boolean }) {
   )
 }
 
-export default function AssetsGuide() {
-  const [show, setShow] = useState(false)
+interface Props {
+  hasNoAccounts?: boolean
+}
+
+export default function AssetsGuide({ hasNoAccounts = false }: Props) {
+  const [dismissed, setDismissed] = useState(false)
   const [step, setStep] = useState(0)
-  const router = useRouter()
 
-  useEffect(() => {
-    if (typeof window !== 'undefined' && !localStorage.getItem(GUIDE_KEY)) {
-      setShow(true)
-    }
-  }, [])
-
-  function dismiss(scroll = false) {
-    if (typeof window !== 'undefined') localStorage.setItem(GUIDE_KEY, '1')
-    setShow(false)
-    if (scroll) {
-      setTimeout(() => {
-        const btns = document.querySelectorAll('button')
-        btns.forEach(b => { if (b.textContent?.includes('계좌 / 현금')) b.click() })
-      }, 100)
-    }
-  }
-
-  if (!show) return null
+  if (!hasNoAccounts || dismissed) return null
 
   const current = GUIDE_STEPS[step]
   const isLast = step === GUIDE_STEPS.length - 1
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9999 }}>
-      {/* 다크 오버레이 */}
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)' }} onClick={() => dismiss(false)} />
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)' }} onClick={() => setDismissed(true)} />
 
-      {/* 상단: 카운터 + 건너뛰기 */}
       <div style={{
         position: 'fixed', top: 16, left: 0, right: 0,
         display: 'flex', justifyContent: 'space-between', padding: '0 20px', zIndex: 10001,
       }}>
-        <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: 600 }}>
-          {step + 1} / {GUIDE_STEPS.length}
-        </span>
-        <button onClick={() => dismiss(false)} style={{
+        <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: 600 }}>{step + 1} / {GUIDE_STEPS.length}</span>
+        <button onClick={() => setDismissed(true)} style={{
           background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.35)',
           backdropFilter: 'blur(8px)', color: 'white', fontSize: 13,
           padding: '6px 16px', borderRadius: 20, cursor: 'pointer', fontFamily: 'inherit',
         }}>건너뛰기</button>
       </div>
 
-      {/* 도트 인디케이터 */}
       <div style={{
         position: 'fixed', top: 54, left: 0, right: 0,
         display: 'flex', justifyContent: 'center', gap: 6, zIndex: 10001,
@@ -112,31 +89,20 @@ export default function AssetsGuide() {
         ))}
       </div>
 
-      {/* 중앙 팝업 + 화살표 */}
       <div style={{
-        position: 'fixed',
-        top: '50%', left: '50%',
+        position: 'fixed', top: '50%', left: '50%',
         transform: 'translate(-50%, -50%)',
         width: 'min(calc(100% - 40px), 340px)',
         zIndex: 10001,
         display: 'flex', flexDirection: 'column', alignItems: 'center',
       }}>
-        {/* 위 화살표 (마지막 스텝 - 루틴 배너는 위에 있음) */}
-        {!current.arrowDown && (
-          <div style={{ marginBottom: 6 }}><HandArrow down={false} /></div>
-        )}
+        {!current.arrowDown && <div style={{ marginBottom: 6 }}><HandArrow down={false} /></div>}
 
-        {/* 팝업 카드 */}
         <div style={{
-          width: '100%',
-          background: 'rgba(255,255,255,0.96)',
-          backdropFilter: 'blur(16px)',
-          borderRadius: 24,
-          padding: '24px 24px 20px',
-          boxShadow: '0 16px 48px rgba(0,0,0,0.3)',
-          border: '1px solid rgba(255,255,255,0.8)',
+          width: '100%', background: 'rgba(255,255,255,0.96)',
+          backdropFilter: 'blur(16px)', borderRadius: 24, padding: '24px 24px 20px',
+          boxShadow: '0 16px 48px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.8)',
         }}>
-          {/* 이모지 + 태그 */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
             <span style={{ fontSize: 40 }}>{current.emoji}</span>
             <span style={{
@@ -145,36 +111,23 @@ export default function AssetsGuide() {
               padding: '4px 10px', borderRadius: 20,
             }}>{current.tag}</span>
           </div>
-
-          <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1f2937', marginBottom: 8 }}>
-            {current.title}
-          </h3>
-          <p style={{ fontSize: 14, color: '#4b5563', lineHeight: 1.7, marginBottom: 20, whiteSpace: 'pre-line' }}>
-            {current.desc}
-          </p>
+          <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1f2937', marginBottom: 8 }}>{current.title}</h3>
+          <p style={{ fontSize: 14, color: '#4b5563', lineHeight: 1.7, marginBottom: 20, whiteSpace: 'pre-line' }}>{current.desc}</p>
 
           {isLast ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <p style={{ fontSize: 13, color: '#374151', fontWeight: 600, marginBottom: 4 }}>
-                지금 계좌를 입력하면 가계부 초기 설정이 완성돼요! 🎯
-              </p>
-              <button onClick={() => dismiss(true)} style={{
+              <p style={{ fontSize: 13, color: '#374151', fontWeight: 600, marginBottom: 4 }}>계좌를 입력하면 가계부 초기 설정이 완성돼요! 🎯</p>
+              <button onClick={() => setDismissed(true)} style={{
                 width: '100%', padding: '13px', borderRadius: 14,
                 background: 'var(--color-primary)', color: 'white',
                 fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-              }}>계좌 먼저 입력할게요 →</button>
-              <button onClick={() => dismiss(false)} style={{
-                width: '100%', padding: '11px', borderRadius: 14,
-                background: '#f3f4f6', color: '#6b7280',
-                fontSize: 14, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-              }}>나중에</button>
+              }}>확인했어요</button>
             </div>
           ) : (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               {step > 0 ? (
                 <button onClick={() => setStep(s => s - 1)} style={{
-                  background: 'none', border: 'none', color: '#9ca3af',
-                  fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+                  background: 'none', border: 'none', color: '#9ca3af', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
                 }}>← 이전</button>
               ) : <div />}
               <button onClick={() => setStep(s => s + 1)} style={{
@@ -186,10 +139,7 @@ export default function AssetsGuide() {
           )}
         </div>
 
-        {/* 아래 화살표 (대부분의 스텝 - 섹션이 아래에 있음) */}
-        {current.arrowDown && (
-          <div style={{ marginTop: 6 }}><HandArrow down={true} /></div>
-        )}
+        {current.arrowDown && <div style={{ marginTop: 6 }}><HandArrow down={true} /></div>}
       </div>
     </div>
   )

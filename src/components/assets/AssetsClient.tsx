@@ -297,6 +297,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   return (
     <div className="min-h-screen pb-20" style={{ background: 'var(--color-bg)' }}>
       <AssetsGuide />
+      <AssetsGuide hasNoAccounts={localAccounts.length === 0} />
       <h1 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-accent)' }}>자산</h1>
 
       {/* 루틴 배너 */}
@@ -352,7 +353,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
 
       {/* 2. 예산 */}
       <Section icon="" title="예산" summary={totalBudget > 0 ? `총 ${formatCurrency(totalBudget)} 설정` : '미설정'}>
-        {(CATEGORIES as readonly string[]).map(cat => (
+        {((customCategories && customCategories.length > 0 ? customCategories.map((cc:any) => cc.name ?? cc) : (CATEGORIES as readonly string[]))).map(cat => (
           <BudgetRow key={cat} category={cat}
             budgetAmt={localBudgets.find(b => b.category === cat)?.amount ?? 0}
             spent={categorySpent[cat] ?? 0}
@@ -364,11 +365,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-accent)' }}>{formatCurrency(totalBudget)}</span>
           </div>
         )}
-        <CategoryManager
-          userId={userId}
-          customCategories={customCategories ?? []}
-          onUpdate={() => router.refresh()}
-        />
+
       </Section>
 
       {/* 3. 계좌/현금 */}

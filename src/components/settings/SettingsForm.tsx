@@ -314,6 +314,16 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
         )}
       </div>
 
+      {/* 카테고리 관리 링크 */}
+      <div style={card}>
+        <p style={sectionHeader}>📂 카테고리</p>
+        <button onClick={() => router.push('/category')}
+          style={{ ...rowStyle, width: '100%', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', borderBottom: 'none' }}>
+          <span style={{ fontSize: 14, color: '#374151' }}>카테고리 관리</span>
+          <span style={{ fontSize: 14, color: '#9ca3af' }}>›</span>
+        </button>
+      </div>
+
       {/* 테마 섹션 */}
       <div style={card}>
         <p style={sectionHeader}>🎨 테마</p>

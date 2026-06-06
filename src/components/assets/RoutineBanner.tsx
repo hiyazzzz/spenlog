@@ -50,8 +50,8 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccount
       background: 'var(--color-primary-light)', border: '1.5px dashed var(--color-primary-light)',
       borderRadius: 16, padding: '14px 16px', marginBottom: 12,
     }}>
-      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary-mid)', marginBottom: 2 }}>📋 루틴 관리</p>
-      <p style={{ fontSize: 11, color: 'var(--color-primary-mid)' }}>고정비·저축을 추가하면 매달 한 번에 기록할 수 있어요</p>
+      <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-primary-mid)', marginBottom: 2 }}>루틴 관리</p>
+      <p style={{ fontSize: 12, color: 'var(--color-primary-mid)' }}>고정비·저축을 추가하면 매달 한 번에 기록할 수 있어요</p>
     </div>
   )
   if (loadingPayments) return (
