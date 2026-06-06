@@ -145,6 +145,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
           fixedSavings,
           recentExpenses,
           currentBudgets: initialBudgets.map(b => ({ category: b.category, amount: b.amount })),
+          categories: allCategories,  // 유저 커스텀 카테고리 전달
         }),
       })
       const data = await res.json()
@@ -175,16 +176,17 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
     }
   }
 
-  function fallbackAmounts(inc: number, fixed: number): Record<string, number> {
+  function fallbackAmounts(inc: number, _fixed: number): Record<string, number> {
     const spendBudget = inc - Math.round(inc * 0.25)
     const dist: Record<string, number> = { '생활비': 0.30, '활동비': 0.25, '고정비': 0.25, '친목비': 0.12, '예비비': 0.08 }
-    const unknownFbCats = allCategories.filter(cat => !(cat in dist) && cat !== '수입')
-    const knownFbRatio = allCategories.filter(cat => cat in dist).reduce((s, cat) => s + (dist[cat] ?? 0), 0)
-    const unknownFbRatio = unknownFbCats.length > 0 ? Math.max(0, 1 - knownFbRatio) / unknownFbCats.length : 0
+    const spendCats = allCategories.filter(cat => cat !== '수입')
+    const knownRatio = spendCats.filter(cat => cat in dist).reduce((s, cat) => s + (dist[cat] ?? 0), 0)
+    const unknownCats = spendCats.filter(cat => !(cat in dist))
+    const unknownRatio = unknownCats.length > 0 ? Math.max(0, 1 - knownRatio) / unknownCats.length : 0
     return Object.fromEntries(
       allCategories.map(cat => {
         if (cat === '수입') return [cat, 0]
-        const ratio = cat in dist ? (dist[cat] ?? 0) : unknownFbRatio
+        const ratio = cat in dist ? (dist[cat] ?? 0) : unknownRatio
         return [cat, Math.round(spendBudget * ratio)]
       })
     )
