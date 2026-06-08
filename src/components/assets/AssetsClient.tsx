@@ -203,6 +203,29 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const [cardPaySaving, setCardPaySaving] = useState(false)
   const [cardPaidIds, setCardPaidIds] = useState<Set<string>>(new Set())
   const [cardPayToast, setCardPayToast] = useState('')
+
+  // 이번 달 카드 납부 완료 목록 초기 로딩 (expenses 테이블 기준)
+  useEffect(() => {
+    async function loadPaidCards() {
+      const startOfMonth = thisMonth + '-01'
+      const { data } = await supabase
+        .from('expenses')
+        .select('payment_method, name')
+        .eq('user_id', userId)
+        .gte('date', startOfMonth)
+        .ilike('name', '%카드 대금%')
+      if (data) {
+        const paidCardNames = new Set(data.map(e => e.payment_method).filter(Boolean))
+        const paidIds = new Set(
+          localCards.filter(c => paidCardNames.has(c.name)).map(c => c.id)
+        )
+        setCardPaidIds(paidIds)
+      }
+    }
+    if (localCards.length > 0) loadPaidCards()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, thisMonth])
+
   const [income, setIncome] = useState(profile?.income ? Number(profile.income).toLocaleString() : '')
   const [savingGoal, setSavingGoal] = useState(profile?.saving_goal ? Number(profile.saving_goal).toLocaleString() : '')
 
@@ -257,26 +280,17 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
     const today = new Date()
     const monthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
 
-    await Promise.all([
-      supabase.from('expenses').insert({
-        user_id: userId,
-        type: 'expense',
-        category: '고정비',
-        name: `${cardPaySheet.name} 카드 대금`,
-        amount,
-        date: cardPayDate,
-        payment_method: cardPaySheet.name,
-        memo: cardPayMemo || null,
-        source: 'manual',
-      }),
-      supabase.from('savings_payments').insert({
-        user_id: userId,
-        card_id: cardPaySheet.id,
-        month: monthStr,
-        amount,
-        paid_at: new Date().toISOString(),
-      }),
-    ])
+    await supabase.from('expenses').insert({
+      user_id: userId,
+      type: 'expense',
+      category: '고정비',
+      name: `${cardPaySheet.name} 카드 대금`,
+      amount,
+      date: cardPayDate,
+      payment_method: cardPaySheet.name,
+      memo: cardPayMemo || null,
+      source: 'manual',
+    })
 
     setCardPaidIds(s => new Set([...s, cardPaySheet!.id]))
     setCardPaySaving(false)
@@ -762,11 +776,13 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
               }}>취소</button>
             <button onClick={saveCardPayment} disabled={cardPaySaving}
               style={{
-                flex: 2, padding: '14px', borderRadius: 14,
-                background: cardPaySaving ? '#9ca3af' : 'var(--color-primary)',
-                color: '#fff', border: 'none', fontSize: 14, fontWeight: 700,
+                flex: 1, padding: '14px', borderRadius: 14, border: 'none',
+                background: cardPaySaving ? '#d1d5db' : 'var(--color-primary)', color: '#fff',
+                fontSize: 14, fontWeight: 700,
                 cursor: cardPaySaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-              }}>{cardPaySaving ? '저장 중...' : '기록하기'}</button>
+              }}>
+              {cardPaySaving ? '기록 중...' : '기록하기'}
+            </button>
           </div>
         </div>
       </div>
@@ -774,5 +790,3 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   </>
   )
 }
-
-       
