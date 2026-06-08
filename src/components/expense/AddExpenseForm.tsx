@@ -72,12 +72,12 @@ export default function AddExpenseForm({ prefill, userCategories }: Props) {
           user_id: user.id, name: form.name.trim(), amount,
           category: form.category, date: form.date,
           payment_method: form.payment_method || null,
-          memo: form.memo || null, source: 'manual',
+          memo: form.memo || null, source: 'manual', type: 'expense',
         })
         if (saveErr) {
           if (!navigator.onLine) {
             const queue = JSON.parse(localStorage.getItem('spenlog_offline_queue') || '[]')
-            queue.push({ name: form.name.trim(), amount, category: form.category, date: form.date, payment_method: form.payment_method || null, memo: form.memo || null, source: 'manual' })
+            queue.push({ name: form.name.trim(), amount, category: form.category, date: form.date, payment_method: form.payment_method || null, memo: form.memo || null, source: 'manual', type: 'expense' })
             localStorage.setItem('spenlog_offline_queue', JSON.stringify(queue))
             showToast('임시 저장했어요. 인터넷 연결 후 자동 반영돼요')
           } else {
@@ -194,7 +194,3 @@ export default function AddExpenseForm({ prefill, userCategories }: Props) {
         className="w-full text-white py-3.5 rounded-2xl text-sm font-medium mt-2 disabled:opacity-60"
         style={{ background: 'var(--color-primary)' }}>
         {saving ? '저장 중...' : type === 'expense' ? '지출 저장' : '수입 저장'}
-      </button>
-    </div>
-  )
-}

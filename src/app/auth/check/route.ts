@@ -27,13 +27,9 @@ export async function GET(request: Request) {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('id, name')
+    .select('id, name, onboarding_completed')
     .eq('id', user.id)
     .single()
 
-  if (!profile?.name) {
-    return NextResponse.redirect(new URL('/onboarding', request.url))
-  }
-
-  return NextResponse.redirect(new URL('/', request.url))
-}
+  // 이름이 없거나 온보딩 완료 플래그가 false면 온보딩으로
+  if (!profile?.name || !profile?.onboarding_completed) {
