@@ -22,7 +22,7 @@ const DEFAULT_PALETTE = THEME_CARD_PALETTES['Burgundy']
 
 export default function HomeCategoryGrid({ expenses, budgets, categoryImages, userCategories, theme }: Props) {
   const router = useRouter()
-  const [palette, setPalette] = useState<string[]>(DEFAULT_PALETTE)
+  const [palette, setPalette] = useState<string[]>(() => THEME_CARD_PALETTES[(theme as string) ?? 'Burgundy'] ?? DEFAULT_PALETTE)
 
   useEffect(() => {
     const t = theme ?? (typeof window !== 'undefined' ? localStorage.getItem('spenlog_theme') : null) ?? 'Burgundy'
@@ -43,9 +43,9 @@ export default function HomeCategoryGrid({ expenses, budgets, categoryImages, us
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <p style={{ fontSize: 13, fontWeight: 700, color: '#1f2937' }}>카테고리 현황</p>
-        <Link href="/analytics"
+        <Link href="/category"
           style={{ fontSize: 12, color: 'var(--color-primary-mid)', textDecoration: 'none' }}>
-          전체 보기 →
+          카테고리 관리 →
         </Link>
       </div>
 

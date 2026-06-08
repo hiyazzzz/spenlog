@@ -43,7 +43,7 @@ interface Props {
   isGuest?: boolean
 }
 
-export default function SettingsForm({ profile, userId, email, provider, isGuest = false }: Props) {
+export default function SettingsForm({ profile, userId, email, provider, isGuest = false, hasGoogle = false }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const [theme, setTheme] = useState<Theme>(profile?.theme ?? 'Burgundy')
@@ -311,7 +311,7 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
                 </svg>
                 <span style={{ fontSize: 14, color: '#374151' }}>Google</span>
               </div>
-              {provider === 'google' ? (
+              {(hasGoogle || provider === 'google') ? (
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#059669', background: '#f0fdf4', padding: '4px 10px', borderRadius: 20 }}>연동됨 ✓</span>
               ) : (
                 <button onClick={handleGoogleLink} disabled={googleLinking} style={{

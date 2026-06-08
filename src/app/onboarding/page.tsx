@@ -8,8 +8,9 @@ export default async function OnboardingPage() {
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase
-    .from('users').select('name').eq('id', user.id).single()
-  if (profile?.name) redirect('/')
+    .from('users').select('onboarding_completed').eq('id', user.id).single()
+
+  if (profile?.onboarding_completed) redirect('/')
 
   return (
     <div style={{

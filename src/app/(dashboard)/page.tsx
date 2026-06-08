@@ -15,18 +15,22 @@ export default async function DashboardHomePage() {
   if (!user) redirect('/login')
 
   const thisMonth = dayjs().format('YYYY-MM')
-  const [{ data: profile }, { data: expenses }, { data: budgets }, { data: userCategories }] = await Promise.all([
+  const [{ data: profile }, { data: expenses }, { data: budgets }, { data: userCategories }, { data: fixedCosts }] = await Promise.all([
     supabase.from('users').select('*').eq('id', user.id).single(),
     supabase.from('expenses').select('*').eq('user_id', user.id)
       .gte('date', thisMonth + '-01').order('date', { ascending: false }),
     supabase.from('budgets').select('*').eq('user_id', user.id).eq('month', thisMonth),
     supabase.from('categories').select('name, color').eq('user_id', user.id).eq('is_hidden', false).order('sort_order'),
+    supabase.from('fixed_costs').select('amount, kind').eq('user_id', user.id),
   ])
 
   const allExpenses = expenses ?? []
   const totalSpent = allExpenses.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
   const recentExpenses = allExpenses.filter(e => e.type === 'expense').slice(0, 3)
   const savingGoal = profile?.saving_goal ?? 0
+  const income = profile?.income ?? 0
+  const fixedSavingsTotal = (fixedCosts ?? []).filter((f: any) => f.kind === '고정저축').reduce((s: number, f: any) => s + f.amount, 0)
+  const actualSaving = fixedSavingsTotal + Math.max(0, income - totalSpent - fixedSavingsTotal)
   const displayName = profile?.name || '소비요정'
   const isPremium = profile?.premium_status === 'active'
   const coverUrl = profile?.home_cover_url ?? null
@@ -70,8 +74,8 @@ export default async function DashboardHomePage() {
           <p style={{ color: '#fff', fontSize: 16, fontWeight: 800 }}>{formatCurrency(totalSpent)}</p>
           {savingGoal > 0 && (
             <>
-              <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 4 }}>저축 목표</p>
-              <p style={{ color: '#a7f3d0', fontSize: 14, fontWeight: 700 }}>{formatCurrency(savingGoal)}</p>
+              <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 4 }}>저축 달성</p>
+              <p style={{ color: '#a7f3d0', fontSize: 14, fontWeight: 700 }}>{formatCurrency(actualSaving)} / {formatCurrency(savingGoal)}</p>
             </>
           )}
         </div>
@@ -109,15 +113,4 @@ export default async function DashboardHomePage() {
 
       {/* 카드 D — 최근 지출 내역 */}
       <div style={card}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: '#1f2937' }}>최근 지출 내역</p>
-          <Link href="/history" style={{ fontSize: 12, color: 'var(--color-primary-mid)', textDecoration: 'none' }}>
-            전체 보기 →
-          </Link>
-        </div>
-        <RecentExpenses expenses={recentExpenses} />
-      </div>
-
-    </div>
-  )
-}
+        <div style={{ display: 'flex', alignItems: 'center', justify

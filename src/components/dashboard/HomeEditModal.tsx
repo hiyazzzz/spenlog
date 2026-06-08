@@ -24,7 +24,6 @@ interface Props {
 export default function HomeEditModal({ userId, isPremium, currentCoverUrl, currentCategoryUrls, displayName = '소비요정', totalSpent = 0, userCategories }: Props) {
   const supabase = createClient()
   const router = useRouter()
-  // 유저 커스텀 카테고리 상위 4개, 없으면 기본
   const catKeysToUse = (userCategories && userCategories.length > 0 ? userCategories : DEFAULT_CAT_KEYS).slice(0, 4)
   const CAT_FIELD: Record<string, string> = Object.fromEntries(catKeysToUse.map((cat, i) => [cat, CAT_FIELD_IDX[i]]))
   const [open, setOpen] = useState(false)
@@ -38,7 +37,6 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
   const coverRef = useRef<HTMLInputElement>(null)
   const catRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
-  // 저장 후 router.refresh() 시 props 변경 → 즉각 state 동기화
   useEffect(() => {
     if (!open) {
       setCoverPreview(currentCoverUrl)
@@ -46,9 +44,18 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
     }
   }, [currentCoverUrl, currentCategoryUrls, open])
 
+  // 편집 모드 열림/닫힘 시 body 스크롤 잠금
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [open])
+
   function handleClose() {
     setOpen(false)
-    // 미리보기 초기화 (저장 안 했으면 되돌림)
     setCoverPreview(currentCoverUrl)
     setCatPreviews(currentCategoryUrls)
     setCoverFile(null)
@@ -100,7 +107,6 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
       await supabase.from('users').update(updates).eq('id', userId)
     }
     setSaving(false)
-    // 업로드된 URL로 즉각 state 업데이트 (router.refresh 전 즉각 반영)
     if (updates['home_cover_url']) setCoverPreview(updates['home_cover_url'])
     const newCatPreviews = { ...catPreviews }
     for (const cat of catKeysToUse) {
@@ -113,7 +119,6 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
     router.refresh()
   }
 
-  // 적용 버튼: 비프리미엄이면 Bottom Sheet
   function handleApply() {
     if (!dirty) return
     if (!isPremium) { setShowPremiumSheet(true); return }
@@ -122,37 +127,48 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
 
   return (
     <>
-      {/* 편집 버튼 */}
-      <button onClick={() => setOpen(true)} style={{
-        position: 'fixed', top: 56, right: 16, zIndex: 30,
-        width: 36, height: 36, borderRadius: '50%',
-        background: 'rgba(255,255,255,0.9)', border: '1px solid #e5e7eb',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        cursor: 'pointer', color: 'var(--color-primary)',
-      }}>
+      {/* 편집 버튼 (연필 아이콘) — 항상 홈 위에 고정 */}
+      <button
+        onClick={() => setOpen(true)}
+        style={{
+          position: 'fixed', top: 56, right: 16, zIndex: 30,
+          width: 36, height: 36, borderRadius: '50%',
+          background: 'rgba(255,255,255,0.9)', border: '1px solid #e5e7eb',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', color: 'var(--color-primary)',
+        }}
+      >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
         </svg>
       </button>
 
+      {/* 오버레이 — 실제 홈 화면 위에 반투명하게 올라옴 */}
       {open && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', flexDirection: 'column', background: 'var(--color-bg)' }}>
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 100,
+          display: 'flex', flexDirection: 'column',
+          background: 'rgba(250,247,244,0.92)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+        } as React.CSSProperties}>
 
-          {/* ── 상단 바 (네이버 블로그 스타일) ── */}
+          {/* ── 상단 편집 바 ── */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '14px 20px',
-            background: '#fff',
-            borderBottom: '1px solid #f0f0f0',
+            background: 'rgba(255,255,255,0.95)',
+            borderBottom: '1px solid rgba(240,240,240,0.8)',
             flexShrink: 0,
+            backdropFilter: 'blur(8px)',
           }}>
             <button onClick={handleClose} style={{
               background: 'none', border: 'none', fontSize: 14, color: '#6b7280',
               cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500,
             }}>취소</button>
-            <p style={{ fontSize: 15, fontWeight: 700, color: '#1f2937' }}>홈편집</p>
+            <p style={{ fontSize: 15, fontWeight: 700, color: '#1f2937' }}>홈 편집</p>
             <button
               onClick={handleApply}
               disabled={saving || !dirty}
@@ -166,12 +182,11 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
             </button>
           </div>
 
-          {/* ── 홈 화면 프리뷰 (스크롤 가능) ── */}
+          {/* ── 편집 콘텐츠 (스크롤 가능) ── */}
           <div style={{ flex: 1, overflowY: 'auto' }}>
 
-            {/* 커버 배너 영역 */}
+            {/* 커버 배너 편집 */}
             <div style={{ position: 'relative' }}>
-              {/* 실제 커버 이미지/배경 */}
               <div style={{
                 height: 200,
                 background: coverPreview
@@ -179,18 +194,20 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
                   : 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-mid) 100%)',
                 position: 'relative',
               }}>
-                {/* 홈 화면 콘텐츠 (닉네임, 지출 등) */}
-                <div style={{ position: 'absolute', bottom: 16, left: 16, right: 16 }}>
-                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>이번 달 지출</p>
-                  <p style={{ color: '#fff', fontSize: 24, fontWeight: 800 }}>₩0</p>
+                {/* 홈 화면 실제 텍스트 (props 반영) */}
+                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)' }} />
+                <div style={{ position: 'absolute', bottom: 16, left: 16 }}>
+                  <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginBottom: 2 }}>안녕하세요 👋</p>
+                  <p style={{ color: '#fff', fontSize: 18, fontWeight: 800 }}>{displayName}님</p>
+                </div>
+                <div style={{ position: 'absolute', bottom: 16, right: 16, textAlign: 'right' as const }}>
+                  <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11 }}>이번 달 지출</p>
+                  <p style={{ color: '#fff', fontSize: 15, fontWeight: 800 }}>{totalSpent.toLocaleString()}원</p>
                 </div>
               </div>
 
-              {/* 커버 편집 오버레이 버튼 2개 (네이버 블로그 스타일) */}
-              <div style={{
-                position: 'absolute', top: 12, left: 12, right: 12,
-                display: 'flex', gap: 8,
-              }}>
+              {/* 커버 편집 버튼 (배너 위 오버레이) */}
+              <div style={{ position: 'absolute', top: 12, left: 12, right: 12, display: 'flex', gap: 8 }}>
                 <button
                   onClick={() => coverRef.current?.click()}
                   style={{
@@ -221,13 +238,12 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
                 style={{ display: 'none' }} onChange={handleCoverPick} />
             </div>
 
-            {/* 카테고리 그리드 */}
+            {/* 카테고리 그리드 편집 */}
             <div style={{ padding: '16px' }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 10 }}>카테고리 현황</p>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 10 }}>카테고리 이미지</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 {catKeysToUse.map((cat, catIdx) => (
                   <div key={cat} style={{ position: 'relative' }}>
-                    {/* 카테고리 카드 */}
                     <div style={{
                       height: 90, borderRadius: 14, overflow: 'hidden',
                       background: catPreviews[cat]
@@ -238,8 +254,6 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
                     }}>
                       {!catPreviews[cat] && <span style={{ fontSize: 28 }}>{CAT_EMOJI[cat] ?? CAT_EMOJIS_FALLBACK[catIdx] ?? '📁'}</span>}
                     </div>
-
-                    {/* 편집 버튼 오버레이 */}
                     <button
                       onClick={() => catRefs.current[cat]?.click()}
                       style={{
@@ -252,10 +266,10 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
                       }}>
                       📷 변경
                     </button>
-                    <input ref={el => { catRefs.current[cat] = el }} type="file"
-                      accept="image/png,image/jpeg,image/gif"
+                    <input
+                      ref={el => { catRefs.current[cat] = el }}
+                      type="file" accept="image/png,image/jpeg,image/gif"
                       style={{ display: 'none' }} onChange={e => handleCatPick(cat, e)} />
-
                     <p style={{ fontSize: 12, color: '#374151', textAlign: 'center', marginTop: 5, fontWeight: 600 }}>{cat}</p>
                   </div>
                 ))}
@@ -270,10 +284,7 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
               position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)',
               display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', zIndex: 10,
             }}>
-              <div style={{
-                background: '#fff', borderRadius: '24px 24px 0 0',
-                padding: '28px 24px 48px',
-              }}>
+              <div style={{ background: '#fff', borderRadius: '24px 24px 0 0', padding: '28px 24px 48px' }}>
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
                   <div style={{ width: 40, height: 4, borderRadius: 2, background: '#e5e7eb' }} />
                 </div>
@@ -282,7 +293,6 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
                   홈화면 꾸미기는 프리미엄 기능이에요
                 </p>
                 <p style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', lineHeight: 1.6, marginBottom: 24 }}>
-                  홈화면 이미지 편집은 프리미엄 기능이에요.<br />
                   업그레이드하면 나만의 감성으로 꾸밀 수 있어요.
                 </p>
                 <div style={{ display: 'flex', gap: 10 }}>

@@ -445,7 +445,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
 
       {/* 2. 예산 */}
       <Section icon="" title="예산" summary={totalBudget > 0 ? `총 ${formatCurrency(totalBudget)} 설정` : '미설정'}>
-        {((customCategories && customCategories.length > 0 ? customCategories.map((cc:any) => cc.name ?? cc) : (CATEGORIES as readonly string[]))).map(cat => (
+        {((customCategories && customCategories.length > 0 ? customCategories.map((cc:any) => cc.name ?? cc) : (CATEGORIES as readonly string[])).filter((cat: string) => cat !== '수입')).map(cat => (
           <BudgetRow key={cat} category={cat}
             budgetAmt={localBudgets.find(b => b.category === cat)?.amount ?? 0}
             spent={categorySpent[cat] ?? 0}
