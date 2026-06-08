@@ -34,7 +34,6 @@ export default async function DashboardHomePage() {
   const displayName = profile?.name || '소비요정'
   const isPremium = profile?.premium_status === 'active'
   const coverUrl = profile?.home_cover_url ?? null
-  // 상위 4개 카테고리에 이미지 매핑
   const imgFields = [profile?.category_img_url_1, profile?.category_img_url_2, profile?.category_img_url_3, profile?.category_img_url_4]
   const topCats = (userCategories ?? []).slice(0, 4)
   const categoryUrls: Record<string, string | null> = {}
@@ -61,14 +60,11 @@ export default async function DashboardHomePage() {
           <img src={coverUrl} alt="cover"
             style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
         )}
-        {/* 오버레이 */}
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)' }} />
-        {/* 텍스트 */}
         <div style={{ position: 'absolute', bottom: 20, left: 20 }}>
           <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginBottom: 4 }}>안녕하세요 👋</p>
           <p style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>{displayName}님</p>
         </div>
-        {/* 지출/저축 요약 */}
         <div style={{ position: 'absolute', bottom: 20, right: 20, textAlign: 'right' }}>
           <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11 }}>이번 달 지출</p>
           <p style={{ color: '#fff', fontSize: 16, fontWeight: 800 }}>{formatCurrency(totalSpent)}</p>
@@ -81,7 +77,7 @@ export default async function DashboardHomePage() {
         </div>
       </div>
 
-      {/* 편집 버튼 (클라이언트 컴포넌트) */}
+      {/* 편집 버튼 */}
       <HomeEditModal
         userId={user.id}
         isPremium={isPremium}
@@ -92,7 +88,7 @@ export default async function DashboardHomePage() {
         userCategories={(userCategories ?? []).map(c => c.name)}
       />
 
-      {/* 카드 B — 한 줄 기록 */}
+      {/* 한 줄 기록 */}
       <div style={card}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <p style={{ fontSize: 13, fontWeight: 700, color: '#1f2937' }}>한 줄 기록</p>
@@ -106,11 +102,22 @@ export default async function DashboardHomePage() {
         <AiInputBox userId={user.id} userCategories={(userCategories ?? []).map(c => c.name)} />
       </div>
 
-      {/* 카드 C — 카테고리 2x2 그리드 */}
+      {/* 카테고리 2x2 그리드 */}
       <div style={card}>
         <HomeCategoryGrid expenses={allExpenses} budgets={budgets ?? []} categoryImages={categoryUrls} userCategories={userCategories ?? []} theme={profile?.theme ?? null} />
       </div>
 
-      {/* 카드 D — 최근 지출 내역 */}
+      {/* 최근 지출 내역 */}
       <div style={card}>
-        <div style={{ display: 'flex', alignItems: 'center', justify
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: '#1f2937' }}>최근 지출 내역</p>
+          <Link href="/history" style={{ fontSize: 12, color: 'var(--color-primary-mid)', textDecoration: 'none' }}>
+            전체 보기 →
+          </Link>
+        </div>
+        <RecentExpenses expenses={recentExpenses} />
+      </div>
+
+    </div>
+  )
+}
