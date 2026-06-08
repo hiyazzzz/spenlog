@@ -33,3 +33,8 @@ export async function GET(request: Request) {
 
   // 이름이 없거나 온보딩 완료 플래그가 false면 온보딩으로
   if (!profile?.name || !profile?.onboarding_completed) {
+    return NextResponse.redirect(new URL('/onboarding', request.url))
+  }
+
+  return NextResponse.redirect(new URL('/', request.url))
+}

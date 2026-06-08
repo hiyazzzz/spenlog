@@ -1,7 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { THEME_CARD_PALETTES } from '@/lib/themes'
+import { formatCurrency } from '@/lib/format'
 
 interface Expense { category: string; amount: number; type?: string }
 interface Budget { category: string; amount: number }
@@ -41,10 +43,10 @@ export default function HomeCategoryGrid({ expenses, budgets, categoryImages, us
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <p style={{ fontSize: 13, fontWeight: 700, color: '#1f2937' }}>카테고리 현황</p>
-        <button onClick={() => router.push('/category')}
-          style={{ fontSize: 12, color: 'var(--color-primary-mid)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-          카테고리 관리 →
-        </button>
+        <Link href="/analytics"
+          style={{ fontSize: 12, color: 'var(--color-primary-mid)', textDecoration: 'none' }}>
+          전체 보기 →
+        </Link>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -56,12 +58,11 @@ export default function HomeCategoryGrid({ expenses, budgets, categoryImages, us
           const over = budget > 0 && spent > budget
           const imgUrl = categoryImages?.[cat]
           const barColor = over ? '#ef4444' : pct >= 70 ? '#f59e0b' : 'var(--color-primary)'
-          // 이미지 있으면 이미지, 없으면 테마 팔레트[idx]
           const cardBgColor = palette[idx] ?? palette[0]
 
           return (
             <button key={cat}
-              onClick={() => router.push('/category')}
+              onClick={() => router.push('/analytics')}
               style={{
                 display: 'flex', flexDirection: 'column',
                 background: '#fff', borderRadius: 16,
@@ -93,7 +94,7 @@ export default function HomeCategoryGrid({ expenses, budgets, categoryImages, us
               </div>
               <div style={{ padding: '8px 10px' }}>
                 <p style={{ fontSize: 14, fontWeight: 800, color: net > 0 ? '#059669' : net < 0 ? 'var(--color-primary)' : '#d1d5db' }}>
-                  {net > 0 ? '+' : net < 0 ? '-' : ''}{net !== 0 ? spent.toLocaleString() + '원' : '0원'}
+                  {net > 0 ? '+' : net < 0 ? '-' : ''}{net !== 0 ? formatCurrency(spent) : formatCurrency(0)}
                 </p>
                 {budget > 0 && (
                   <div style={{ marginTop: 4 }}>

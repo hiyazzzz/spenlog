@@ -36,11 +36,11 @@ const RANDOM_NAMES = [
   '쏙쏙 솔방울', '통통 밤톨', '깜짝깜짝 별똥별',
 ]
 
+// 온보딩에서는 무료 테마 2종만 표시 (v2 스펙)
+// Lavender / Terracotta 등 프리미엄 테마는 설정 탭에서 선택 가능
 const THEME_LIST: { key: Theme; premium?: boolean }[] = [
   { key: 'Burgundy' },
   { key: 'Sage' },
-  { key: 'Lavender', premium: true },
-  { key: 'Terracotta', premium: true },
 ]
 
 function randomName() {
@@ -244,12 +244,14 @@ export default function OnboardingForm({ userId, email }: Props) {
             )
           })}
         </div>
+        {/* 프리미엄 테마 유도 문구 */}
+        <p style={{ fontSize: 12, color: '#B8A8AC', textAlign: 'center' as const, marginBottom: 20 }}>
+          ✨ 더 많은 테마는 프리미엄에서 만나보세요!
+        </p>
+
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px' }}>
           <button
-            onClick={() => {
-              const isPremium = THEME_LIST.find(t => t.key === theme)?.premium
-              if (isPremium) { setShowPremiumSheet(true) } else { setStep('finance') }
-            }}
+            onClick={() => setStep('finance')}
             style={{
               width: '100%', padding: '16px', borderRadius: '16px', background: primary,
               color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit',

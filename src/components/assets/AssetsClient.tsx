@@ -194,6 +194,15 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
   const [showAddFixed, setShowAddFixed] = useState<'expense' | 'saving' | null>(null)
   const [editingIncome, setEditingIncome] = useState(false)
+  // 카드 납부 기록 바텀시트
+  const [cardPaySheet, setCardPaySheet] = useState<Card | null>(null)
+  const [cardPayAmount, setCardPayAmount] = useState('')
+  const [cardPayDate, setCardPayDate] = useState('')
+  const [cardPayMemo, setCardPayMemo] = useState('')
+  const [cardPayAmountErr, setCardPayAmountErr] = useState(false)
+  const [cardPaySaving, setCardPaySaving] = useState(false)
+  const [cardPaidIds, setCardPaidIds] = useState<Set<string>>(new Set())
+  const [cardPayToast, setCardPayToast] = useState('')
   const [income, setIncome] = useState(profile?.income ? Number(profile.income).toLocaleString() : '')
   const [savingGoal, setSavingGoal] = useState(profile?.saving_goal ? Number(profile.saving_goal).toLocaleString() : '')
 
@@ -210,6 +219,72 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
     ...localAccounts.map(a => a.id + '|account|' + a.name + ' · ' + a.bank),
     ...localCards.map(c => c.id + '|card|' + c.name + ' · ' + c.bank),
   ]
+
+  // 카드 납부 상태 계산
+  function getCardPayStatus(card: Card): { label: string; color: string; isToday: boolean } {
+    if (!card.due_day) return { label: '', color: '#9ca3af', isToday: false }
+    const today = new Date()
+    const thisYear = today.getFullYear()
+    const thisMonthNum = today.getMonth() + 1
+    const todayDay = today.getDate()
+    const due = card.due_day
+
+    if (cardPaidIds.has(card.id)) return { label: '✓ 완료', color: '#10b981', isToday: false }
+
+    const diff = due - todayDay
+    if (diff === 0) return { label: '오늘 납부일 ⚠️', color: '#f59e0b', isToday: true }
+    if (diff < 0) return { label: '지연 ⚠️', color: '#ef4444', isToday: false }
+    return { label: `D-${diff}`, color: '#9ca3af', isToday: false }
+  }
+
+  function openCardPaySheet(card: Card) {
+    const today = new Date()
+    const yyyy = today.getFullYear()
+    const mm = String(today.getMonth() + 1).padStart(2, '0')
+    const dd = String(today.getDate()).padStart(2, '0')
+    setCardPaySheet(card)
+    setCardPayAmount('')
+    setCardPayDate(`${yyyy}-${mm}-${dd}`)
+    setCardPayMemo('')
+    setCardPayAmountErr(false)
+  }
+
+  async function saveCardPayment() {
+    if (!cardPaySheet) return
+    if (!cardPayAmount) { setCardPayAmountErr(true); return }
+    setCardPaySaving(true)
+    const amount = parseInt(cardPayAmount.replace(/,/g, '')) || 0
+    const today = new Date()
+    const monthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+
+    await Promise.all([
+      supabase.from('expenses').insert({
+        user_id: userId,
+        type: 'expense',
+        category: '고정비',
+        name: `${cardPaySheet.name} 카드 대금`,
+        amount,
+        date: cardPayDate,
+        payment_method: cardPaySheet.name,
+        memo: cardPayMemo || null,
+        source: 'manual',
+      }),
+      supabase.from('savings_payments').insert({
+        user_id: userId,
+        card_id: cardPaySheet.id,
+        month: monthStr,
+        amount,
+        paid_at: new Date().toISOString(),
+      }),
+    ])
+
+    setCardPaidIds(s => new Set([...s, cardPaySheet!.id]))
+    setCardPaySaving(false)
+    setCardPaySheet(null)
+    setCardPayToast('기록됐어요 ✓')
+    setTimeout(() => setCardPayToast(''), 2500)
+    router.refresh()
+  }
 
   async function saveIncome() {
     await supabase.from('users').update({ income: parse(income), saving_goal: parse(savingGoal) }).eq('id', userId)
@@ -297,6 +372,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   }
 
   return (
+    <>
     <div className="min-h-screen pb-20" style={{ background: 'var(--color-bg)' }}>
       <AssetsGuide />
       <AssetsGuide hasNoAccounts={localAccounts.length === 0} />
@@ -482,21 +558,35 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
           const cardExpenses = expenses.filter(e => e.payment_method === card.name)
           const cardTotal = cardExpenses.reduce((s, e) => s + Number(e.amount), 0)
           const isExpanded = expandedCardId === card.id
+          const payStatus = getCardPayStatus(card)
           return (
             <div key={card.id} style={{ marginBottom: 2 }}>
               <div style={{ ...rowStyle, borderBottom: isExpanded ? 'none' : '1px solid #f9fafb' }}>
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: '#1f2937' }}>{card.name}</p>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' as const }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: '#1f2937' }}>{card.name}</p>
+                    {payStatus.label && (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: payStatus.color, background: payStatus.color + '18', padding: '2px 7px', borderRadius: 10 }}>
+                        {payStatus.label}
+                      </span>
+                    )}
+                  </div>
                   <p style={{ fontSize: 11, color: '#9ca3af' }}>
-                    {card.bank}{card.due_day ? ' · 출금일 매월 ' + card.due_day + '일' : ''}
+                    {card.bank}{card.due_day ? ' · 납부일 매월 ' + card.due_day + '일' : ''}
                     {card.linked_account ? ' · ' + (localAccounts.find(a => a.id === card.linked_account)?.name ?? '') : ''}
                   </p>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {card.due_day && !cardPaidIds.has(card.id) && (
+                    <button
+                      onClick={() => openCardPaySheet(card)}
+                      style={{ fontSize: 11, color: payStatus.isToday ? '#f59e0b' : '#6b7280', background: payStatus.isToday ? '#fffbeb' : '#f9fafb', border: `1px solid ${payStatus.isToday ? '#fde68a' : '#e5e7eb'}`, padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}
+                    >납부 기록</button>
+                  )}
                   <button
                     onClick={() => setExpandedCardId(isExpanded ? null : card.id)}
                     style={{ fontSize: 11, color: 'var(--color-primary)', background: 'var(--color-primary-light)', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}
-                  >{isExpanded ? '접기' : `이번달 내역${cardTotal > 0 ? ' ' + formatCurrency(cardTotal) : ''}`}</button>
+                  >{isExpanded ? '접기' : `내역${cardTotal > 0 ? ' ' + formatCurrency(cardTotal) : ''}`}</button>
                   <button onClick={() => deleteCard(card.id)} style={{ fontSize: 11, color: '#ef4444', background: '#fef2f2', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
                 </div>
               </div>
@@ -580,5 +670,109 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
         </div>
       </Section>
     </div>
+
+    {/* 카드 납부 기록 토스트 */}
+    {cardPayToast && (
+      <div style={{
+        position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)',
+        background: '#1f2937', color: '#fff', padding: '10px 18px',
+        borderRadius: 20, fontSize: 13, zIndex: 9999, whiteSpace: 'nowrap' as const,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+      }}>{cardPayToast}</div>
+    )}
+
+    {/* 카드 납부 기록 바텀시트 */}
+    {cardPaySheet && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'flex-end' }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }}
+          onClick={() => setCardPaySheet(null)} />
+        <div style={{
+          position: 'relative', width: '100%', background: '#fff',
+          borderRadius: '20px 20px 0 0', padding: '24px 20px 48px',
+          boxShadow: '0 -4px 20px rgba(0,0,0,0.1)',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e5e7eb' }} />
+          </div>
+          <p style={{ fontSize: 16, fontWeight: 700, color: '#1f2937', marginBottom: 4 }}>
+            {cardPaySheet.name} 납부 기록
+          </p>
+          <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 20 }}>
+            매월 {cardPaySheet.due_day}일 납부
+          </p>
+          <div style={{ background: '#fefce8', borderRadius: 12, padding: '10px 14px', marginBottom: 20, border: '1px solid #fde68a' }}>
+            <p style={{ fontSize: 12, color: '#92400e' }}>
+              💡 카드사 앱에서 이번 달 청구 금액을 확인해보세요
+            </p>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6, fontWeight: 600 }}>납부 금액 *</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 15, color: '#374151', fontWeight: 700 }}>₩</span>
+              <input
+                type="text" inputMode="numeric" placeholder="0"
+                value={cardPayAmount}
+                onChange={e => {
+                  const n = e.target.value.replace(/[^0-9]/g, '')
+                  setCardPayAmount(n ? Number(n).toLocaleString() : '')
+                  setCardPayAmountErr(false)
+                }}
+                autoFocus
+                style={{
+                  flex: 1, padding: '12px', borderRadius: 12,
+                  border: `1.5px solid ${cardPayAmountErr ? '#ef4444' : '#e5e7eb'}`,
+                  fontSize: 15, fontWeight: 600, outline: 'none',
+                  fontFamily: 'inherit', background: '#fafafa',
+                }}
+              />
+            </div>
+            {cardPayAmountErr && <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>금액을 입력해주세요</p>}
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6, fontWeight: 600 }}>납부일</label>
+            <input type="date" value={cardPayDate}
+              onChange={e => setCardPayDate(e.target.value)}
+              style={{
+                width: '100%', padding: '12px', borderRadius: 12,
+                border: '1.5px solid #e5e7eb', fontSize: 14,
+                outline: 'none', fontFamily: 'inherit', background: '#fafafa',
+                boxSizing: 'border-box' as const,
+              }}
+            />
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6, fontWeight: 600 }}>메모 (선택)</label>
+            <input type="text" placeholder="간단히 남겨보세요"
+              value={cardPayMemo} onChange={e => setCardPayMemo(e.target.value)}
+              style={{
+                width: '100%', padding: '12px', borderRadius: 12,
+                border: '1.5px solid #e5e7eb', fontSize: 14,
+                outline: 'none', fontFamily: 'inherit', background: '#fafafa',
+                boxSizing: 'border-box' as const,
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => setCardPaySheet(null)}
+              style={{
+                flex: 1, padding: '14px', borderRadius: 14,
+                background: '#f3f4f6', color: '#374151',
+                border: 'none', fontSize: 14, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>취소</button>
+            <button onClick={saveCardPayment} disabled={cardPaySaving}
+              style={{
+                flex: 2, padding: '14px', borderRadius: 14,
+                background: cardPaySaving ? '#9ca3af' : 'var(--color-primary)',
+                color: '#fff', border: 'none', fontSize: 14, fontWeight: 700,
+                cursor: cardPaySaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+              }}>{cardPaySaving ? '저장 중...' : '기록하기'}</button>
+          </div>
+        </div>
+      </div>
+    )}
+  </>
   )
 }
+
+       

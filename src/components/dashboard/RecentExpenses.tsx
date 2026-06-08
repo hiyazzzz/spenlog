@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import dayjs from 'dayjs'
+import { formatCurrency } from '@/lib/format'
 
 interface Expense {
   id: string; name: string; amount: number; category: string
@@ -26,7 +27,7 @@ export default function RecentExpenses({ expenses }: { expenses: Expense[] }) {
                 </p>
               </div>
               <span className="text-sm font-bold text-rose-400 ml-3 flex-shrink-0">
-                -{e.amount.toLocaleString()}원
+                -{formatCurrency(e.amount)}
               </span>
             </div>
           ))}

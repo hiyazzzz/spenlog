@@ -42,6 +42,7 @@ export default async function DashboardHomePage() {
     border: '1px solid #f3f4f6',
     boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
     padding: 20,
+    minHeight: 160,
   } as const
 
   return (

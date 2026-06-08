@@ -194,3 +194,7 @@ export default function AddExpenseForm({ prefill, userCategories }: Props) {
         className="w-full text-white py-3.5 rounded-2xl text-sm font-medium mt-2 disabled:opacity-60"
         style={{ background: 'var(--color-primary)' }}>
         {saving ? '저장 중...' : type === 'expense' ? '지출 저장' : '수입 저장'}
+      </button>
+    </div>
+  )
+}

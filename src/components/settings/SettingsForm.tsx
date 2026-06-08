@@ -113,12 +113,25 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
 
   async function handleGoogleLink() {
     setGoogleLinking(true)
-    const { error } = await supabase.auth.linkIdentity({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    })
-    if (error) {
-      alert('연동 중 오류가 발생했어요: ' + error.message)
+    try {
+      if (isGuest) {
+        // 게스트 → 구글 연동: 연동 전 현재 유저 ID 저장
+        sessionStorage.setItem('guest_user_id', userId)
+        await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: `${window.location.origin}/auth/callback?from=guest_link` },
+        })
+        // signInWithOAuth는 리다이렉트 → 이 아래는 실행 안 됨
+      } else {
+        // 이메일 유저 → 구글 ID 연동
+        const { error } = await supabase.auth.linkIdentity({
+          provider: 'google',
+          options: { redirectTo: `${window.location.origin}/auth/callback` },
+        })
+        if (error) throw error
+      }
+    } catch (e: any) {
+      alert('연동 중 오류가 발생했어요: ' + (e?.message ?? '알 수 없는 오류'))
       setGoogleLinking(false)
     }
   }
