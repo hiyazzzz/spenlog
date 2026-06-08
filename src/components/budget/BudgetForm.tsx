@@ -62,7 +62,9 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
   const [aiToast, setAiToast] = useState<string | null>(null)
 
   const DEFAULT_CATEGORIES = ['생활비', '활동비', '고정비', '친목비', '예비비']
-  const allCategories = customCategories && customCategories.length > 0 ? customCategories : DEFAULT_CATEGORIES
+  // '수입' 카테고리는 예산 설정 대상 제외
+  const allCategories = (customCategories && customCategories.length > 0 ? customCategories : DEFAULT_CATEGORIES)
+    .filter(cat => cat !== '수입')
   // ON/OFF 토글 - 기본값: 이미 예산 설정된 카테고리는 ON
   const [enabledCats, setEnabledCats] = useState<Record<string, boolean>>(() => {
     const map: Record<string, boolean> = {}
@@ -194,13 +196,28 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
 
   async function handleSave() {
     setLoading(true)
-    const upsertData = allCategories.filter(cat => enabledCats[cat]).map(cat => ({
-      user_id: userId,
-      category: cat,
-      amount: parseInt(amounts[cat] || '0'),
-      month: thisMonth,
-    }))
-    await supabase.from('budgets').upsert(upsertData, { onConflict: 'user_id,category,month' })
+    const onCats = allCategories.filter(cat => enabledCats[cat])
+    const offCats = allCategories.filter(cat => !enabledCats[cat])
+
+    // ON 카테고리: upsert
+    if (onCats.length > 0) {
+      const upsertData = onCats.map(cat => ({
+        user_id: userId,
+        category: cat,
+        amount: parseInt(amounts[cat] || '0'),
+        month: thisMonth,
+      }))
+      await supabase.from('budgets').upsert(upsertData, { onConflict: 'user_id,category,month' })
+    }
+    // OFF 카테고리: 기존 예산 삭제 (달성률 계산 오염 방지)
+    if (offCats.length > 0) {
+      await supabase.from('budgets')
+        .delete()
+        .eq('user_id', userId)
+        .eq('month', thisMonth)
+        .in('category', offCats)
+    }
+
     setLoading(false)
     setSavedOk(true)
     setTimeout(() => setSavedOk(false), 2000)
