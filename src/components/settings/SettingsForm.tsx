@@ -41,6 +41,7 @@ interface Props {
   email: string
   provider: string
   isGuest?: boolean
+  hasGoogle?: boolean
 }
 
 export default function SettingsForm({ profile, userId, email, provider, isGuest = false, hasGoogle = false }: Props) {
