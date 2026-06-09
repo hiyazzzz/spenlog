@@ -85,8 +85,16 @@ export default async function DashboardHomePage() {
         currentCategoryUrls={categoryUrls}
         displayName={displayName}
         totalSpent={totalSpent}
+        savingGoal={savingGoal}
+        actualSaving={actualSaving}
         userCategories={(userCategories ?? []).map(c => c.name)}
         theme={profile?.theme ?? null}
+        recentExpenses={recentExpenses.map(e => ({
+          id: e.id,
+          memo: e.memo ?? '',
+          amount: e.amount,
+          category: e.category ?? '',
+        }))}
       />
 
       {/* 한 줄 기록 */}

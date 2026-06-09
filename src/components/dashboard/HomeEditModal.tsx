@@ -21,11 +21,19 @@ interface Props {
   currentCategoryUrls: Record<string, string | null>
   displayName?: string
   totalSpent?: number
+  savingGoal?: number
+  actualSaving?: number
   userCategories?: string[]
   theme?: string | null
+  recentExpenses?: { id: string; memo: string; amount: number; category: string }[]
 }
 
-export default function HomeEditModal({ userId, isPremium, currentCoverUrl, currentCategoryUrls, displayName = '소비요정', totalSpent = 0, userCategories, theme }: Props) {
+export default function HomeEditModal({
+  userId, isPremium, currentCoverUrl, currentCategoryUrls,
+  displayName = '소비요정', totalSpent = 0, savingGoal = 0, actualSaving = 0,
+  userCategories, theme,
+  recentExpenses = [],
+}: Props) {
   const supabase = createClient()
   const router = useRouter()
   const catKeysToUse = (userCategories && userCategories.length > 0 ? userCategories : DEFAULT_CAT_KEYS).slice(0, 4)
@@ -121,14 +129,22 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
     doSave()
   }
 
-  // 홈 카드 스타일 (page.tsx와 동일)
+  // 홈 카드 스타일 — page.tsx와 완전히 동일
   const card = {
     background: '#fff',
     borderRadius: 16,
     border: '1px solid #f3f4f6',
     boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
     padding: 20,
+    minHeight: 160,
   } as const
+
+  // 딤 오버레이 (텍스트 없음, 반투명만)
+  const dimOverlay = {
+    position: 'absolute' as const, inset: 0,
+    background: 'rgba(250,247,244,0.60)',
+    borderRadius: 16,
+  }
 
   return (
     <>
@@ -154,12 +170,11 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
       {open && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 100,
-          // 홈 페이지와 동일한 배경색 — "같은 화면" 느낌
           background: 'var(--color-bg, #faf7f4)',
           overflowY: 'auto',
         } as React.CSSProperties}>
 
-          {/* 상단 편집 바 (홈 네비게이션 대체) */}
+          {/* 상단 편집 바 — 홈 네비게이션 대체 */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '14px 20px',
@@ -173,21 +188,17 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
               cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, minWidth: 48,
             }}>취소</button>
             <p style={{ fontSize: 15, fontWeight: 700, color: '#1f2937' }}>홈편집</p>
-            <button
-              onClick={handleApply}
-              disabled={saving}
-              style={{
-                background: 'none', border: 'none', fontSize: 14, fontWeight: 700,
-                color: saving ? '#d1d5db' : 'var(--color-primary)',
-                cursor: saving ? 'default' : 'pointer', fontFamily: 'inherit', minWidth: 48, textAlign: 'right' as const,
-              }}
-            >{saving ? '저장 중...' : '적용'}</button>
+            <button onClick={handleApply} disabled={saving} style={{
+              background: 'none', border: 'none', fontSize: 14, fontWeight: 700,
+              color: saving ? '#d1d5db' : 'var(--color-primary)',
+              cursor: saving ? 'default' : 'pointer', fontFamily: 'inherit', minWidth: 48, textAlign: 'right' as const,
+            }}>{saving ? '저장 중...' : '적용'}</button>
           </div>
 
-          {/* ── 홈 화면과 동일한 레이아웃 (편집 컨트롤 추가) ── */}
+          {/* ── 홈 화면과 동일한 레이아웃 ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '12px 16px 48px' }}>
 
-            {/* 1. 커버 배너 — 홈과 동일, 편집 버튼만 추가 */}
+            {/* 1. 커버 배너 — 편집 가능 */}
             <div style={{
               height: 200, borderRadius: 16, overflow: 'hidden', position: 'relative',
               background: coverPreview
@@ -206,8 +217,14 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
               <div style={{ position: 'absolute', bottom: 20, right: 20, textAlign: 'right' as const }}>
                 <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11 }}>이번 달 지출</p>
                 <p style={{ color: '#fff', fontSize: 16, fontWeight: 800 }}>{formatCurrency(totalSpent)}</p>
+                {savingGoal > 0 && (
+                  <>
+                    <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 4 }}>저축 달성</p>
+                    <p style={{ color: '#a7f3d0', fontSize: 14, fontWeight: 700 }}>{formatCurrency(actualSaving)} / {formatCurrency(savingGoal)}</p>
+                  </>
+                )}
               </div>
-              {/* 편집 컨트롤 — 좌상단 */}
+              {/* 편집 버튼 */}
               <div style={{ position: 'absolute', top: 12, left: 12, display: 'flex', gap: 8 }}>
                 <button onClick={() => coverRef.current?.click()} style={{
                   padding: '7px 14px',
@@ -231,7 +248,7 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
                 style={{ display: 'none' }} onChange={handleCoverPick} />
             </div>
 
-            {/* 2. 한 줄 기록 — 홈과 동일 구조, 편집 불가 딤 처리 */}
+            {/* 2. 한 줄 기록 — 반투명 딤만 */}
             <div style={{ ...card, position: 'relative', overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: '#1f2937' }}>한 줄 기록</p>
@@ -248,17 +265,10 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
               }}>
                 "스타벅스 6000원 카드" 처럼 입력하세요
               </div>
-              {/* 편집 불가 오버레이 */}
-              <div style={{
-                position: 'absolute', inset: 0, background: 'rgba(250,247,244,0.65)',
-                borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                backdropFilter: 'blur(1px)',
-              }}>
-                <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500, letterSpacing: 0.3 }}>편집 불가</span>
-              </div>
+              <div style={dimOverlay} />
             </div>
 
-            {/* 3. 카테고리 현황 — 홈과 동일 레이아웃, 카드에 편집 오버레이 */}
+            {/* 3. 카테고리 현황 — 편집 가능 */}
             <div style={card}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: '#1f2937' }}>카테고리 현황</p>
@@ -270,7 +280,6 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
                   const cardBg = palette[catIdx] ?? palette[0]
                   return (
                     <div key={cat}>
-                      {/* 카드 전체 탭 → 이미지 변경 */}
                       <button
                         onClick={() => catRefs.current[cat]?.click()}
                         style={{
@@ -279,19 +288,16 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
                           border: '2px dashed rgba(107,30,46,0.25)',
                           overflow: 'hidden', padding: 0,
                         }}>
-                        {/* 이미지 영역 */}
                         <div style={{
                           height: 80, position: 'relative',
                           background: imgUrl ? `url(${imgUrl}) center/cover no-repeat` : cardBg,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>
-                          {/* 기존 이모지 (이미지 없을 때만) */}
                           {!imgUrl && (
                             <span style={{ fontSize: 22, opacity: 0.6 }}>
                               {CAT_EMOJI[cat] ?? CAT_EMOJIS_FALLBACK[catIdx] ?? '📁'}
                             </span>
                           )}
-                          {/* 편집 오버레이 (항상) */}
                           <div style={{
                             position: 'absolute', inset: 0,
                             background: 'rgba(0,0,0,0.38)',
@@ -302,7 +308,6 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
                             <span style={{ fontSize: 10, color: '#fff', fontWeight: 600 }}>탭하여 변경</span>
                           </div>
                         </div>
-                        {/* 카드 하단 — 홈과 동일 */}
                         <div style={{ padding: '7px 10px', textAlign: 'left' as const }}>
                           <p style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{cat}</p>
                         </div>
@@ -315,6 +320,32 @@ export default function HomeEditModal({ userId, isPremium, currentCoverUrl, curr
                   )
                 })}
               </div>
+            </div>
+
+            {/* 4. 최근 지출 내역 — 반투명 딤만 */}
+            <div style={{ ...card, position: 'relative', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#1f2937' }}>최근 지출 내역</p>
+                <span style={{ fontSize: 12, color: 'var(--color-primary-mid)' }}>전체 보기 →</span>
+              </div>
+              {recentExpenses.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {recentExpenses.map(e => (
+                    <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <p style={{ fontSize: 13, color: '#1f2937', fontWeight: 500 }}>{e.memo}</p>
+                        <p style={{ fontSize: 11, color: '#9ca3af' }}>{e.category}</p>
+                      </div>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary)' }}>-{formatCurrency(e.amount)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center', paddingTop: 16, paddingBottom: 16 }}>
+                  아직 기록된 지출이 없어요
+                </p>
+              )}
+              <div style={dimOverlay} />
             </div>
 
           </div>
