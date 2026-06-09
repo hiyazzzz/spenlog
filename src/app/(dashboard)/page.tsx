@@ -86,6 +86,7 @@ export default async function DashboardHomePage() {
         displayName={displayName}
         totalSpent={totalSpent}
         userCategories={(userCategories ?? []).map(c => c.name)}
+        theme={profile?.theme ?? null}
       />
 
       {/* 한 줄 기록 */}
