@@ -24,21 +24,21 @@ const PRESETS = [
     label: '💰 알뜰하게',
     desc: '수입의 40% 저축',
     savingRate: 0.40,
-    dist: { 생활비: 0.35, 활동비: 0.20, 고정비: 0.25, 친목비: 0.10, 예비비: 0.10 },
+    dist: { 생활비: 0.40, 고정비: 0.35, 활동비: 0.25 },
   },
   {
     key: '균형',
     label: '⚖️ 균형있게',
     desc: '수입의 25% 저축',
     savingRate: 0.25,
-    dist: { 생활비: 0.30, 활동비: 0.25, 고정비: 0.25, 친목비: 0.12, 예비비: 0.08 },
+    dist: { 생활비: 0.40, 고정비: 0.30, 활동비: 0.30 },
   },
   {
     key: '여유',
     label: '🌈 여유있게',
     desc: '수입의 15% 저축',
     savingRate: 0.15,
-    dist: { 생활비: 0.28, 활동비: 0.28, 고정비: 0.22, 친목비: 0.14, 예비비: 0.08 },
+    dist: { 생활비: 0.35, 고정비: 0.25, 활동비: 0.40 },
   },
 ] as const
 
@@ -61,7 +61,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
   const [aiReason, setAiReason] = useState<string | null>(null)
   const [aiToast, setAiToast] = useState<string | null>(null)
 
-  const DEFAULT_CATEGORIES = ['생활비', '활동비', '고정비', '친목비', '예비비']
+  const DEFAULT_CATEGORIES = ['생활비', '고정비', '활동비']
   // '수입' 카테고리는 예산 설정 대상 제외
   const allCategories = (customCategories && customCategories.length > 0 ? customCategories : DEFAULT_CATEGORIES)
     .filter(cat => cat !== '수입')
@@ -139,17 +139,25 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
     setAiLoading(true)
     setAiReason(null)
     try {
-      const res = await fetch('/api/budget-recommend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          income,
-          fixedSavings,
-          recentExpenses,
-          currentBudgets: initialBudgets.map(b => ({ category: b.category, amount: b.amount })),
-          categories: allCategories,  // 유저 커스텀 카테고리 전달
-        }),
-      })
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 12000)
+      let res: Response
+      try {
+        res = await fetch('/api/budget-recommend', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            income,
+            fixedSavings,
+            recentExpenses,
+            currentBudgets: initialBudgets.map(b => ({ category: b.category, amount: b.amount })),
+            categories: allCategories,
+          }),
+          signal: controller.signal,
+        })
+      } finally {
+        clearTimeout(timer)
+      }
       const data = await res.json()
       if (!res.ok || data.error) throw new Error(data.error ?? 'API_ERROR')
 
@@ -180,7 +188,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
 
   function fallbackAmounts(inc: number, _fixed: number): Record<string, number> {
     const spendBudget = inc - Math.round(inc * 0.25)
-    const dist: Record<string, number> = { '생활비': 0.30, '활동비': 0.25, '고정비': 0.25, '친목비': 0.12, '예비비': 0.08 }
+    const dist: Record<string, number> = { '생활비': 0.40, '고정비': 0.35, '활동비': 0.25 }
     const spendCats = allCategories.filter(cat => cat !== '수입')
     const knownRatio = spendCats.filter(cat => cat in dist).reduce((s, cat) => s + (dist[cat] ?? 0), 0)
     const unknownCats = spendCats.filter(cat => !(cat in dist))

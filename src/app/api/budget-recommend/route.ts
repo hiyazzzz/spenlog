@@ -20,7 +20,7 @@ interface RecommendInput {
   categories?: string[]  // 유저 커스텀 카테고리 (없으면 기본값)
 }
 
-const DEFAULT_CATEGORIES = ['생활비', '활동비', '고정비', '친목비', '예비비']
+const DEFAULT_CATEGORIES = ['생활비', '고정비', '활동비']
 
 // 카테고리별 3개월 평균 계산
 function calcMonthlyAvg(expenses: RecentExpense[]): Record<string, number> {
@@ -57,7 +57,7 @@ async function callGemini(prompt: string): Promise<string> {
 function fallbackAmounts(income: number, fixedSavings: number, categories: string[]): Record<string, number> {
   const targetSaving = Math.round(income * 0.25)
   const spendBudget = income - targetSaving
-  const dist: Record<string, number> = { 생활비: 0.30, 활동비: 0.25, 고정비: 0.25, 친목비: 0.12, 예비비: 0.08 }
+  const dist: Record<string, number> = { 생활비: 0.40, 고정비: 0.35, 활동비: 0.25 }
   const spendCats = categories.filter(c => c !== '수입')
   // 알려진 카테고리는 dist 비율, 모르는 카테고리는 남은 비율 균등 배분
   const knownRatio = spendCats.filter(c => c in dist).reduce((s, c) => s + dist[c], 0)

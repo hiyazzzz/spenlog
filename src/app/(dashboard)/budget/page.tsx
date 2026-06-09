@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import BudgetForm from '@/components/budget/BudgetForm'
+import BudgetBackButton from '@/components/budget/BudgetBackButton'
 import dayjs from 'dayjs'
 
 export default async function BudgetPage() {
@@ -39,7 +40,8 @@ export default async function BudgetPage() {
   return (
     <div className="min-h-screen pb-20" style={{ background: 'var(--color-bg)' }}>
       <div className="mb-5">
-        <h1 className="text-lg font-semibold mb-1" style={{ color: 'var(--color-accent)' }}>예산 설정</h1>
+        <BudgetBackButton />
+        <h1 className="text-lg font-semibold mb-1 mt-1" style={{ color: 'var(--color-accent)' }}>예산 설정</h1>
         <p className="text-xs text-gray-400">{dayjs().format('YYYY년 M월')} 카테고리별 목표 예산</p>
       </div>
       <BudgetForm

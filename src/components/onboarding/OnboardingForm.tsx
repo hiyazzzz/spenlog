@@ -22,7 +22,7 @@ const THEME_LIST: { key: Theme; premium?: boolean }[] = [
   { key: 'Sage' },
 ]
 
-const DEFAULT_CATS = ['생활비','활동비','고정비','친목비','예비비','수입']
+const DEFAULT_CATS = ['생활비','고정비','활동비','수입']
 const TOTAL_STEPS = 9
 
 function randomName() { return RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)] }
@@ -122,7 +122,7 @@ export default function OnboardingForm({ userId, email }: Props) {
   function fallbackBudgets() {
     const spend = Math.round(parseMan(income) * 0.75)
     const spendCats = DEFAULT_CATS.filter(c => c !== '수입')
-    const dist: Record<string, number> = { '생활비': 0.30, '활동비': 0.25, '고정비': 0.25, '친목비': 0.12, '예비비': 0.08 }
+    const dist: Record<string, number> = { '생활비': 0.40, '고정비': 0.35, '활동비': 0.25 }
     const result: Record<string, number> = {}
     spendCats.forEach(c => { result[c] = Math.round(spend * (dist[c] ?? 0.1) / 1000) * 1000 })
     setBudgets(result); setBudgetUsedFallback(true); setBudgetLoaded(true)
