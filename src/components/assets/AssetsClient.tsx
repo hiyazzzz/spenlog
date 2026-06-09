@@ -187,9 +187,11 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const [localCards, setLocalCards] = useState(cards)
   const [localFixed, setLocalFixed] = useState(fixedCosts)
   const [localBudgets, setLocalBudgets] = useState(budgets)
-  const [showOnboardingBanner, setShowOnboardingBanner] = useState(
-    !!(profile?.asset_setup_skipped && !profile?.asset_setup_completed)
-  )
+  const [showOnboardingBanner, setShowOnboardingBanner] = useState(() => {
+    // localStorage로 먼저 방어 (DB 업데이트 실패해도 재노출 방지)
+    if (typeof window !== 'undefined' && localStorage.getItem('spenlog_asset_banner_dismissed') === 'true') return false
+    return !!(profile?.asset_setup_skipped && !profile?.asset_setup_completed)
+  })
   const [showAddAccount, setShowAddAccount] = useState(false)
   const [showCashForm, setShowCashForm] = useState(false)
   const [cashBalance, setCashBalance] = useState('')
@@ -408,11 +410,13 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             <p style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 2 }}>🏦 자산 설정을 완성해봐요!</p>
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>계좌·카드·고정비를 등록하면 가계부가 완성돼요</p>
           </button>
-          <button onClick={async () => {
+          <button onClick={() => {
             setShowOnboardingBanner(false)
-            // 다시 안 보이도록 DB + localStorage 저장
-            await supabase.from('users').update({ asset_setup_skipped: false }).eq('id', userId)
-            if (typeof window !== 'undefined') localStorage.removeItem('spenlog_asset_setup_skipped')
+            // localStorage에 저장 (DB 업데이트 실패해도 재노출 방지)
+            if (typeof window !== 'undefined') localStorage.setItem('spenlog_asset_banner_dismissed', 'true')
+            supabase.from('users').update({ asset_setup_skipped: false }).eq('id', userId).then(({ error }) => {
+              if (error) console.error('asset_setup_skipped update error:', error)
+            })
           }} style={{
             background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 20,
             width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',

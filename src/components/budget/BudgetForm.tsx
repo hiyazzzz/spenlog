@@ -434,10 +434,35 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
               const over = spent > budget && budget > 0
 
               return (
-                <div key={cat}>
-                  {/* 카테고리명 + 토글 — 카드 밖 */}
-                  <div className="flex justify-between items-center mb-1.5 px-1">
-                    <span className="text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>{cat}</span>
+                <div key={cat} style={{ marginBottom: 12, opacity: enabledCats[cat] ? 1 : 0.45 }}>
+                  {/* 한 줄: [카테고리명(no box)] [금액입력(white box)] [토글(no box)] */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {/* 카테고리명 */}
+                    <span style={{
+                      fontSize: 13, fontWeight: 600, color: 'var(--color-accent)',
+                      minWidth: 44, flexShrink: 0,
+                    }}>{cat}</span>
+                    {/* 금액 입력 흰박스 */}
+                    <div style={{
+                      flex: 1, background: '#fff', borderRadius: 12,
+                      border: '1px solid #f0f0f0', padding: '9px 12px',
+                      display: 'flex', alignItems: 'center', gap: 4,
+                    }}>
+                      <input
+                        type="text" inputMode="numeric"
+                        style={{
+                          flex: 1, border: 'none', outline: 'none', background: 'transparent',
+                          fontSize: 13, fontWeight: 600, color: '#374151',
+                          textAlign: 'right', fontFamily: 'inherit',
+                        }}
+                        placeholder="예산 미설정"
+                        value={amounts[cat] ? Number(amounts[cat]).toLocaleString() : ''}
+                        onChange={(e) => handleChange(cat, e.target.value.replace(/,/g, ''))}
+                        disabled={!enabledCats[cat]}
+                      />
+                      <span style={{ fontSize: 12, color: '#9ca3af', flexShrink: 0 }}>원</span>
+                    </div>
+                    {/* 토글 */}
                     <button
                       onClick={() => setEnabledCats(prev => ({ ...prev, [cat]: !prev[cat] }))}
                       style={{
@@ -453,37 +478,24 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
                       }} />
                     </button>
                   </div>
-                  {/* 금액 입력 카드 */}
-                  <div className="bg-white rounded-2xl px-4 py-3 border border-gray-100 mb-3"
-                    style={{ opacity: enabledCats[cat] ? 1 : 0.4 }}>
-                    <div className="flex justify-end items-center gap-1">
-                      <input
-                        type="text" inputMode="numeric"
-                        className="w-36 text-right text-sm font-semibold outline-none text-gray-800 placeholder:text-gray-300"
-                        placeholder="예산 미설정"
-                        value={amounts[cat] ? Number(amounts[cat]).toLocaleString() : ''}
-                        onChange={(e) => handleChange(cat, e.target.value.replace(/,/g, ''))}
-                        disabled={!enabledCats[cat]}
-                      />
-                      <span className="text-gray-400 text-sm">원</span>
-                    </div>
-                    {budget > 0 && (
-                      <div className="mt-2">
-                        <div className="bg-gray-100 rounded-full h-1.5 overflow-hidden mb-1">
-                          <div className="h-full rounded-full" style={{
-                            width: `${Math.min(pct, 100)}%`,
-                            background: over ? '#EF4444' : pct >= 80 ? '#F59E0B' : 'var(--color-primary)',
-                          }} />
-                        </div>
-                        <div className="flex justify-between text-[10px] text-gray-400">
-                          <span className={over ? 'text-rose-400 font-medium' : ''}>
-                            {spent > 0 ? `지출 ${spent.toLocaleString()}원` : '지출 없음'}
-                          </span>
-                          <span>{pct}%{over ? ' 초과!' : ''}</span>
-                        </div>
+                  {/* 프로그레스 바 — 금액 입력 박스 아래 정렬 */}
+                  {budget > 0 && (
+                    <div style={{ paddingLeft: 52, paddingRight: 48, marginTop: 4 }}>
+                      <div style={{ background: '#f3f4f6', borderRadius: 4, height: 4, overflow: 'hidden', marginBottom: 3 }}>
+                        <div style={{
+                          height: '100%', borderRadius: 4,
+                          width: `${Math.min(pct, 100)}%`,
+                          background: over ? '#EF4444' : pct >= 80 ? '#F59E0B' : 'var(--color-primary)',
+                        }} />
                       </div>
-                    )}
-                  </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 10, color: over ? '#ef4444' : '#9ca3af', fontWeight: over ? 600 : 400 }}>
+                          {spent > 0 ? `지출 ${spent.toLocaleString()}원` : '지출 없음'}
+                        </span>
+                        <span style={{ fontSize: 10, color: '#9ca3af' }}>{pct}%{over ? ' 초과!' : ''}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             })}
