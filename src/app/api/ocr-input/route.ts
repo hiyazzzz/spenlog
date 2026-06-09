@@ -1,10 +1,14 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
 export async function POST(req: Request) {
   try {
+    const apiKey = process.env.ANTHROPIC_API_KEY
+    if (!apiKey) {
+      return NextResponse.json({ error: 'OCR 기능이 설정되지 않았습니다' }, { status: 503 })
+    }
+    const client = new Anthropic({ apiKey })
+
     const { imageBase64, mediaType } = await req.json()
 
     const response = await client.messages.create({
@@ -45,7 +49,6 @@ export async function POST(req: Request) {
     const result = JSON.parse(jsonMatch[0])
     if (result.error) return NextResponse.json({ error: result.error }, { status: 400 })
 
-    // 날짜가 없으면 오늘
     if (!result.date) result.date = new Date().toISOString().split('T')[0]
 
     return NextResponse.json({ result })

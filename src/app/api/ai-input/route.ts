@@ -5,6 +5,8 @@ async function callGemini(prompt: string): Promise<string | null> {
   if (!apiKey) return null
 
   try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 8000)
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
@@ -14,8 +16,10 @@ async function callGemini(prompt: string): Promise<string | null> {
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: { maxOutputTokens: 512, temperature: 0.1 },
         }),
+        signal: controller.signal,
       }
     )
+    clearTimeout(timeout)
     if (!res.ok) {
       if (res.status === 429) throw new Error('GEMINI_RATE_LIMIT')
       return null
@@ -55,7 +59,7 @@ JSON 배열만 반환. 설명 없이.
 type: expense(지출) | income(수입 - 월급 급여 용돈 환불 등)
 날짜 없으면 오늘 사용.
 amount 규칙: 삼천=3000 오천=5000 만=10000 이만=20000 | 숫자+원/천원/만원 계산
-name 약어: 아아/아아이스->아이스아메리카노 따아->아메리카노 배민->배달의민족 맥날->맥도날드 스벅/스뱡->스타벅스
+name 약어: 아아/아아이스->아이스아메리카노 따아->아메리카노 배민->배달의민족 맹날->맥도날드 스범/스밹->스타벅스
 여러 항목이면 각각 분리해서 배열에. 1건이어도 배열로.`
 }
 
