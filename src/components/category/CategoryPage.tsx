@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -20,6 +20,23 @@ export default function CategoryPage({ userId, initialCategories, spentMap }: Pr
   const supabase = createClient()
   const router = useRouter()
   const [cats, setCats] = useState<Category[]>(initialCategories)
+
+  // 서버 seed 실패 시 클라이언트 사이드 fallback seed
+  // (서버에서 게스트 anonymous 세션 RLS 거부 → 클라이언트에서 재시도)
+  useEffect(() => {
+    if (cats.length > 0) return
+    const seedData = DEFAULT_NAMES.map((name, i) => ({
+      user_id: userId, name, is_default: true, is_hidden: false, sort_order: i,
+    }))
+    supabase.from('categories').insert(seedData).select().then(({ data, error }) => {
+      if (error) {
+        console.error('[category client seed error]', error.code, error.message)
+        return
+      }
+      if (data && data.length > 0) setCats(data)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
