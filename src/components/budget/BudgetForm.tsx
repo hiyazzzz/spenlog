@@ -434,51 +434,56 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
               const over = spent > budget && budget > 0
 
               return (
-                <div key={cat} className="bg-white rounded-2xl p-4 border border-gray-100"
-                  style={{ opacity: enabledCats[cat] ? 1 : 0.45 }}>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-700">{cat}</span>
-                    <div className="flex items-center gap-2">
+                <div key={cat}>
+                  {/* 카테고리명 + 토글 — 카드 밖 */}
+                  <div className="flex justify-between items-center mb-1.5 px-1">
+                    <span className="text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>{cat}</span>
+                    <button
+                      onClick={() => setEnabledCats(prev => ({ ...prev, [cat]: !prev[cat] }))}
+                      style={{
+                        width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer',
+                        background: enabledCats[cat] ? 'var(--color-primary)' : '#d1d5db',
+                        position: 'relative', flexShrink: 0, transition: 'background 0.2s',
+                      }}
+                    >
+                      <div style={{
+                        position: 'absolute', top: 3, left: enabledCats[cat] ? 20 : 3,
+                        width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                        transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                      }} />
+                    </button>
+                  </div>
+                  {/* 금액 입력 카드 */}
+                  <div className="bg-white rounded-2xl px-4 py-3 border border-gray-100 mb-3"
+                    style={{ opacity: enabledCats[cat] ? 1 : 0.4 }}>
+                    <div className="flex justify-end items-center gap-1">
                       <input
                         type="text" inputMode="numeric"
-                        className="w-28 text-right text-sm font-semibold outline-none text-gray-800 placeholder:text-gray-300"
+                        className="w-36 text-right text-sm font-semibold outline-none text-gray-800 placeholder:text-gray-300"
                         placeholder="예산 미설정"
                         value={amounts[cat] ? Number(amounts[cat]).toLocaleString() : ''}
                         onChange={(e) => handleChange(cat, e.target.value.replace(/,/g, ''))}
+                        disabled={!enabledCats[cat]}
                       />
                       <span className="text-gray-400 text-sm">원</span>
-                      <button
-                        onClick={() => setEnabledCats(prev => ({ ...prev, [cat]: !prev[cat] }))}
-                        style={{
-                          width: 36, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer',
-                          background: enabledCats[cat] ? 'var(--color-primary)' : '#d1d5db',
-                          position: 'relative', flexShrink: 0, transition: 'background 0.2s',
-                        }}
-                      >
-                        <div style={{
-                          position: 'absolute', top: 2, left: enabledCats[cat] ? 18 : 2,
-                          width: 16, height: 16, borderRadius: '50%', background: '#fff',
-                          transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                        }} />
-                      </button>
                     </div>
+                    {budget > 0 && (
+                      <div className="mt-2">
+                        <div className="bg-gray-100 rounded-full h-1.5 overflow-hidden mb-1">
+                          <div className="h-full rounded-full" style={{
+                            width: `${Math.min(pct, 100)}%`,
+                            background: over ? '#EF4444' : pct >= 80 ? '#F59E0B' : 'var(--color-primary)',
+                          }} />
+                        </div>
+                        <div className="flex justify-between text-[10px] text-gray-400">
+                          <span className={over ? 'text-rose-400 font-medium' : ''}>
+                            {spent > 0 ? `지출 ${spent.toLocaleString()}원` : '지출 없음'}
+                          </span>
+                          <span>{pct}%{over ? ' 초과!' : ''}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  {budget > 0 && (
-                    <div>
-                      <div className="bg-gray-100 rounded-full h-1.5 overflow-hidden mb-1">
-                        <div className="h-full rounded-full" style={{
-                          width: `${Math.min(pct, 100)}%`,
-                          background: over ? '#EF4444' : pct >= 80 ? '#F59E0B' : 'var(--color-primary)',
-                        }} />
-                      </div>
-                      <div className="flex justify-between text-[10px] text-gray-400">
-                        <span className={over ? 'text-rose-400 font-medium' : ''}>
-                          {spent > 0 ? `지출 ${spent.toLocaleString()}원` : '지출 없음'}
-                        </span>
-                        <span>{pct}%{over ? ' 초과!' : ''}</span>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )
             })}

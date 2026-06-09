@@ -408,7 +408,12 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             <p style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 2 }}>🏦 자산 설정을 완성해봐요!</p>
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>계좌·카드·고정비를 등록하면 가계부가 완성돼요</p>
           </button>
-          <button onClick={() => setShowOnboardingBanner(false)} style={{
+          <button onClick={async () => {
+            setShowOnboardingBanner(false)
+            // 다시 안 보이도록 DB + localStorage 저장
+            await supabase.from('users').update({ asset_setup_skipped: false }).eq('id', userId)
+            if (typeof window !== 'undefined') localStorage.removeItem('spenlog_asset_setup_skipped')
+          }} style={{
             background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 20,
             width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer', color: '#fff', fontSize: 14, flexShrink: 0,

@@ -49,7 +49,14 @@ interface Props {
 export default function SettingsForm({ profile, userId, email, provider, isGuest = false, hasGoogle = false }: Props) {
   const router = useRouter()
   const supabase = createClient()
-  const [theme, setTheme] = useState<Theme>(profile?.theme ?? 'Burgundy')
+  // localStorage 우선 (applyTheme에서 즉시 저장) → DB profile 순
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('spenlog_theme')
+      if (saved) return saved as Theme
+    }
+    return (profile?.theme as Theme) ?? 'Burgundy'
+  })
   const [name, setName] = useState(profile?.name ?? '')
   const [editingName, setEditingName] = useState(false)
   const [savingName, setSavingName] = useState(false)
@@ -75,11 +82,6 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
   }, [])
   const [deleteConfirmName, setDeleteConfirmName] = useState('')
 
-  // profile.theme prop 변경 시 (router.refresh() 후 새 서버 데이터) state 동기화
-  useEffect(() => {
-    if (profile?.theme) setTheme(profile.theme as Theme)
-  }, [profile?.theme])
-
   async function applyTheme(t: Theme) {
     setTheme(t)
     const colors = THEMES[t]
@@ -90,14 +92,13 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
     root.style.setProperty('--color-accent', colors.accent)
     root.style.setProperty('--color-bg', colors.bg)
     document.body.style.background = colors.bg
-    // HomeCategoryGrid fallback용 localStorage 동기화
+    // localStorage 즉시 저장 (설정 재진입 + HomeCategoryGrid 동기화)
     if (typeof window !== 'undefined') localStorage.setItem('spenlog_theme', t)
-    const { error } = await supabase.from('users').update({ theme: t }).eq('id', userId)
-    if (error) {
-      console.error('테마 저장 실패:', error)
-      return
-    }
-    router.refresh()
+    // DB 저장 (백그라운드 — 실패해도 UI에는 이미 반영됨)
+    supabase.from('users').update({ theme: t }).eq('id', userId).then(({ error }) => {
+      if (error) console.error('테마 저장 실패:', error)
+    })
+    // router.refresh() 제거: 호출 시 서버에서 구 DB값 읽어와 useEffect로 덮어쓰는 문제 방지
   }
 
   async function saveName() {
