@@ -443,22 +443,23 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
         )}
       </Section>
 
-      {/* 2. 예산 */}
-      <Section icon="" title="예산" summary={totalBudget > 0 ? `총 ${formatCurrency(totalBudget)} 설정` : '미설정'}>
-        {((customCategories && customCategories.length > 0 ? customCategories.map((cc:any) => cc.name ?? cc) : (CATEGORIES as readonly string[])).filter((cat: string) => cat !== '수입')).map(cat => (
-          <BudgetRow key={cat} category={cat}
-            budgetAmt={localBudgets.find(b => b.category === cat)?.amount ?? 0}
-            spent={categorySpent[cat] ?? 0}
-            onSave={amt => saveBudget(cat, amt)} />
-        ))}
-        {totalBudget > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>총 예산</span>
-            <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-accent)' }}>{formatCurrency(totalBudget)}</span>
-          </div>
-        )}
-
-      </Section>
+      {/* 2. 예산 — /budget 페이지로 이동 */}
+      <button
+        onClick={() => router.push('/budget')}
+        style={{
+          width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          background: '#fff', border: '1px solid #f3f4f6', borderRadius: 16,
+          padding: '18px 16px', cursor: 'pointer', fontFamily: 'inherit',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+        }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: '#1f2937' }}>예산</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 13, color: totalBudget > 0 ? 'var(--color-accent)' : '#9ca3af' }}>
+            {totalBudget > 0 ? `총 ${formatCurrency(totalBudget)} 설정` : '미설정'}
+          </span>
+          <span style={{ fontSize: 16, color: '#9ca3af' }}>›</span>
+        </div>
+      </button>
 
       {/* 3. 계좌/현금 */}
       <Section icon="" title="계좌 / 현금" summary={`총 잔액 ${formatCurrency(totalBalance)}`}>
@@ -790,3 +791,4 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   </>
   )
 }
+                                                                                  
