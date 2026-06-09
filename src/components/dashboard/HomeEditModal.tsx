@@ -7,11 +7,6 @@ import { THEME_CARD_PALETTES } from '@/lib/themes'
 
 const DEFAULT_CAT_KEYS = ['생활비', '활동비', '고정비', '친목비']
 const CAT_FIELD_IDX = ['category_img_url_1', 'category_img_url_2', 'category_img_url_3', 'category_img_url_4']
-const CAT_EMOJI: Record<string, string> = {
-  '생활비': '🛒', '활동비': '☕', '고정비': '📌', '친목비': '👫',
-  '예비비': '🏦', '수입': '💰',
-}
-const CAT_EMOJIS_FALLBACK = ['🛒', '☕', '📌', '👫']
 const DEFAULT_PALETTE = THEME_CARD_PALETTES['Burgundy']
 
 interface Props {
@@ -31,8 +26,7 @@ interface Props {
 export default function HomeEditModal({
   userId, isPremium, currentCoverUrl, currentCategoryUrls,
   displayName = '소비요정', totalSpent = 0, savingGoal = 0, actualSaving = 0,
-  userCategories, theme,
-  recentExpenses = [],
+  userCategories, theme, recentExpenses = [],
 }: Props) {
   const supabase = createClient()
   const router = useRouter()
@@ -129,7 +123,7 @@ export default function HomeEditModal({
     doSave()
   }
 
-  // 홈 카드 스타일 — page.tsx와 완전히 동일
+  // page.tsx와 동일한 카드 스타일
   const card = {
     background: '#fff',
     borderRadius: 16,
@@ -139,9 +133,9 @@ export default function HomeEditModal({
     minHeight: 160,
   } as const
 
-  // 딤 오버레이 (텍스트 없음, 반투명만)
-  const dimOverlay = {
-    position: 'absolute' as const, inset: 0,
+  // 반투명 딤 오버레이 (텍스트 없음)
+  const dimOverlay: React.CSSProperties = {
+    position: 'absolute', inset: 0,
     background: 'rgba(250,247,244,0.60)',
     borderRadius: 16,
   }
@@ -166,7 +160,6 @@ export default function HomeEditModal({
         </svg>
       </button>
 
-      {/* ── 홈 편집 오버레이 ── */}
       {open && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 100,
@@ -174,7 +167,7 @@ export default function HomeEditModal({
           overflowY: 'auto',
         } as React.CSSProperties}>
 
-          {/* 상단 편집 바 — 홈 네비게이션 대체 */}
+          {/* 상단 편집 바 */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '14px 20px',
@@ -195,15 +188,13 @@ export default function HomeEditModal({
             }}>{saving ? '저장 중...' : '적용'}</button>
           </div>
 
-          {/* ── 홈 화면과 동일한 레이아웃 ── */}
+          {/* 홈 화면과 동일한 레이아웃 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '12px 16px 48px' }}>
 
             {/* 1. 커버 배너 — 편집 가능 */}
             <div style={{
               height: 200, borderRadius: 16, overflow: 'hidden', position: 'relative',
-              background: coverPreview
-                ? undefined
-                : 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-mid) 100%)',
+              background: coverPreview ? undefined : 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-mid) 100%)',
             }}>
               {coverPreview && (
                 <img src={coverPreview} alt="cover"
@@ -224,7 +215,6 @@ export default function HomeEditModal({
                   </>
                 )}
               </div>
-              {/* 편집 버튼 */}
               <div style={{ position: 'absolute', top: 12, left: 12, display: 'flex', gap: 8 }}>
                 <button onClick={() => coverRef.current?.click()} style={{
                   padding: '7px 14px',
@@ -248,7 +238,7 @@ export default function HomeEditModal({
                 style={{ display: 'none' }} onChange={handleCoverPick} />
             </div>
 
-            {/* 2. 한 줄 기록 — 반투명 딤만 */}
+            {/* 2. 한 줄 기록 — 반투명 딤 */}
             <div style={{ ...card, position: 'relative', overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: '#1f2937' }}>한 줄 기록</p>
@@ -260,69 +250,81 @@ export default function HomeEditModal({
                 }}>+</div>
               </div>
               <div style={{
-                background: '#f9f9f9', borderRadius: 12, padding: '12px 14px',
-                fontSize: 13, color: '#9ca3af',
+                background: '#f9fafb', borderRadius: 12, padding: '12px 14px',
+                fontSize: 13, color: '#9ca3af', lineHeight: 1.7,
               }}>
-                "스타벅스 6000원 카드" 처럼 입력하세요
+                <p>오늘 소비 내역을 알려줘!</p>
+                <p>예) 아아 삼천원</p>
+                <p>예) 스벅 6천원 배민 치킨 18000원</p>
               </div>
               <div style={dimOverlay} />
             </div>
 
-            {/* 3. 카테고리 현황 — 편집 가능 */}
+            {/* 3. 카테고리 현황 — HomeCategoryGrid와 동일 구조 + 편집 오버레이 */}
             <div style={card}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: '#1f2937' }}>카테고리 현황</p>
-                <span style={{ fontSize: 11, color: '#9ca3af' }}>탭하여 이미지 변경</span>
+                <span style={{ fontSize: 12, color: 'var(--color-primary-mid)' }}>카테고리 관리 →</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 {catKeysToUse.map((cat, catIdx) => {
                   const imgUrl = catPreviews[cat]
-                  const cardBg = palette[catIdx] ?? palette[0]
+                  const cardBgColor = palette[catIdx] ?? palette[0]
                   return (
-                    <div key={cat}>
-                      <button
-                        onClick={() => catRefs.current[cat]?.click()}
-                        style={{
-                          width: '100%', display: 'block', cursor: 'pointer',
-                          background: '#fff', borderRadius: 16,
-                          border: '2px dashed rgba(107,30,46,0.25)',
-                          overflow: 'hidden', padding: 0,
-                        }}>
+                    <button
+                      key={cat}
+                      onClick={() => catRefs.current[cat]?.click()}
+                      style={{
+                        display: 'flex', flexDirection: 'column',
+                        background: '#fff', borderRadius: 16,
+                        border: '1px solid #f3f4f6',
+                        overflow: 'hidden',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                        cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' as const,
+                        padding: 0,
+                      }}>
+                      {/* 이미지 영역 — HomeCategoryGrid와 동일, 편집 오버레이 추가 */}
+                      <div style={{
+                        height: 80,
+                        background: imgUrl ? `url(${imgUrl}) center/cover no-repeat` : cardBgColor,
+                        position: 'relative',
+                      }}>
+                        {/* 카테고리명 gradient (홈과 동일) */}
                         <div style={{
-                          height: 80, position: 'relative',
-                          background: imgUrl ? `url(${imgUrl}) center/cover no-repeat` : cardBg,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          position: 'absolute', bottom: 0, left: 0, right: 0,
+                          background: 'linear-gradient(transparent, rgba(0,0,0,0.35))',
+                          padding: '8px 10px 6px',
                         }}>
-                          {!imgUrl && (
-                            <span style={{ fontSize: 22, opacity: 0.6 }}>
-                              {CAT_EMOJI[cat] ?? CAT_EMOJIS_FALLBACK[catIdx] ?? '📁'}
-                            </span>
-                          )}
-                          <div style={{
-                            position: 'absolute', inset: 0,
-                            background: 'rgba(0,0,0,0.38)',
-                            display: 'flex', flexDirection: 'column',
-                            alignItems: 'center', justifyContent: 'center', gap: 3,
-                          }}>
-                            <span style={{ fontSize: 18 }}>📷</span>
-                            <span style={{ fontSize: 10, color: '#fff', fontWeight: 600 }}>탭하여 변경</span>
-                          </div>
+                          <p style={{ fontSize: 12, fontWeight: 700, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.4)' }}>{cat}</p>
                         </div>
-                        <div style={{ padding: '7px 10px', textAlign: 'left' as const }}>
-                          <p style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{cat}</p>
+                        {/* 편집 오버레이 — 반투명 + 📷 아이콘 */}
+                        <div style={{
+                          position: 'absolute', inset: 0,
+                          background: 'rgba(0,0,0,0.32)',
+                          display: 'flex', flexDirection: 'column',
+                          alignItems: 'center', justifyContent: 'center', gap: 3,
+                        }}>
+                          <span style={{ fontSize: 18 }}>📷</span>
+                          <span style={{ fontSize: 10, color: '#fff', fontWeight: 600 }}>탭하여 변경</span>
                         </div>
-                      </button>
+                      </div>
+                      {/* 금액 영역 — HomeCategoryGrid와 동일 */}
+                      <div style={{ padding: '8px 10px' }}>
+                        <p style={{ fontSize: 14, fontWeight: 800, color: '#d1d5db' }}>
+                          {formatCurrency(0)}
+                        </p>
+                      </div>
                       <input
                         ref={el => { catRefs.current[cat] = el }}
                         type="file" accept="image/png,image/jpeg,image/gif"
                         style={{ display: 'none' }} onChange={e => handleCatPick(cat, e)} />
-                    </div>
+                    </button>
                   )
                 })}
               </div>
             </div>
 
-            {/* 4. 최근 지출 내역 — 반투명 딤만 */}
+            {/* 4. 최근 지출 내역 — 반투명 딤 */}
             <div style={{ ...card, position: 'relative', overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: '#1f2937' }}>최근 지출 내역</p>
@@ -341,7 +343,7 @@ export default function HomeEditModal({
                   ))}
                 </div>
               ) : (
-                <p style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center', paddingTop: 16, paddingBottom: 16 }}>
+                <p style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center' as const, paddingTop: 16, paddingBottom: 16 }}>
                   아직 기록된 지출이 없어요
                 </p>
               )}
@@ -360,11 +362,11 @@ export default function HomeEditModal({
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
                   <div style={{ width: 40, height: 4, borderRadius: 2, background: '#e5e7eb' }} />
                 </div>
-                <p style={{ fontSize: 22, textAlign: 'center', marginBottom: 10 }}>💎</p>
-                <p style={{ fontSize: 18, fontWeight: 800, color: '#1f2937', textAlign: 'center', marginBottom: 8 }}>
+                <p style={{ fontSize: 22, textAlign: 'center' as const, marginBottom: 10 }}>💎</p>
+                <p style={{ fontSize: 18, fontWeight: 800, color: '#1f2937', textAlign: 'center' as const, marginBottom: 8 }}>
                   나만의 대시보드를 완성하려면<br/>프리미엄이 필요해요 ✨
                 </p>
-                <p style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', lineHeight: 1.6, marginBottom: 24 }}>
+                <p style={{ fontSize: 14, color: '#6b7280', textAlign: 'center' as const, lineHeight: 1.6, marginBottom: 24 }}>
                   업그레이드하면 나만의 감성으로 꾸밀 수 있어요.
                 </p>
                 <div style={{ display: 'flex', gap: 10 }}>
