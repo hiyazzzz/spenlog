@@ -21,14 +21,14 @@ export default async function DashboardLayout({
     const { data: profile } = await supabase
       .from('users').select('theme, guide_completed').eq('id', user.id).single()
     theme = profile?.theme ?? 'Burgundy'
-    guideCompleted = profile?.guide_completed ?? false  // 신규 유저(null)는 가이드 표시
+    guideCompleted = profile?.guide_completed ?? false
     userId = user.id
   }
 
   return (
     <div className="min-h-screen flex flex-col justify-between" style={{ background: 'var(--color-bg)' }}>
       <ThemeProvider theme={theme} />
-      <main className="flex-1 w-full max-w-md mx-auto p-4 pb-24">
+      <main className="flex-1 w-full max-w-md mx-auto px-4 pt-14 pb-24">
         {children}
       </main>
       <BottomNav />
