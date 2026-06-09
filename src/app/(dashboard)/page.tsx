@@ -75,27 +75,25 @@ export default async function DashboardHomePage() {
             </>
           )}
         </div>
+        <HomeEditModal
+          userId={user.id}
+          isPremium={isPremium}
+          currentCoverUrl={coverUrl}
+          currentCategoryUrls={categoryUrls}
+          displayName={displayName}
+          totalSpent={totalSpent}
+          savingGoal={savingGoal}
+          actualSaving={actualSaving}
+          userCategories={(userCategories ?? []).map(c => c.name)}
+          theme={profile?.theme ?? null}
+          recentExpenses={recentExpenses.map(e => ({
+            id: e.id,
+            memo: e.memo ?? '',
+            amount: e.amount,
+            category: e.category ?? '',
+          }))}
+        />
       </div>
-
-      {/* 편집 버튼 */}
-      <HomeEditModal
-        userId={user.id}
-        isPremium={isPremium}
-        currentCoverUrl={coverUrl}
-        currentCategoryUrls={categoryUrls}
-        displayName={displayName}
-        totalSpent={totalSpent}
-        savingGoal={savingGoal}
-        actualSaving={actualSaving}
-        userCategories={(userCategories ?? []).map(c => c.name)}
-        theme={profile?.theme ?? null}
-        recentExpenses={recentExpenses.map(e => ({
-          id: e.id,
-          memo: e.memo ?? '',
-          amount: e.amount,
-          category: e.category ?? '',
-        }))}
-      />
 
       {/* 한 줄 기록 */}
       <div style={card}>
