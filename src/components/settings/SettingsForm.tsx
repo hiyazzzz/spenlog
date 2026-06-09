@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { THEMES } from '@/lib/themes'
 import type { Theme } from '@/types'
 import { subscribePush, unsubscribePush, isSubscribed } from '@/lib/push'
+import { isPremiumUnlocked } from '@/lib/premium'
+import AppGuide from '@/components/AppGuide'
 
 function ToggleSwitch({ on, onToggle, disabled }: { on: boolean; onToggle: () => void; disabled?: boolean }) {
   return (
@@ -64,6 +66,9 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
   const [googleLinking, setGoogleLinking] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<boolean | 1 | 2>(false)
   const [pushSubscribed, setPushSubscribed] = useState(false)
+  const [csvLoading, setCsvLoading] = useState(false)
+  const [csvPeriod, setCsvPeriod] = useState<'this_month' | 'last_3months' | 'all'>('this_month')
+  const [showGuide, setShowGuide] = useState(false)
 
   useEffect(() => {
     isSubscribed().then(setPushSubscribed)
@@ -137,6 +142,44 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
     }
   }
 
+  async function handleCsvDownload() {
+    if (csvLoading) return
+    const isPremium = isPremiumUnlocked(profile)
+    if (!isPremium) { router.push('/premium'); return }
+    setCsvLoading(true)
+    try {
+      const now = new Date()
+      let params = ''
+      if (csvPeriod === 'this_month') {
+        const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+        params = `?from=${ym}&to=${ym}`
+      } else if (csvPeriod === 'last_3months') {
+        const toDate = new Date(now.getFullYear(), now.getMonth(), 1)
+        const fromDate = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+        const from = `${fromDate.getFullYear()}-${String(fromDate.getMonth() + 1).padStart(2, '0')}`
+        const to = `${toDate.getFullYear()}-${String(toDate.getMonth() + 1).padStart(2, '0')}`
+        params = `?from=${from}&to=${to}`
+      }
+      const res = await fetch(`/api/export/csv${params}`)
+      if (!res.ok) {
+        const data = await res.json()
+        if (data.error === 'NO_DATA') { alert('해당 기간에 내역이 없어요'); return }
+        alert('내보내기 실패: ' + (data.error ?? '알 수 없는 오류')); return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const cd = res.headers.get('Content-Disposition') ?? ''
+      const match = cd.match(/filename="?([^"]+)"?/)
+      a.download = match ? decodeURIComponent(match[1]) : 'spenlog.csv'
+      document.body.appendChild(a); a.click()
+      document.body.removeChild(a); URL.revokeObjectURL(url)
+    } finally {
+      setCsvLoading(false)
+    }
+  }
+
   async function handleLogout() {
     if (isGuest) {
       setGuestLogoutConfirm(true)
@@ -167,6 +210,9 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
 
   return (
     <div>
+      {/* 앱 가이드 오버레이 */}
+      {showGuide && <AppGuide onClose={() => setShowGuide(false)} />}
+
       {/* 게스트 로그아웃 경고 모달 */}
       {guestLogoutConfirm && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end' }}>
@@ -539,13 +585,55 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
         )}
       </div>
 
+      {/* 데이터 내보내기 */}
+      <div style={card}>
+        <div style={{ ...sectionHeader as React.CSSProperties, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>📤 데이터 내보내기</span>
+          {!isPremiumUnlocked(profile) && (
+            <button onClick={() => router.push('/premium')}
+              style={{ fontSize: 11, color: '#f59e0b', fontWeight: 700, background: '#fef3c7', border: 'none', borderRadius: 8, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>
+              🔒 프리미엄
+            </button>
+          )}
+        </div>
+        <div style={{ padding: '4px 16px 10px' }}>
+          <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 10 }}>
+            지출/수입 내역을 CSV 파일로 내보내 엑셀 등에서 분석할 수 있어요
+          </p>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+            {(['this_month', 'last_3months', 'all'] as const).map(p => (
+              <button key={p} onClick={() => setCsvPeriod(p)}
+                style={{
+                  flex: 1, padding: '7px 4px', borderRadius: 10, border: 'none',
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                  background: csvPeriod === p ? 'var(--color-primary)' : '#f3f4f6',
+                  color: csvPeriod === p ? '#fff' : '#6b7280',
+                }}>
+                {p === 'this_month' ? '이번 달' : p === 'last_3months' ? '최근 3개월' : '전체 기간'}
+              </button>
+            ))}
+          </div>
+          <button onClick={handleCsvDownload} disabled={csvLoading}
+            style={{
+              width: '100%', padding: '10px', borderRadius: 12, border: 'none',
+              background: isPremiumUnlocked(profile) ? 'var(--color-primary)' : '#e5e7eb',
+              color: isPremiumUnlocked(profile) ? '#fff' : '#9ca3af',
+              fontSize: 13, fontWeight: 600, cursor: csvLoading ? 'default' : 'pointer',
+              fontFamily: 'inherit', opacity: csvLoading ? 0.7 : 1,
+            }}>
+            {csvLoading ? '내보내는 중...' : isPremiumUnlocked(profile) ? '📥 CSV 다운로드' : '🔒 프리미엄 전용'}
+          </button>
+        </div>
+      </div>
+
       {/* 앱 정보 */}
       <div style={card}>
         <p style={sectionHeader}>ℹ️ 앱 정보</p>
-        <div style={rowStyle}>
+        <button onClick={() => setShowGuide(true)}
+          style={{ ...rowStyle, width: '100%', textAlign: 'left' as const, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
           <span style={{ fontSize: 14, color: '#374151' }}>앱 가이드 다시 보기</span>
           <span style={{ fontSize: 14, color: '#9ca3af' }}>›</span>
-        </div>
+        </button>
         <div style={{ ...rowStyle, borderBottom: 'none' }}>
           <span style={{ fontSize: 14, color: '#374151' }}>버전</span>
           <span style={{ fontSize: 13, color: '#9ca3af' }}>1.0.0</span>
