@@ -22,18 +22,19 @@ export default async function CategoryRoute() {
     const seedData = DEFAULT_CATEGORIES.map((name, i) => ({
       user_id: user.id, name, is_default: true, is_hidden: false, sort_order: i,
     }))
-    const { data: seeded, error: seedError } = await supabase
+    // onConflict 없이 단순 insert (unique constraint 의존성 제거)
+    const { data: inserted, error: insertError } = await supabase
       .from('categories')
-      .upsert(seedData, { onConflict: 'user_id,name', ignoreDuplicates: false })
+      .insert(seedData)
       .select()
-    if (seedError) {
-      console.error('[category seed error]', seedError.code, seedError.message)
-      // upsert 실패 시 insert로 재시도
-      const { data: inserted } = await supabase
-        .from('categories').insert(seedData).select()
-      cats = inserted ?? []
+    if (insertError) {
+      console.error('[category seed insert error]', insertError.code, insertError.message)
+      // 이미 존재하는 경우(race condition) — 다시 select
+      const { data: existing } = await supabase
+        .from('categories').select('*').eq('user_id', user.id).order('sort_order')
+      cats = existing ?? []
     } else {
-      cats = seeded ?? []
+      cats = inserted ?? []
     }
   }
 

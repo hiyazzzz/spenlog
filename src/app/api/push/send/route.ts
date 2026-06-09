@@ -4,13 +4,7 @@ import { NextResponse } from 'next/server'
 import webpush from 'web-push'
 import dayjs from 'dayjs'
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT ?? 'mailto:admin@spenlog.app',
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '',
-  process.env.VAPID_PRIVATE_KEY ?? '',
-)
-
-type NotifType = 'due_date_reminder' | 'due_date_unprocessed' | 'report' | 'daily'
+type NotifType = 'due_date_reminder' | 'due_date_unprocessed' | 'report' | 'daily' | 'premium_d7'
 
 interface PushSubscription {
   user_id: string
@@ -35,6 +29,18 @@ async function sendToUser(sub: PushSubscription, payload: object, supabase: Awai
 }
 
 export async function GET(req: Request) {
+  // VAPID 설정 — 런타임에만 실행 (모듈 최상위 실행 시 빌드 에러 방지)
+  const vapidPublic = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+  const vapidPrivate = process.env.VAPID_PRIVATE_KEY
+  if (!vapidPublic || !vapidPrivate) {
+    return NextResponse.json({ error: 'VAPID keys not configured' }, { status: 500 })
+  }
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT ?? 'mailto:admin@spenlog.app',
+    vapidPublic,
+    vapidPrivate,
+  )
+
   // Vercel Cron은 Authorization: Bearer {CRON_SECRET} 헤더 전송
   const authHeader = req.headers.get('authorization')
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -144,6 +150,30 @@ export async function GET(req: Request) {
           body: `지난달 총 지출 ₩${total.toLocaleString('ko-KR')} — 리포트를 확인해보세요`,
           url: '/report',
           tag: 'monthly-report',
+        }, supabase)
+        sent++
+      }
+    }
+  } else if (type === 'premium_d7') {
+    // 프리미엄 만료 7일 전 유저에게 알림
+    const d7 = today.add(7, 'day')
+    const d7Start = d7.format('YYYY-MM-DD') + 'T00:00:00'
+    const d7End = d7.format('YYYY-MM-DD') + 'T23:59:59'
+
+    const { data: users } = await supabase.from('users')
+      .select('id, name, push_enabled')
+      .eq('push_enabled', true)
+      .gte('premium_expires_at', d7Start)
+      .lte('premium_expires_at', d7End)
+
+    for (const u of (users ?? [])) {
+      const { data: subs } = await supabase.from('push_subscriptions').select('*').eq('user_id', u.id)
+      for (const sub of (subs ?? [])) {
+        await sendToUser(sub as PushSubscription, {
+          title: '⏰ 프리미엄 만료 D-7',
+          body: `${u.name ?? ''}님의 프리미엄이 7일 후 만료돼요. 지금 갱신하세요!`,
+          url: '/premium',
+          tag: 'premium-d7',
         }, supabase)
         sent++
       }

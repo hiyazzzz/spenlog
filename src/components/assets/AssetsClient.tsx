@@ -187,6 +187,9 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const [localCards, setLocalCards] = useState(cards)
   const [localFixed, setLocalFixed] = useState(fixedCosts)
   const [localBudgets, setLocalBudgets] = useState(budgets)
+  const [showOnboardingBanner, setShowOnboardingBanner] = useState(
+    !!(profile?.asset_setup_skipped && !profile?.asset_setup_completed)
+  )
   const [showAddAccount, setShowAddAccount] = useState(false)
   const [showCashForm, setShowCashForm] = useState(false)
   const [cashBalance, setCashBalance] = useState('')
@@ -390,6 +393,29 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
     <div className="min-h-screen pb-20" style={{ background: 'var(--color-bg)' }}>
       <AssetsGuide />
       <AssetsGuide hasNoAccounts={localAccounts.length === 0} />
+
+      {/* 자산 온보딩 재유도 배너 */}
+      {showOnboardingBanner && (
+        <div style={{
+          background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%)',
+          borderRadius: 16, padding: '14px 16px', marginBottom: 14,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+        }}>
+          <button
+            onClick={() => router.push('/onboarding')}
+            style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', padding: 0 }}
+          >
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 2 }}>🏦 자산 설정을 완성해봐요!</p>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>계좌·카드·고정비를 등록하면 가계부가 완성돼요</p>
+          </button>
+          <button onClick={() => setShowOnboardingBanner(false)} style={{
+            background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 20,
+            width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', color: '#fff', fontSize: 14, flexShrink: 0,
+          }}>✕</button>
+        </div>
+      )}
+
       <h1 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-accent)' }}>자산</h1>
 
       {/* 루틴 배너 */}

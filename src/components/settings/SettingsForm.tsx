@@ -75,7 +75,12 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
   }, [])
   const [deleteConfirmName, setDeleteConfirmName] = useState('')
 
-  function applyTheme(t: Theme) {
+  // profile.theme prop 변경 시 (router.refresh() 후 새 서버 데이터) state 동기화
+  useEffect(() => {
+    if (profile?.theme) setTheme(profile.theme as Theme)
+  }, [profile?.theme])
+
+  async function applyTheme(t: Theme) {
     setTheme(t)
     const colors = THEMES[t]
     const root = document.documentElement
@@ -85,7 +90,14 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
     root.style.setProperty('--color-accent', colors.accent)
     root.style.setProperty('--color-bg', colors.bg)
     document.body.style.background = colors.bg
-    supabase.from('users').upsert({ id: userId, theme: t }).then(() => router.refresh())
+    // HomeCategoryGrid fallback용 localStorage 동기화
+    if (typeof window !== 'undefined') localStorage.setItem('spenlog_theme', t)
+    const { error } = await supabase.from('users').update({ theme: t }).eq('id', userId)
+    if (error) {
+      console.error('테마 저장 실패:', error)
+      return
+    }
+    router.refresh()
   }
 
   async function saveName() {
@@ -121,13 +133,13 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
     setGoogleLinking(true)
     try {
       if (isGuest) {
-        // 게스트 → 구글 연동: 연동 전 현재 유저 ID 저장
-        sessionStorage.setItem('guest_user_id', userId)
-        await supabase.auth.signInWithOAuth({
+        // 게스트(익명) → 구글 identity 연결: linkIdentity로 동일 user ID 유지
+        const { error } = await supabase.auth.linkIdentity({
           provider: 'google',
-          options: { redirectTo: `${window.location.origin}/auth/callback?from=guest_link` },
+          options: { redirectTo: `${window.location.origin}/auth/callback` },
         })
-        // signInWithOAuth는 리다이렉트 → 이 아래는 실행 안 됨
+        if (error) throw error
+        // linkIdentity는 리다이렉트 → 이 아래는 실행 안 됨
       } else {
         // 이메일 유저 → 구글 ID 연동
         const { error } = await supabase.auth.linkIdentity({

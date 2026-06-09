@@ -437,7 +437,16 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
                 <div key={cat} className="bg-white rounded-2xl p-4 border border-gray-100"
                   style={{ opacity: enabledCats[cat] ? 1 : 0.45 }}>
                   <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-gray-700">{cat}</span>
                     <div className="flex items-center gap-2">
+                      <input
+                        type="text" inputMode="numeric"
+                        className="w-28 text-right text-sm font-semibold outline-none text-gray-800 placeholder:text-gray-300"
+                        placeholder="예산 미설정"
+                        value={amounts[cat] ? Number(amounts[cat]).toLocaleString() : ''}
+                        onChange={(e) => handleChange(cat, e.target.value.replace(/,/g, ''))}
+                      />
+                      <span className="text-gray-400 text-sm">원</span>
                       <button
                         onClick={() => setEnabledCats(prev => ({ ...prev, [cat]: !prev[cat] }))}
                         style={{
@@ -452,17 +461,6 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
                           transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
                         }} />
                       </button>
-                      <span className="text-sm font-medium text-gray-700">{cat}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="text" inputMode="numeric"
-                        className="w-32 text-right text-sm font-semibold outline-none text-gray-800 placeholder:text-gray-300"
-                        placeholder="예산 미설정"
-                        value={amounts[cat] ? Number(amounts[cat]).toLocaleString() : ''}
-                        onChange={(e) => handleChange(cat, e.target.value.replace(/,/g, ''))}
-                      />
-                      <span className="text-gray-400 text-sm">원</span>
                     </div>
                   </div>
                   {budget > 0 && (

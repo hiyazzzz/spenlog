@@ -4,6 +4,8 @@ import BudgetForm from '@/components/budget/BudgetForm'
 import BudgetBackButton from '@/components/budget/BudgetBackButton'
 import dayjs from 'dayjs'
 
+const DEFAULT_BUDGET_CATEGORIES = ['생활비', '고정비', '활동비', '친목비', '예비비']
+
 export default async function BudgetPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -31,6 +33,10 @@ export default async function BudgetPage() {
 
   const fixedSavings = fixedCosts?.filter(f => f.kind === '고정저축').reduce((s, f) => s + f.amount, 0) ?? 0
 
+  // 카테고리가 없으면 기본값 사용 (DB seed 실패 방어)
+  const catNames = (categories ?? []).filter(c => !c.is_hidden).map(c => c.name).filter(n => n !== '수입')
+  const customCategories = catNames.length > 0 ? catNames : DEFAULT_BUDGET_CATEGORIES
+
   const recentExpensesWithMonth = (recentExpenses ?? []).map(e => ({
     category: e.category,
     amount: e.amount,
@@ -52,7 +58,7 @@ export default async function BudgetPage() {
         income={profile?.income ?? 0}
         fixedSavings={fixedSavings}
         recentExpenses={recentExpensesWithMonth}
-        customCategories={(categories ?? []).filter(c => !c.is_hidden).map(c => c.name)}
+        customCategories={customCategories}
       />
     </div>
   )

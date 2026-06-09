@@ -262,7 +262,11 @@ export default function OnboardingForm({ userId, email }: Props) {
           </div>
           <p style={{ fontSize: 12, color: '#B8A8AC', textAlign: 'center' as const, marginBottom: 24 }}>✨ 더 많은 테마는 설정에서 만나보세요!</p>
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px' }}>
-            <button onClick={() => setStep('income')} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>다음 →</button>
+            <button onClick={async () => {
+              await supabase.from('users').update({ onboarding_completed: true }).eq('id', userId)
+              if (typeof window !== 'undefined') localStorage.setItem('spenlog_onboarding_completed', 'true')
+              setStep('income')
+            }} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>다음 →</button>
             <button onClick={() => setStep('name')} style={{ background: 'none', border: 'none', color: '#B8A8AC', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>← 이전</button>
           </div>
         </div>
@@ -272,7 +276,12 @@ export default function OnboardingForm({ userId, email }: Props) {
               <p style={{ fontSize: 22, textAlign: 'center', marginBottom: 8 }}>💎</p>
               <p style={{ fontSize: 16, fontWeight: 700, color: '#1f2937', textAlign: 'center', marginBottom: 8 }}>프리미엄 전용 테마예요</p>
               <p style={{ fontSize: 13, color: '#6b7280', textAlign: 'center', lineHeight: 1.6, marginBottom: 24 }}>설정 탭에서 프리미엄으로 업그레이드하면 모든 테마를 자유롭게 사용할 수 있어요</p>
-              <button onClick={() => { setTheme('Burgundy'); setShowPremiumSheet(false); setStep('income') }} style={{ width: '100%', padding: '14px', borderRadius: 14, background: '#f3f4f6', color: '#6b7280', fontSize: 14, fontWeight: 500, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>기본 테마로 계속</button>
+              <button onClick={async () => {
+                setTheme('Burgundy'); setShowPremiumSheet(false)
+                await supabase.from('users').update({ onboarding_completed: true }).eq('id', userId)
+                if (typeof window !== 'undefined') localStorage.setItem('spenlog_onboarding_completed', 'true')
+                setStep('income')
+              }} style={{ width: '100%', padding: '14px', borderRadius: 14, background: '#f3f4f6', color: '#6b7280', fontSize: 14, fontWeight: 500, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>기본 테마로 계속</button>
             </div>
           </div>
         )}
@@ -315,8 +324,16 @@ export default function OnboardingForm({ userId, email }: Props) {
         {goal && <p style={{ fontSize: '12px', color: '#9A7A80', marginTop: '6px' }}>= {parseMan(goal).toLocaleString()}원</p>}
         <p style={{ fontSize: '11px', color: '#C4A0A8', marginTop: '8px' }}>💡 입력하면 홈 화면에서 저축 달성률을 볼 수 있어요</p>
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px', marginTop: '32px' }}>
-          <button onClick={() => { setBudgetLoaded(false); setStep('budget') }} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>다음 →</button>
-          <button onClick={() => { setGoal(''); setBudgetLoaded(false); setStep('budget') }} style={{ background: 'none', border: 'none', color: '#B8A8AC', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>건너뛰기</button>
+          <button onClick={async () => {
+            await supabase.from('users').update({ init_setup_completed: true }).eq('id', userId)
+            if (typeof window !== 'undefined') localStorage.setItem('spenlog_init_setup_completed', 'true')
+            setBudgetLoaded(false); setStep('budget')
+          }} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>다음 →</button>
+          <button onClick={async () => {
+            await supabase.from('users').update({ init_setup_completed: true }).eq('id', userId)
+            if (typeof window !== 'undefined') localStorage.setItem('spenlog_init_setup_completed', 'true')
+            setGoal(''); setBudgetLoaded(false); setStep('budget')
+          }} style={{ background: 'none', border: 'none', color: '#B8A8AC', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>건너뛰기</button>
           <button onClick={() => setStep('income')} style={{ background: 'none', border: 'none', color: '#C4A0A8', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>← 이전</button>
         </div>
       </div>
@@ -403,7 +420,11 @@ export default function OnboardingForm({ userId, email }: Props) {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px' }}>
           <button onClick={() => setStep('cards')} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>다음 →</button>
-          <button onClick={() => setStep('cards')} style={{ background: 'none', border: 'none', color: '#B8A8AC', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>건너뛰기</button>
+          <button onClick={async () => {
+            await supabase.from('users').update({ asset_setup_skipped: true }).eq('id', userId)
+            if (typeof window !== 'undefined') localStorage.setItem('spenlog_asset_setup_skipped', 'true')
+            setStep('cards')
+          }} style={{ background: 'none', border: 'none', color: '#B8A8AC', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>건너뛰기</button>
           <button onClick={() => setStep('budget')} style={{ background: 'none', border: 'none', color: '#C4A0A8', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>← 이전</button>
         </div>
       </div>
