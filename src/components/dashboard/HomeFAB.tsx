@@ -22,14 +22,16 @@ export default function HomeFAB() {
         className="fixed z-40 flex items-center justify-center rounded-full text-white shadow-lg transition-transform active:scale-95"
         style={{
           bottom: 80, right: 20,
-          width: 52, height: 52,
-          background: 'var(--color-primary)',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
-          fontSize: 24, lineHeight: 1,
+          width: 44, height: 44,
+          background: 'var(--color-border)',
+          boxShadow: 'none',
         }}
         aria-label="기록하기"
       >
-        +
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-text)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
       </button>
 
       {open && (
