@@ -12,7 +12,7 @@ Spenlog는 AI 자연어 입력 기반 가계부 PWA 앱이야.
 핀터레스트 감성 대시보드로 소비를 관리하는 서비스야.
 
 - GitHub: https://github.com/hiyazzzz/spenlog
-- 배포 URL: https://spenlog-nr7t.vercel.app
+- 배포 URL: https://spenlog.vercel.app
 - 환경: Windows 로컬 + Vercel 배포
 
 ---
