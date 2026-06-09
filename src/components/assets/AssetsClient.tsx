@@ -450,7 +450,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
           width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           background: '#fff', border: '1px solid #f3f4f6', borderRadius: 16,
           padding: '18px 16px', cursor: 'pointer', fontFamily: 'inherit',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.04)', marginBottom: 10,
         }}>
         <span style={{ fontSize: 14, fontWeight: 700, color: '#1f2937' }}>예산</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

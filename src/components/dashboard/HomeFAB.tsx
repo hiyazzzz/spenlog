@@ -1,10 +1,14 @@
 'use client'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 
 export default function HomeFAB() {
   const [open, setOpen] = useState(false)
   const router = useRouter()
+  const pathname = usePathname()
+
+  // 홈 탭에서만 표시
+  if (pathname !== '/') return null
 
   function goTo(type: 'expense' | 'income') {
     setOpen(false)
@@ -13,21 +17,21 @@ export default function HomeFAB() {
 
   return (
     <>
-      {/* FAB 버튼 */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed z-40 flex items-center justify-center rounded-full text-white text-2xl shadow-lg transition-transform active:scale-95"
+        className="fixed z-40 flex items-center justify-center rounded-full text-white shadow-lg transition-transform active:scale-95"
         style={{
           bottom: 80, right: 20,
-          width: 56, height: 56,
+          width: 52, height: 52,
           background: 'var(--color-primary)',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+          fontSize: 24, lineHeight: 1,
         }}
+        aria-label="기록하기"
       >
         +
       </button>
 
-      {/* 바텀시트 오버레이 */}
       {open && (
         <div className="fixed inset-0 z-50" onClick={() => setOpen(false)}>
           <div className="absolute inset-0 bg-black/40" />

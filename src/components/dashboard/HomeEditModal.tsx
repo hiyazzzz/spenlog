@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/format'
 import { THEME_CARD_PALETTES } from '@/lib/themes'
 
-const DEFAULT_CAT_KEYS = ['생활비', '활동비', '고정비', '친목비']
+const DEFAULT_CAT_KEYS = ['생활비', '고정비', '활동비']
 const CAT_FIELD_IDX = ['category_img_url_1', 'category_img_url_2', 'category_img_url_3', 'category_img_url_4']
 const DEFAULT_PALETTE = THEME_CARD_PALETTES['Burgundy']
 
@@ -189,7 +189,7 @@ export default function HomeEditModal({
           </div>
 
           {/* 홈 화면과 동일한 레이아웃 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '12px 16px 48px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 16px 48px' }}>
 
             {/* 1. 커버 배너 — 편집 가능 */}
             <div style={{
