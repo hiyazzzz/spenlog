@@ -211,23 +211,4 @@ export default function CategoryPage({ userId, initialCategories, spentMap }: Pr
             }}
           />
           <button onClick={addCategory} style={{
-            padding: '12px 16px', borderRadius: 12, border: 'none',
-            background: 'var(--color-primary)', color: '#fff',
-            fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-          }}>추가</button>
-          <button onClick={() => { setAdding(false); setNewName('') }} style={{
-            padding: '12px 14px', borderRadius: 12, border: '1.5px solid #e5e7eb',
-            background: '#fff', color: '#6b7280', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
-          }}>취소</button>
-        </div>
-      ) : (
-        <button onClick={() => setAdding(true)} style={{
-          width: '100%', marginTop: 12, padding: '14px',
-          borderRadius: 14, border: '2px dashed var(--color-primary-light)',
-          background: 'transparent', color: 'var(--color-primary)',
-          fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-        }}>+ 카테고리 추가</button>
-      )}
-    </div>
-  )
-}
+            padding: '12px 16px', borderRadius

@@ -146,39 +146,4 @@ export async function GET(req: Request) {
       const { data: subs } = await supabase.from('push_subscriptions').select('*').eq('user_id', u.id)
       for (const sub of (subs ?? [])) {
         await sendToUser(sub as PushSubscription, {
-          title: `📊 ${prevMonth} 리포트 완성`,
-          body: `지난달 총 지출 ₩${total.toLocaleString('ko-KR')} — 리포트를 확인해보세요`,
-          url: '/report',
-          tag: 'monthly-report',
-        }, supabase)
-        sent++
-      }
-    }
-  } else if (type === 'premium_d7') {
-    // 프리미엄 만료 7일 전 유저에게 알림
-    const d7 = today.add(7, 'day')
-    const d7Start = d7.format('YYYY-MM-DD') + 'T00:00:00'
-    const d7End = d7.format('YYYY-MM-DD') + 'T23:59:59'
-
-    const { data: users } = await supabase.from('users')
-      .select('id, name, push_enabled')
-      .eq('push_enabled', true)
-      .gte('premium_expires_at', d7Start)
-      .lte('premium_expires_at', d7End)
-
-    for (const u of (users ?? [])) {
-      const { data: subs } = await supabase.from('push_subscriptions').select('*').eq('user_id', u.id)
-      for (const sub of (subs ?? [])) {
-        await sendToUser(sub as PushSubscription, {
-          title: '⏰ 프리미엄 만료 D-7',
-          body: `${u.name ?? ''}님의 프리미엄이 7일 후 만료돼요. 지금 갱신하세요!`,
-          url: '/premium',
-          tag: 'premium-d7',
-        }, supabase)
-        sent++
-      }
-    }
-  }
-
-  return NextResponse.json({ ok: true, sent, type })
-}
+          title: `📊 ${pre
