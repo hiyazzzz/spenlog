@@ -208,12 +208,6 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const [cardPaySaving, setCardPaySaving] = useState(false)
   const [cardPaidIds, setCardPaidIds] = useState<Set<string>>(new Set())
   const [cardPayToast, setCardPayToast] = useState('')
-  const [saveSuccess, setSaveSuccess] = useState('')
-
-  function showSuccess(msg: string) {
-    setSaveSuccess(msg)
-    setTimeout(() => setSaveSuccess(''), 2500)
-  }
 
   // 이번 달 카드 납부 완료 목록 초기 로딩 (expenses 테이블 기준)
   useEffect(() => {
@@ -335,14 +329,13 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       balance: balanceVal,
       type: vals.type || '입출금',
     }).select().single()
-    if (error) { showError('계좌 저장 실패: ' + error.message); console.error('[addAccount]', error); return }
+    if (error) { showError('계좌 저장 실패: ' + error.message); return }
     if (data) {
-      // DB에서 balance가 null인 경우(컬럼 미존재 등)에만 로컬값 폴백, 0원은 DB 값 신뢰
-      const savedBalance = data.balance != null ? data.balance : balanceVal
+      // DB에서 balance 컬럼이 없거나 0으로 반환될 경우 로컬 상태는 입력값 우선
+      const savedBalance = (data.balance != null && data.balance !== 0) ? data.balance : balanceVal
       setLocalAccounts(a => [...a, { ...data, balance: savedBalance }])
     }
     setShowAddAccount(false)
-    showSuccess('계좌가 저장됐어요 ✓')
     router.refresh()
   }
 
@@ -361,11 +354,9 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       due_day: parseInt(vals.due_day) || null,
       linked_account_id: linkedId,
     }).select().single()
-    if (error) { showError('카드 저장 실패: ' + error.message); console.error('[addCard]', error); return }
+    if (error) { showError('카드 저장 실패: ' + error.message); return }
     if (data) setLocalCards(c => [...c, data])
     setShowAddCard(false)
-    showSuccess('카드가 저장됐어요 ✓')
-    router.refresh()
   }
 
   async function deleteCard(id: string) {
@@ -389,11 +380,9 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       insertData.linked_target_account_id = raw.includes('|') ? raw.split('|')[0] : raw || null
     }
     const { data, error } = await supabase.from('fixed_costs').insert(insertData).select().single()
-    if (error) { showError('고정비 저장 실패: ' + error.message); console.error('[addFixed]', error); return }
+    if (error) { showError('고정비 저장 실패: ' + error.message); return }
     if (data) setLocalFixed(f => [...f, data])
     setShowAddFixed(null)
-    showSuccess(kind === '고정저축' ? '고정저축이 저장됐어요 ✓' : '고정비가 저장됐어요 ✓')
-    router.refresh()
   }
 
   async function editFixed(id: string, updates: any) {
@@ -579,13 +568,12 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                         user_id: userId, name: '현금', bank: null,
                         balance: balVal, type: '현금',
                       }).select().single().then(({ data, error }) => {
-                        if (error) { showError('현금 저장 실패: ' + error.message); console.error('[addCash]', error); return }
+                        if (error) { showError('현금 저장 실패: ' + error.message); return }
                         if (data) {
-                          const savedBalance = data.balance != null ? data.balance : balVal
+                          const savedBalance = (data.balance != null && data.balance !== 0) ? data.balance : balVal
                           setLocalAccounts(a => [...a, { ...data, balance: savedBalance }])
                         }
                         setShowCashForm(false); setCashBalance('')
-                        showSuccess('현금이 저장됐어요 ✓')
                         router.refresh()
                       })
                     }
@@ -607,13 +595,12 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                     user_id: userId, name: '현금', bank: null,
                     balance: balVal, type: '현금',
                   }).select().single().then(({ data, error }) => {
-                    if (error) { showError('현금 저장 실패: ' + error.message); console.error('[addCash btn]', error); return }
+                    if (error) { showError('현금 저장 실패: ' + error.message); return }
                     if (data) {
-                      const savedBalance = data.balance != null ? data.balance : balVal
+                      const savedBalance = (data.balance != null && data.balance !== 0) ? data.balance : balVal
                       setLocalAccounts(a => [...a, { ...data, balance: savedBalance }])
                     }
                     setShowCashForm(false); setCashBalance('')
-                    showSuccess('현금이 저장됐어요 ✓')
                     router.refresh()
                   })
                 }}
@@ -784,15 +771,6 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       }}>{saveError}</div>
     )}
 
-    {saveSuccess && (
-      <div style={{
-        position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)',
-        background: '#10b981', color: '#fff', padding: '10px 18px',
-        borderRadius: 20, fontSize: 13, zIndex: 9999, whiteSpace: 'nowrap' as const,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-      }}>{saveSuccess}</div>
-    )}
-
     {/* 카드 납부 기록 토스트 */}
     {cardPayToast && (
       <div style={{
@@ -851,4 +829,50 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             {cardPayAmountErr && <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>금액을 입력해주세요</p>}
           </div>
           <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 12, color: '#6b7280', displ
+            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6, fontWeight: 600 }}>납부일</label>
+            <input type="date" value={cardPayDate}
+              onChange={e => setCardPayDate(e.target.value)}
+              style={{
+                width: '100%', padding: '12px', borderRadius: 12,
+                border: '1.5px solid #e5e7eb', fontSize: 14,
+                outline: 'none', fontFamily: 'inherit', background: '#fafafa',
+                boxSizing: 'border-box' as const,
+              }}
+            />
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6, fontWeight: 600 }}>메모 (선택)</label>
+            <input type="text" placeholder="간단히 남겨보세요"
+              value={cardPayMemo} onChange={e => setCardPayMemo(e.target.value)}
+              style={{
+                width: '100%', padding: '12px', borderRadius: 12,
+                border: '1.5px solid #e5e7eb', fontSize: 14,
+                outline: 'none', fontFamily: 'inherit', background: '#fafafa',
+                boxSizing: 'border-box' as const,
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => setCardPaySheet(null)}
+              style={{
+                flex: 1, padding: '14px', borderRadius: 14,
+                background: '#f3f4f6', color: '#374151',
+                border: 'none', fontSize: 14, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>취소</button>
+            <button onClick={saveCardPayment} disabled={cardPaySaving}
+              style={{
+                flex: 1, padding: '14px', borderRadius: 14, border: 'none',
+                background: cardPaySaving ? '#d1d5db' : 'var(--color-primary)', color: '#fff',
+                fontSize: 14, fontWeight: 700,
+                cursor: cardPaySaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+              }}>
+              {cardPaySaving ? '기록 중...' : '기록하기'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </>
+  )
+}
