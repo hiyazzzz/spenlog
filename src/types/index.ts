@@ -1,6 +1,6 @@
 export type Theme = 'Burgundy' | 'Sage' | 'Lavender' | 'Terracotta'
 export type Category = '생활비' | '활동비' | '고정비' | '친목비' | '예비비'
-export type AccountType = '입출금' | '적금' | '투자' | '기타'
+export type AccountType = '입출금' | '파킹' | 'CMA' | '현금' | '적금' | '투자' | '기타'
 export type FixedCostType = '월정액' | '연정액' | '기타'
 export type FixedCostKind = '고정지출' | '고정저축'
 export type ExpenseType = 'expense' | 'income'
@@ -33,7 +33,7 @@ export interface Budget {
   user_id: string
   category: Category
   amount: number
-  month: string // 'YYYY-MM'
+  month: string
 }
 
 export interface FixedCost {
@@ -44,6 +44,8 @@ export interface FixedCost {
   type: FixedCostType
   kind: FixedCostKind
   due_day: number | null
+  linked_account_id: string | null
+  linked_target_account_id: string | null
 }
 
 export interface Account {
@@ -60,7 +62,7 @@ export interface Card {
   user_id: string
   name: string
   bank: string
-  linked_account: string | null
+  linked_account_id: string | null
   due_day: number | null
   limit_amount: number | null
 }
