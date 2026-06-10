@@ -123,4 +123,6 @@ export default function LoginPage() {
           <p style={{ fontSize: 13, color: '#ef4444', textAlign: 'center', marginTop: 4 }}>{error}</p>
         )}
       </div>
-    </d
+    </div>
+  )
+}
