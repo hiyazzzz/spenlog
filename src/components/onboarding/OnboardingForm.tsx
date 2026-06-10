@@ -556,4 +556,20 @@ export default function OnboardingForm({ userId, email }: Props) {
         <p style={{ fontSize: 11, color: '#C4A0A8', marginBottom: 20 }}>💡 수입 카테고리는 수입 기록 시 사용돼요</p>
         {error && <p style={{ fontSize: '13px', color: '#E05070', marginBottom: '8px' }}>{error}</p>}
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px', marginTop: '8px' }}>
-          <button onClick={handleFinish} disabled={saving} style={{ width: '100%', padding: '16px', borderRadius: '16px'
+          <button onClick={handleFinish} disabled={saving} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: saving ? '#C4A0A8' : primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>{saving ? '저장 중...' : '시작하기 🎉'}</button>
+          <button onClick={() => setStep('fixedcosts')} style={{ background: 'none', border: 'none', color: '#C4A0A8', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>← 이전</button>
+        </div>
+      </div>
+    )
+  }
+
+  const finalName = name.trim() || suggestedName
+  return (
+    <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', minHeight: '60vh', textAlign: 'center' as const }}>
+      <div style={{ fontSize: '64px', marginBottom: '24px' }}>🌿</div>
+      <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '12px' }}>{finalName}님,</h1>
+      <p style={{ fontSize: '18px', fontWeight: '600', color: primary, marginBottom: '8px' }}>Spenlog가 준비돼어요!</p>
+      <p style={{ fontSize: '15px', color: '#B8A8AC', lineHeight: 1.6 }}>오늘부터 소비를 기록해봐요.</p>
+    </div>
+  )
+}

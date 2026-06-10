@@ -1,9 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/push/send?type=daily",
-      "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/push/send?type=due_date_unprocessed",
-      "schedule": "0 11 * * 
+{}

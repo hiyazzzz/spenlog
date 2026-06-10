@@ -50,4 +50,16 @@ export default async function BudgetPage() {
         <h1 className="text-lg font-semibold mb-1 mt-1" style={{ color: 'var(--color-accent)' }}>예산 설정</h1>
         <p className="text-xs text-gray-400">{dayjs().format('YYYY년 M월')} 카테고리별 목표 예산</p>
       </div>
-      <BudgetFo
+      <BudgetForm
+        userId={user.id}
+        initialBudgets={budgets || []}
+        expenses={expenses || []}
+        thisMonth={thisMonth}
+        income={profile?.income ?? 0}
+        fixedSavings={fixedSavings}
+        recentExpenses={recentExpensesWithMonth}
+        customCategories={customCategories}
+      />
+    </div>
+  )
+}

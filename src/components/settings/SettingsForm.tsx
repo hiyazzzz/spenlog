@@ -701,4 +701,17 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
               <button
                 onClick={handleDeleteAccount}
                 disabled={deleteConfirmName !== profile?.name}
-                style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'no
+                style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: deleteConfirmName === profile?.name ? '#ef4444' : '#f3f4f6', color: deleteConfirmName === profile?.name ? '#fff' : '#9ca3af', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                탈퇴하기
+              </button>
+              <button onClick={() => { setConfirmDelete(false); setDeleteConfirmName('') }}
+                style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                취소
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

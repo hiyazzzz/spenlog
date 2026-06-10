@@ -45,4 +45,9 @@ export default async function CategoryRoute() {
 
   return (
     <CategoryPage
-   
+      userId={user.id}
+      initialCategories={cats}
+      spentMap={spentMap}
+    />
+  )
+}

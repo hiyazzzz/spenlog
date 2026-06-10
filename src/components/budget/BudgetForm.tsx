@@ -490,4 +490,27 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: 10, color: over ? '#ef4444' : '#9ca3af', fontWeight: over ? 600 : 400 }}>
-                 
+                          {spent > 0 ? `지출 ${spent.toLocaleString()}원` : '지출 없음'}
+                        </span>
+                        <span style={{ fontSize: 10, color: '#9ca3af' }}>{pct}%{over ? ' 초과!' : ''}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          <button onClick={handleSave} disabled={loading} style={{
+            width: '100%', padding: '14px', borderRadius: '16px',
+            background: savedOk ? '#2E7D52' : 'var(--color-primary)',
+            color: '#fff', fontSize: '14px', fontWeight: '600', border: 'none',
+            cursor: loading ? 'not-allowed' : 'pointer', transition: 'background 0.3s', fontFamily: 'inherit',
+          }}>
+            {loading ? '저장 중...' : savedOk ? '✓ 저장됨' : '예산 저장하기'}
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
