@@ -67,7 +67,7 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
     report: profile?.push_report ?? true,
     reminder: profile?.push_expense_reminder ?? true,
   })
-  const isPremium = profile?.premium_status === 'active'
+  const isPremium = isPremiumUnlocked(profile)
   const [loggingOut, setLoggingOut] = useState(false)
   const [guestLogoutConfirm, setGuestLogoutConfirm] = useState(false)
   const [googleLinking, setGoogleLinking] = useState(false)
@@ -76,6 +76,8 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
   const [csvLoading, setCsvLoading] = useState(false)
   const [csvPeriod, setCsvPeriod] = useState<'this_month' | 'last_3months' | 'all'>('this_month')
   const [showGuide, setShowGuide] = useState(false)
+  const [themeOpen, setThemeOpen] = useState(false)
+  const [notiOpen, setNotiOpen] = useState(false)
 
   useEffect(() => {
     isSubscribed().then(setPushSubscribed)
@@ -133,22 +135,16 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
   async function handleGoogleLink() {
     setGoogleLinking(true)
     try {
-      if (isGuest) {
-        // 게스트(익명) → 구글 identity 연결: linkIdentity로 동일 user ID 유지
-        const { error } = await supabase.auth.linkIdentity({
-          provider: 'google',
-          options: { redirectTo: `${window.location.origin}/auth/callback` },
-        })
-        if (error) throw error
-        // linkIdentity는 리다이렉트 → 이 아래는 실행 안 됨
-      } else {
-        // 이메일 유저 → 구글 ID 연동
-        const { error } = await supabase.auth.linkIdentity({
-          provider: 'google',
-          options: { redirectTo: `${window.location.origin}/auth/callback` },
-        })
-        if (error) throw error
-      }
+      // prompt: 'select_account' → Chrome 기억 계정 자동 선택 방지, 항상 계정 선택 화면 표시
+      const { error } = await supabase.auth.linkIdentity({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: { prompt: 'select_account' },
+        },
+      })
+      if (error) throw error
+      // linkIdentity는 리다이렉트 → 이 아래는 실행 안 됨
     } catch (e: any) {
       alert('연동 중 오류가 발생했어요: ' + (e?.message ?? '알 수 없는 오류'))
       setGoogleLinking(false)
@@ -397,72 +393,103 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
         </button>
       </div>
 
-      {/* 테마 섹션 */}
+      {/* 테마 섹션 — 아코디언 */}
       <div style={card}>
-        <p style={sectionHeader}>🎨 테마</p>
-        <div style={{ padding: '0 16px 16px' }}>
-          <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 10, fontWeight: 600 }}>기본</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
-            {BASIC_THEMES.map(key => {
-              const t = THEMES[key]
-              const selected = theme === key
-              return (
-                <button key={key} onClick={() => applyTheme(key)} style={{
-                  padding: '12px', borderRadius: 14,
-                  border: selected ? '2.5px solid ' + t.primary : '2px solid transparent',
-                  background: selected ? t.primaryLight : '#f9fafb',
-                  cursor: 'pointer', fontFamily: 'inherit',
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  transition: 'all 0.15s',
-                }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 8, background: t.primary, flexShrink: 0 }} />
-                  <div style={{ textAlign: 'left' as const }}>
-                    <p style={{ fontSize: 12, fontWeight: 700, color: t.primary }}>{t.name}</p>
-                    {selected && <p style={{ fontSize: 10, color: t.primaryMid }}>적용 중 ✓</p>}
-                  </div>
-                </button>
-              )
-            })}
+        <button onClick={() => setThemeOpen(o => !o)} style={{
+          width: '100%', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '14px 16px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#9ca3af', letterSpacing: '0.05em' }}>🎨 테마</span>
+            {!themeOpen && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 14, height: 14, borderRadius: 4, background: THEMES[theme]?.primary ?? '#6b7280', flexShrink: 0 }} />
+                <span style={{ fontSize: 12, color: '#6b7280' }}>{THEMES[theme]?.name ?? theme}</span>
+              </div>
+            )}
           </div>
-          <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 10, fontWeight: 600 }}>프리미엄 ✨</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {PREMIUM_THEMES.map(t => {
-              const isAvailable = t.key in THEMES  // Lavender, Terracotta만 THEMES에 있음
-              const isSelected = theme === t.key
-              const handleClick = () => {
-                if (!isPremium) { router.push('/premium'); return }
-                if (isAvailable) applyTheme(t.key as Theme)
-              }
-              return (
-                <button key={t.key} onClick={handleClick} style={{
-                  padding: '12px', borderRadius: 14,
-                  border: isSelected ? '2.5px solid ' + t.color : '2px solid transparent',
-                  background: isSelected ? (THEMES[t.key as Theme]?.primaryLight ?? '#f9fafb') : '#f9fafb',
-                  cursor: isPremium && isAvailable ? 'pointer' : 'pointer',
-                  fontFamily: 'inherit',
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  opacity: (!isPremium || !isAvailable) ? 0.6 : 1,
-                  transition: 'all 0.15s',
-                }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 8, background: t.color, flexShrink: 0, position: 'relative' as const }}>
-                    {!isPremium && <span style={{ position: 'absolute' as const, top: -4, right: -4, fontSize: 12 }}>🔒</span>}
-                    {isPremium && !isAvailable && <span style={{ position: 'absolute' as const, top: -4, right: -4, fontSize: 10, background: '#e5e7eb', borderRadius: 4, padding: '1px 3px', color: '#6b7280' }}>준비중</span>}
-                  </div>
-                  <div style={{ textAlign: 'left' as const }}>
-                    <p style={{ fontSize: 12, fontWeight: 700, color: isSelected ? t.color : '#6b7280' }}>{t.label}</p>
-                    {isSelected && isPremium && <p style={{ fontSize: 10, color: t.color }}>적용 중 ✓</p>}
-                  </div>
-                </button>
-              )
-            })}
+          <span style={{ fontSize: 12, color: '#9ca3af', transform: themeOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+        </button>
+        {themeOpen && (
+          <div style={{ padding: '0 16px 16px', borderTop: '1px solid #f9fafb' }}>
+            <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 10, fontWeight: 600, paddingTop: 12 }}>기본</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+              {BASIC_THEMES.map(key => {
+                const t = THEMES[key]
+                const selected = theme === key
+                return (
+                  <button key={key} onClick={() => applyTheme(key)} style={{
+                    padding: '12px', borderRadius: 14,
+                    border: selected ? '2.5px solid ' + t.primary : '2px solid transparent',
+                    background: selected ? t.primaryLight : '#f9fafb',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    transition: 'all 0.15s',
+                  }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: t.primary, flexShrink: 0 }} />
+                    <div style={{ textAlign: 'left' as const }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: t.primary }}>{t.name}</p>
+                      {selected && <p style={{ fontSize: 10, color: t.primaryMid }}>적용 중 ✓</p>}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+            <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 10, fontWeight: 600 }}>프리미엄 ✨</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {PREMIUM_THEMES.map(t => {
+                const isAvailable = t.key in THEMES
+                const isSelected = theme === t.key
+                const handleClick = () => {
+                  if (!isPremium) { router.push('/premium'); return }
+                  if (isAvailable) applyTheme(t.key as Theme)
+                }
+                return (
+                  <button key={t.key} onClick={handleClick} style={{
+                    padding: '12px', borderRadius: 14,
+                    border: isSelected ? '2.5px solid ' + t.color : '2px solid transparent',
+                    background: isSelected ? (THEMES[t.key as Theme]?.primaryLight ?? '#f9fafb') : '#f9fafb',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    opacity: (!isPremium || !isAvailable) ? 0.6 : 1,
+                    transition: 'all 0.15s',
+                  }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: t.color, flexShrink: 0, position: 'relative' as const }}>
+                      {!isPremium && <span style={{ position: 'absolute' as const, top: -4, right: -4, fontSize: 12 }}>🔒</span>}
+                      {isPremium && !isAvailable && <span style={{ position: 'absolute' as const, top: -4, right: -4, fontSize: 10, background: '#e5e7eb', borderRadius: 4, padding: '1px 3px', color: '#6b7280' }}>준비중</span>}
+                    </div>
+                    <div style={{ textAlign: 'left' as const }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: isSelected ? t.color : '#6b7280' }}>{t.label}</p>
+                      {isSelected && isPremium && <p style={{ fontSize: 10, color: t.color }}>적용 중 ✓</p>}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* 알림 섹션 */}
+      {/* 알림 섹션 — 아코디언 */}
       <div style={card}>
-        <p style={sectionHeader}>🔔 알림</p>
-
+        <button onClick={() => setNotiOpen(o => !o)} style={{
+          width: '100%', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '14px 16px',
+          borderBottom: notiOpen ? '1px solid #f9fafb' : 'none',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#9ca3af', letterSpacing: '0.05em' }}>🔔 알림</span>
+            {!notiOpen && (
+              <span style={{ fontSize: 12, color: notifications.all ? '#10b981' : '#9ca3af' }}>
+                {notifications.all ? '켜짐' : '꺼짐'}
+              </span>
+            )}
+          </div>
+          <span style={{ fontSize: 12, color: '#9ca3af', transform: notiOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+        </button>
+        {notiOpen && <>
         {/* 전체 알림 토글 */}
         <div style={{ ...rowStyle, borderBottom: '1px solid #f9fafb' }}>
           <div>
@@ -562,6 +589,7 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
             }}
           />
         </div>
+        </>}
       </div>
 
       {/* 디스플레이 섹션 (프리미엄 전용) */}

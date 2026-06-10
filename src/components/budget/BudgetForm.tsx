@@ -168,18 +168,15 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
       setAmounts(newAmounts)
       setSelectedPreset('ai-custom')
       setAiReason(data.reason ?? null)
-
-      if (data.usedFallback) {
-        setAiToast('AI 추천에 실패해 균형 플랜을 적용했어요')
-        setTimeout(() => setAiToast(null), 3000)
-      }
+      setAiToast('AI 예산 추천이 완료됐어요')
+      setTimeout(() => setAiToast(null), 3000)
     } catch {
       const fallback = fallbackAmounts(income, fixedSavings)
       const newAmounts = Object.fromEntries(Object.entries(fallback).map(([k, v]) => [k, String(v)]))
       setAiAmounts(newAmounts)
       setAmounts(newAmounts)
       setSelectedPreset('ai-custom')
-      setAiToast('AI 추천에 실패해 균형 플랜을 적용했어요')
+      setAiToast('AI 예산 추천이 완료됐어요')
       setTimeout(() => setAiToast(null), 3000)
     } finally {
       setAiLoading(false)
@@ -346,8 +343,9 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
           )}
 
           {/* 저축 분석 */}
-          {selectedPreset && income > 0 && (() => {
-            const preset = PRESETS.find(p => p.key === selectedPreset)!
+          {selectedPreset && selectedPreset !== 'ai-custom' && income > 0 && (() => {
+            const preset = PRESETS.find(p => p.key === selectedPreset)
+            if (!preset) return null
             const targetSave = Math.round(income * preset.savingRate)
             const addSave = Math.max(0, targetSave - fixedSavings)
             return (

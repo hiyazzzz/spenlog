@@ -12,7 +12,7 @@ interface Category { name: string; color?: string | null }
 interface Props {
   expenses: Expense[]
   budgets: Budget[]
-  categoryImages?: Record<string, string | null>
+  categoryImages?: (string | null | undefined)[]  // 슬롯(위치) 기반 배열 — 카테고리명이 아닌 인덱스로 접근
   userCategories?: Category[]
   theme?: string | null
 }
@@ -56,7 +56,7 @@ export default function HomeCategoryGrid({ expenses, budgets, categoryImages, us
           const budget = budgets?.find(b => b.category === cat)?.amount ?? 0
           const pct = budget > 0 ? Math.min(Math.round((spent / budget) * 100), 100) : 0
           const over = budget > 0 && spent > budget
-          const imgUrl = categoryImages?.[cat]
+          const imgUrl = categoryImages?.[idx] ?? null  // 슬롯 인덱스로 접근
           const barColor = over ? '#ef4444' : pct >= 70 ? '#f59e0b' : 'var(--color-primary)'
           const cardBgColor = palette[idx] ?? palette[0]
 

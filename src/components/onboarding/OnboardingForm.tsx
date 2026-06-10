@@ -179,7 +179,7 @@ export default function OnboardingForm({ userId, email }: Props) {
     try {
       const finalName = name.trim() || suggestedName
       const month = dayjs().format('YYYY-MM')
-      const { error: uErr } = await supabase.from('users').upsert({ id: userId, email, name: finalName, income: parseMan(income), saving_goal: parseMan(goal), theme, onboarding_completed: true })
+      const { error: uErr } = await supabase.from('users').update({ name: finalName, income: parseMan(income), saving_goal: parseMan(goal), theme, onboarding_completed: true }).eq('id', userId)
       if (uErr) throw uErr
       if (typeof window !== 'undefined') localStorage.setItem('spenlog_theme', theme)
       if (Object.keys(budgets).length > 0) {

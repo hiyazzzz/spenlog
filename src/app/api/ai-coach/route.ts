@@ -22,11 +22,11 @@ async function generateCoach(input: CoachInput): Promise<{ step1: string; step2:
   const prompt = `당신은 친근한 한국어 가계부 AI 코치예요. 아래 데이터를 바탕으로 3단계 코칭 메시지를 JSON으로 작성해주세요.
 
 데이터:
-- 이번 달(${input.yearMonth}): ₩${input.totalSpent.toLocaleString()} 지출
+- 이번 달(${input.yearMonth}): ${input.totalSpent.toLocaleString()}원 지출
 - 전월 대비: ${diff !== null ? (diff > 0 ? `▲${diff}% 증가` : `▼${Math.abs(diff)}% 감소`) : '데이터 없음'}
-- 가장 많이 증가한 카테고리: ${topIncrease ? `${topIncrease.cat} (₩${topIncrease.prevAmount.toLocaleString()} → ₩${topIncrease.amount.toLocaleString()})` : '없음'}
-- 저축 목표: ${input.savingGoal > 0 ? `₩${input.savingGoal.toLocaleString()}` : '미설정'}
-- 실제 저축: ${input.savingGoal > 0 ? `₩${input.savedAmount.toLocaleString()} (${Math.round((input.savedAmount / input.savingGoal) * 100)}%)` : '미설정'}
+- 가장 많이 증가한 카테고리: ${topIncrease ? `${topIncrease.cat} (${topIncrease.prevAmount.toLocaleString()}원 → ${topIncrease.amount.toLocaleString()}원)` : '없음'}
+- 저축 목표: ${input.savingGoal > 0 ? `${input.savingGoal.toLocaleString()}원` : '미설정'}
+- 실제 저축: ${input.savingGoal > 0 ? `${input.savedAmount.toLocaleString()}원 (${Math.round((input.savedAmount / input.savingGoal) * 100)}%)` : '미설정'}
 
 JSON만 출력. 설명 금지.
 형식:

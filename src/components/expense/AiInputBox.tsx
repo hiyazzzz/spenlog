@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAiInputStore } from '@/store/useAiInputStore'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -36,6 +36,13 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
   const router = useRouter()
   const supabase = createClient()
   const { setPrefill } = useAiInputStore()
+  const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([])
+  const [cards, setCards] = useState<{ name: string }[]>([])
+
+  useEffect(() => {
+    supabase.from('accounts').select('id, name').then(({ data }) => { if (data) setAccounts(data) })
+    supabase.from('cards').select('name').then(({ data }) => { if (data) setCards(data) })
+  }, [])
 
   async function handleSubmit() {
     if (!text.trim()) return
@@ -178,7 +185,6 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
               <div style={{ background: '#f9fafb', borderRadius: 12, padding: '12px 14px' }}>
                 <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>금액 *</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-primary)' }}>₩</span>
                   <input
                     type="text" inputMode="numeric" autoFocus
                     placeholder="0"
@@ -349,34 +355,59 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
                   <input type="text" inputMode="numeric" value={preview.amount}
                     onChange={e => updatePreview(idx, 'amount', Number(e.target.value.replace(/[^0-9]/g, '')))}
                     className="w-full text-sm px-3 py-2 rounded-xl bg-white border border-gray-200 outline-none" />
-                  {preview.type === 'expense' && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {cats.map(cat => (
-                        <button key={cat} onClick={() => updatePreview(idx, 'category', cat)}
-                          className="text-xs px-3 py-1.5 rounded-full border transition-all"
-                          style={{
-                            background: preview.category === cat ? 'var(--color-primary)' : 'white',
-                            color: preview.category === cat ? 'white' : '#888',
-                            borderColor: preview.category === cat ? 'var(--color-primary)' : '#e5e7eb',
-                          }}>
-                          {cat}
-                        </button>
-                      ))}
+                  {preview.type === 'expense' ? (
+                    <div>
+                      <p className="text-xs font-semibold mb-1.5" style={{ color: '#6366f1' }}>카테고리</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {cats.filter(c => c !== '수입').map(cat => (
+                          <button key={cat} onClick={() => updatePreview(idx, 'category', cat)}
+                            className="text-xs px-3 py-1.5 rounded-full border transition-all"
+                            style={{
+                              background: preview.category === cat ? '#6366f1' : '#eef2ff',
+                              color: preview.category === cat ? 'white' : '#6366f1',
+                              borderColor: preview.category === cat ? '#6366f1' : '#e0e7ff',
+                            }}>
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-xs font-semibold mb-1.5" style={{ color: '#059669' }}>수입 경로</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[...accounts.map(a => a.name), '현금', '계좌이체'].map(method => (
+                          <button key={method} onClick={() => updatePreview(idx, 'payment_method', method)}
+                            className="text-xs px-3 py-1.5 rounded-full border transition-all"
+                            style={{
+                              background: preview.payment_method === method ? '#059669' : '#f0fdf4',
+                              color: preview.payment_method === method ? 'white' : '#059669',
+                              borderColor: preview.payment_method === method ? '#059669' : '#bbf7d0',
+                            }}>
+                            {method}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
-                  <div className="flex flex-wrap gap-1.5">
-                    {PAYMENT_METHODS.slice(0, 5).map(method => (
-                      <button key={method} onClick={() => updatePreview(idx, 'payment_method', method)}
-                        className="text-xs px-3 py-1.5 rounded-full border transition-all"
-                        style={{
-                          background: preview.payment_method === method ? 'var(--color-primary)' : 'white',
-                          color: preview.payment_method === method ? 'white' : '#888',
-                          borderColor: preview.payment_method === method ? 'var(--color-primary)' : '#e5e7eb',
-                        }}>
-                        {method}
-                      </button>
-                    ))}
-                  </div>
+                  {preview.type === 'expense' && (
+                    <div>
+                      <p className="text-xs font-semibold mb-1.5" style={{ color: '#059669' }}>지출수단</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[...accounts.map(a => a.name), ...cards.map(c => c.name), '현금', '카카오페이', '네이버페이'].map(method => (
+                          <button key={method} onClick={() => updatePreview(idx, 'payment_method', method)}
+                            className="text-xs px-3 py-1.5 rounded-full border transition-all"
+                            style={{
+                              background: preview.payment_method === method ? '#059669' : '#f0fdf4',
+                              color: preview.payment_method === method ? 'white' : '#059669',
+                              borderColor: preview.payment_method === method ? '#059669' : '#bbf7d0',
+                            }}>
+                            {method}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <input type="date" value={preview.date}
                     onChange={e => updatePreview(idx, 'date', e.target.value)}
                     className="w-full text-sm px-3 py-2 rounded-xl bg-white border border-gray-200 outline-none" />

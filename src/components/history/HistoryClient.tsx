@@ -385,7 +385,7 @@ function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, to
             <span className="text-sm font-bold text-gray-700">{dayjs(selectedDate).format('M월 D일 (ddd)')}</span>
             <span className="text-sm font-bold text-rose-400">
               {selectedItems.filter(e => e.type !== 'income').length > 0
-                ? `-₩${selectedItems.filter(e => e.type !== 'income').reduce((s, e) => s + e.amount, 0).toLocaleString()}`
+                ? `-${selectedItems.filter(e => e.type !== 'income').reduce((s, e) => s + e.amount, 0).toLocaleString()}원`
                 : ''}
             </span>
           </div>

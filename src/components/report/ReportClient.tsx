@@ -132,8 +132,8 @@ export default function ReportClient({
               : spendingDiff !== null && spendingDiff < 0
                 ? '이번 달 잘 아꼈어요 🌿'
                 : savingGoal > 0
-                  ? `목표까지 ₩${(savingGoal - savedAmount).toLocaleString()}`
-                  : `₩${totalSpent.toLocaleString()} 지출`}
+                  ? `목표까지 ${(savingGoal - savedAmount).toLocaleString()}원`
+                  : `${totalSpent.toLocaleString()}원 지출`}
           </p>
           <div className="flex gap-5 text-sm flex-wrap">
             <div>

@@ -8,6 +8,7 @@ import HomeCategoryGrid from '@/components/dashboard/HomeCategoryGrid'
 import RecentExpenses from '@/components/dashboard/RecentExpenses'
 import HomeEditModal from '@/components/dashboard/HomeEditModal'
 import { formatCurrency } from '@/lib/format'
+import { isPremiumUnlocked } from '@/lib/premium'
 
 export default async function DashboardHomePage() {
   const supabase = await createClient()
@@ -32,10 +33,13 @@ export default async function DashboardHomePage() {
   const fixedSavingsTotal = (fixedCosts ?? []).filter((f: any) => f.kind === '고정저축').reduce((s: number, f: any) => s + f.amount, 0)
   const actualSaving = fixedSavingsTotal + Math.max(0, income - totalSpent - fixedSavingsTotal)
   const displayName = profile?.name || '소비요정'
-  const isPremium = profile?.premium_status === 'active'
+  const isPremium = isPremiumUnlocked(profile)
   const coverUrl = profile?.home_cover_url ?? null
   const imgFields = [profile?.category_img_url_1, profile?.category_img_url_2, profile?.category_img_url_3, profile?.category_img_url_4]
   const topCats = (userCategories ?? []).slice(0, 4)
+  // HomeCategoryGrid 용 — 슬롯(위치) 기반 배열. 카테고리가 바뀌어도 슬롯 이미지는 유지됨
+  const categoryImageSlots: (string | null)[] = imgFields.slice(0, 4).map(u => u ?? null)
+  // HomeEditModal 용 — 편집 UI에서 이름 키 필요
   const categoryUrls: Record<string, string | null> = {}
   topCats.forEach((cat, i) => { categoryUrls[cat.name] = imgFields[i] ?? null })
 
@@ -61,17 +65,24 @@ export default async function DashboardHomePage() {
             style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
         )}
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)' }} />
-        <div style={{ position: 'absolute', bottom: 20, left: 20 }}>
+        {/* 인사말 — 상단 좌측 */}
+        <div style={{ position: 'absolute', top: 18, left: 18 }}>
           <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginBottom: 4 }}>안녕하세요 👋</p>
           <p style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>{displayName}님</p>
         </div>
-        <div style={{ position: 'absolute', bottom: 20, right: 20, textAlign: 'right' }}>
-          <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11 }}>이번 달 지출</p>
-          <p style={{ color: '#fff', fontSize: 16, fontWeight: 800 }}>{formatCurrency(totalSpent)}</p>
+        {/* 스탯 — 하단 풀워스 바 */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.38)', padding: '10px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 10, margin: 0 }}>이번 달 지출</p>
+            <p style={{ color: '#fff', fontSize: 15, fontWeight: 800, margin: 0 }}>{formatCurrency(totalSpent)}</p>
+          </div>
           {savingGoal > 0 && (
             <>
-              <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 4 }}>저축 달성</p>
-              <p style={{ color: '#a7f3d0', fontSize: 14, fontWeight: 700 }}>{formatCurrency(actualSaving)} / {formatCurrency(savingGoal)}</p>
+              <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,0.2)' }} />
+              <div style={{ textAlign: 'right' as const }}>
+                <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 10, margin: 0 }}>저축 달성</p>
+                <p style={{ color: '#a7f3d0', fontSize: 13, fontWeight: 700, margin: 0 }}>{formatCurrency(actualSaving)} / {formatCurrency(savingGoal)}</p>
+              </div>
             </>
           )}
         </div>
@@ -88,10 +99,14 @@ export default async function DashboardHomePage() {
           theme={profile?.theme ?? null}
           recentExpenses={recentExpenses.map(e => ({
             id: e.id,
-            memo: e.memo ?? '',
+            name: (e as any).name ?? e.memo ?? '',
             amount: e.amount,
             category: e.category ?? '',
+            date: e.date ?? '',
+            payment_method: (e as any).payment_method ?? null,
           }))}
+          expenses={(allExpenses ?? []).map(e => ({ category: e.category ?? '', amount: e.amount, type: e.type ?? 'expense' }))}
+          budgets={(budgets ?? []).map(b => ({ category: b.category, amount: b.amount }))}
         />
       </div>
 
@@ -116,7 +131,7 @@ export default async function DashboardHomePage() {
 
       {/* 카테고리 2x2 그리드 */}
       <div style={card}>
-        <HomeCategoryGrid expenses={allExpenses} budgets={budgets ?? []} categoryImages={categoryUrls} userCategories={userCategories ?? []} theme={profile?.theme ?? null} />
+        <HomeCategoryGrid expenses={allExpenses} budgets={budgets ?? []} categoryImages={categoryImageSlots} userCategories={userCategories ?? []} theme={profile?.theme ?? null} />
       </div>
 
       {/* 최근 지출 내역 */}

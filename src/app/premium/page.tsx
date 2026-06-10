@@ -15,8 +15,8 @@ export default function PremiumPage() {
   const [plan, setPlan] = useState<'monthly' | 'yearly'>('yearly')
   const router = useRouter()
 
-  const price = plan === 'monthly' ? '₩5,900/월' : '₩44,900/년'
-  const subtitle = plan === 'yearly' ? '월 ₩3,742 — 37% 할인' : ''
+  const price = plan === 'monthly' ? '5,900원/월' : '44,900원/년'
+  const subtitle = plan === 'yearly' ? '월 3,742원 — 37% 할인' : ''
 
   return (
     <div style={{ minHeight: '100vh', background: '#FAF7F4', maxWidth: 420, margin: '0 auto' }}>

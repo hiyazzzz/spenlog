@@ -135,7 +135,6 @@ export default function AddExpenseForm({ prefill, userCategories }: Props) {
       <div className="bg-white rounded-2xl p-4 border border-gray-100">
         <label className="text-xs text-gray-400 mb-1 block">금액 *</label>
         <div className="flex items-center">
-          <span className="font-semibold mr-1 text-lg" style={{ color: 'var(--color-primary)' }}>₩</span>
           <input className="w-full text-lg font-bold outline-none text-gray-800"
             placeholder="0" inputMode="numeric" value={form.amount}
             onChange={e => update('amount', formatAmount(e.target.value))} autoFocus />

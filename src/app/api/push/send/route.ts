@@ -147,7 +147,7 @@ export async function GET(req: Request) {
       for (const sub of (subs ?? [])) {
         await sendToUser(sub as PushSubscription, {
           title: `📊 ${prevMonth} 리포트 완성`,
-          body: `지난달 총 지출 ₩${total.toLocaleString('ko-KR')} — 리포트를 확인해보세요`,
+          body: `지난달 총 지출 ${total.toLocaleString('ko-KR')}원 — 리포트를 확인해보세요`,
           url: '/report',
           tag: 'monthly-report',
         }, supabase)

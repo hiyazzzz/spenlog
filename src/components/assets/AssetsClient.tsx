@@ -305,8 +305,15 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
     router.refresh()
   }
 
+  const [incomeError, setIncomeError] = useState('')
+
   async function saveIncome() {
-    await supabase.from('users').update({ income: parse(income), saving_goal: parse(savingGoal) }).eq('id', userId)
+    setIncomeError('')
+    const { error } = await supabase.from('users').update({ income: parse(income), saving_goal: parse(savingGoal) }).eq('id', userId)
+    if (error) {
+      setIncomeError('저장 실패: ' + error.message)
+      return
+    }
     setEditingIncome(false)
     router.refresh()
   }
@@ -455,21 +462,22 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             <div style={{ marginBottom: 10 }}>
               <label style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 4 }}>월 수입 (세후)</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-primary)' }}>₩</span>
                 <input type="text" inputMode="numeric" value={income}
                   onChange={e => setIncome(fmt(e.target.value))}
                   style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fafafa', fontSize: 14, outline: 'none', fontFamily: 'inherit' }} />
+                <span style={{ fontSize: 14, color: '#6b7280' }}>원</span>
               </div>
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 4 }}>저축 목표 (선택)</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-primary)' }}>₩</span>
                 <input type="text" inputMode="numeric" value={savingGoal}
                   onChange={e => setSavingGoal(fmt(e.target.value))}
                   style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fafafa', fontSize: 14, outline: 'none', fontFamily: 'inherit' }} />
+                <span style={{ fontSize: 14, color: '#6b7280' }}>원</span>
               </div>
             </div>
+            {incomeError && <p style={{ fontSize: 12, color: '#ef4444', marginBottom: 8 }}>{incomeError}</p>}
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={saveIncome} style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: 'var(--color-primary)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>저장</button>
               <button onClick={() => setEditingIncome(false)} style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
@@ -758,7 +766,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
           <div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6, fontWeight: 600 }}>납부 금액 *</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 15, color: '#374151', fontWeight: 700 }}>₩</span>
+              <span style={{ fontSize: 14, color: '#6b7280' }}>납부금액</span>
               <input
                 type="text" inputMode="numeric" placeholder="0"
                 value={cardPayAmount}
