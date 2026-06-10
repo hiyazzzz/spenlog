@@ -20,8 +20,8 @@ interface Props {
   expenses?: Expense[]
 }
 
-function fmt(v: string) { const n = v.replace(/[^0-9]/g, ''); return n ? Number(n).toLocaleString('ko-KR') : '' }
-function parse(v: string) { return Math.floor(Number(v.replace(/[^0-9]/g, ''))) || 0 }
+function fmt(v: string) { const n = v.replace(/[^0-9]/g, ''); return n ? Number(n).toLocaleString() : '' }
+function parse(v: string) { return parseInt(v.replace(/,/g, '')) || 0 }
 
 function Section({ icon, title, summary, children, defaultOpen = false }: {
   icon: string; title: string; summary: string; children: React.ReactNode; defaultOpen?: boolean
@@ -233,12 +233,6 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
 
   const [income, setIncome] = useState(profile?.income ? Number(profile.income).toLocaleString() : '')
   const [savingGoal, setSavingGoal] = useState(profile?.saving_goal ? Number(profile.saving_goal).toLocaleString() : '')
-  const [saveError, setSaveError] = useState('')
-
-  function showError(msg: string) {
-    setSaveError(msg)
-    setTimeout(() => setSaveError(''), 3500)
-  }
 
   const monthlyIncome = profile?.income ?? 0
   const fixedExpenses = localFixed.filter(f => !(f as any).kind || (f as any).kind === '고정지출')
@@ -291,7 +285,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
     const today = new Date()
     const monthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
 
-    const { error: payErr } = await supabase.from('expenses').insert({
+    await supabase.from('expenses').insert({
       user_id: userId,
       type: 'expense',
       category: '고정비',
@@ -303,9 +297,8 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       source: 'manual',
     })
 
-    setCardPaySaving(false)
-    if (payErr) { showError('납부 기록 실패: ' + payErr.message); return }
     setCardPaidIds(s => new Set([...s, cardPaySheet!.id]))
+    setCardPaySaving(false)
     setCardPaySheet(null)
     setCardPayToast('기록됐어요 ✓')
     setTimeout(() => setCardPayToast(''), 2500)
@@ -313,87 +306,65 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   }
 
   async function saveIncome() {
-    const { error } = await supabase.from('users').update({ income: parse(income), saving_goal: parse(savingGoal) }).eq('id', userId)
-    if (error) { showError('저장 실패: ' + error.message); return }
+    await supabase.from('users').update({ income: parse(income), saving_goal: parse(savingGoal) }).eq('id', userId)
     setEditingIncome(false)
     router.refresh()
   }
 
   async function addAccount(vals: Record<string, string>) {
-    if (!vals.name.trim()) { showError('계좌명을 입력해주세요'); return }
-    const balanceVal = parse(vals.balance)
-    const { data, error } = await supabase.from('accounts').insert({
-      user_id: userId,
-      name: vals.name.trim(),
-      bank: vals.bank || null,
-      balance: balanceVal,
-      type: vals.type || '입출금',
+    const { data } = await supabase.from('accounts').insert({
+      user_id: userId, name: vals.name, bank: vals.bank,
+      balance: parse(vals.balance), type: vals.type || '입출금',
     }).select().single()
-    if (error) { showError('계좌 저장 실패: ' + error.message); return }
-    if (data) {
-      // DB에서 balance 컬럼이 없거나 0으로 반환될 경우 로컬 상태는 입력값 우선
-      const savedBalance = (data.balance != null && data.balance !== 0) ? data.balance : balanceVal
-      setLocalAccounts(a => [...a, { ...data, balance: savedBalance }])
-    }
+    if (data) setLocalAccounts(a => [...a, data])
     setShowAddAccount(false)
-    router.refresh()
   }
 
   async function deleteAccount(id: string) {
-    const { error } = await supabase.from('accounts').delete().eq('id', id)
-    if (error) { showError('삭제 실패: ' + error.message); return }
+    await supabase.from('accounts').delete().eq('id', id)
     setLocalAccounts(a => a.filter(x => x.id !== id))
   }
 
   async function addCard(vals: Record<string, string>) {
-    if (!vals.name.trim()) { showError('카드명을 입력해주세요'); return }
     const rawLinked = vals.linked_account_id || ''
     const linkedId = rawLinked.includes('|') ? rawLinked.split('|')[0] : rawLinked || null
-    const { data, error } = await supabase.from('cards').insert({
-      user_id: userId, name: vals.name.trim(), bank: vals.bank,
+    const { data } = await supabase.from('cards').insert({
+      user_id: userId, name: vals.name, bank: vals.bank,
       due_day: parseInt(vals.due_day) || null,
       linked_account_id: linkedId,
     }).select().single()
-    if (error) { showError('카드 저장 실패: ' + error.message); return }
     if (data) setLocalCards(c => [...c, data])
     setShowAddCard(false)
   }
 
   async function deleteCard(id: string) {
-    const { error } = await supabase.from('cards').delete().eq('id', id)
-    if (error) { showError('삭제 실패: ' + error.message); return }
+    await supabase.from('cards').delete().eq('id', id)
     setLocalCards(c => c.filter(x => x.id !== id))
   }
 
   async function addFixed(vals: Record<string, string>, kind: '고정지출' | '고정저축') {
-    if (!vals.name.trim()) { showError('이름을 입력해주세요'); return }
-    if (!parse(vals.amount)) { showError('금액을 입력해주세요'); return }
     const rawLinked = vals.linked_account_id || ''
     const linkedId = rawLinked.includes('|') ? rawLinked.split('|')[0] : rawLinked || null
-    const insertData: Record<string, unknown> = {
-      user_id: userId, name: vals.name.trim(), amount: parse(vals.amount),
+    const { data } = await supabase.from('fixed_costs').insert({
+      user_id: userId, name: vals.name, amount: parse(vals.amount),
       kind, due_day: parseInt(vals.due_day) || null,
       linked_account_id: linkedId, type: '월정액',
-    }
-    if (kind === '고정저축') {
-      const raw = vals.linked_target_account_id || ''
-      insertData.linked_target_account_id = raw.includes('|') ? raw.split('|')[0] : raw || null
-    }
-    const { data, error } = await supabase.from('fixed_costs').insert(insertData).select().single()
-    if (error) { showError('고정비 저장 실패: ' + error.message); return }
+      linked_target_account_id: (() => {
+        const raw = vals.linked_target_account_id || ''
+        return raw.includes('|') ? raw.split('|')[0] : raw || null
+      })(),
+    }).select().single()
     if (data) setLocalFixed(f => [...f, data])
     setShowAddFixed(null)
   }
 
   async function editFixed(id: string, updates: any) {
-    const { error } = await supabase.from('fixed_costs').update(updates).eq('id', id)
-    if (error) { showError('수정 실패: ' + error.message); return }
+    await supabase.from('fixed_costs').update(updates).eq('id', id)
     setLocalFixed(f => f.map(fc => fc.id === id ? { ...fc, ...updates } : fc))
   }
 
   async function deleteFixed(id: string) {
-    const { error } = await supabase.from('fixed_costs').delete().eq('id', id)
-    if (error) { showError('삭제 실패: ' + error.message); return }
+    await supabase.from('fixed_costs').delete().eq('id', id)
     setLocalFixed(f => f.filter(x => x.id !== id))
   }
 
@@ -563,18 +534,12 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                   onChange={e => setCashBalance(e.target.value.replace(/[^0-9]/g, ''))}
                   onKeyDown={e => {
                     if (e.key === 'Enter' && cashBalance) {
-                      const balVal = Number(cashBalance) || 0
                       supabase.from('accounts').insert({
-                        user_id: userId, name: '현금', bank: null,
-                        balance: balVal, type: '현금',
-                      }).select().single().then(({ data, error }) => {
-                        if (error) { showError('현금 저장 실패: ' + error.message); return }
-                        if (data) {
-                          const savedBalance = (data.balance != null && data.balance !== 0) ? data.balance : balVal
-                          setLocalAccounts(a => [...a, { ...data, balance: savedBalance }])
-                        }
+                        user_id: userId, name: '현금', bank: '현금',
+                        balance: parseInt(cashBalance), type: '현금',
+                      }).select().single().then(({ data }) => {
+                        if (data) setLocalAccounts(a => [...a, data])
                         setShowCashForm(false); setCashBalance('')
-                        router.refresh()
                       })
                     }
                   }}
@@ -590,18 +555,12 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
               <button
                 onClick={() => {
                   if (!cashBalance) return
-                  const balVal = Number(cashBalance) || 0
                   supabase.from('accounts').insert({
-                    user_id: userId, name: '현금', bank: null,
-                    balance: balVal, type: '현금',
-                  }).select().single().then(({ data, error }) => {
-                    if (error) { showError('현금 저장 실패: ' + error.message); return }
-                    if (data) {
-                      const savedBalance = (data.balance != null && data.balance !== 0) ? data.balance : balVal
-                      setLocalAccounts(a => [...a, { ...data, balance: savedBalance }])
-                    }
+                    user_id: userId, name: '현금', bank: '현금',
+                    balance: parseInt(cashBalance), type: '현금',
+                  }).select().single().then(({ data }) => {
+                    if (data) setLocalAccounts(a => [...a, data])
                     setShowCashForm(false); setCashBalance('')
-                    router.refresh()
                   })
                 }}
                 style={{
@@ -664,7 +623,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                   </div>
                   <p style={{ fontSize: 11, color: '#9ca3af' }}>
                     {card.bank}{card.due_day ? ' · 납부일 매월 ' + card.due_day + '일' : ''}
-                    {card.linked_account_id ? ' · ' + (localAccounts.find(a => a.id === card.linked_account_id)?.name ?? '') : ''}
+                    {card.linked_account ? ' · ' + (localAccounts.find(a => a.id === card.linked_account)?.name ?? '') : ''}
                   </p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -761,15 +720,6 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
         </div>
       </Section>
     </div>
-
-    {saveError && (
-      <div style={{
-        position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)',
-        background: '#ef4444', color: '#fff', padding: '10px 18px',
-        borderRadius: 20, fontSize: 13, zIndex: 9999, whiteSpace: 'nowrap' as const,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-      }}>{saveError}</div>
-    )}
 
     {/* 카드 납부 기록 토스트 */}
     {cardPayToast && (
