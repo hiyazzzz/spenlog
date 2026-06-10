@@ -58,8 +58,8 @@ JSON 배열만 반환. 설명 없이.
 카테고리(하나만): 생활비(마트편의점식료품) | 활동비(카페배달외식쇼핑) | 고정비(구독월세통신) | 친목비(술모임선물) | 예비비(기타)
 type: expense(지출) | income(수입 - 월급 급여 용돈 환불 등)
 날짜 없으면 오늘 사용.
-amount 규칙: 삼천=3000 오천=5000 만=10000 이만=20000 | 숫자+원/천원/만원 계산
-name 약어: 아아/아아이스->아이스아메리카노 따아->아메리카노 배민->배달의민족 맹날->맥도날드 스범/스밹->스타벅스
+amount 규칙: 삼천=3000 사천=4000 오천=5000 육천=6000 칠천=7000 팔천=8000 구천=9000 만=10000 이만=20000 | 숫자+원/천원/만원 계산 (예: 6천원=6000 3만5천원=35000 1500원=1500)
+name 약어: 아아/아아이스->아이스아메리카노 따아->아메리카노 배민->배달의민족 맹날->맥도날드 스벅/스범/스밹->스타벅스
 여러 항목이면 각각 분리해서 배열에. 1건이어도 배열로.`
 }
 
@@ -112,10 +112,10 @@ export async function POST(req: Request) {
     }
 
     const items = parsed
-      .filter(item => item.amount && typeof item.amount === 'number' && item.amount > 0)
+      .filter(item => item.amount != null && item.amount !== '' && Number(item.amount) > 0)
       .map(item => ({
         name: item.name ?? '항목',
-        amount: item.amount,
+        amount: Number(item.amount),
         category: item.category ?? '예비비',
         date: item.date ?? new Date().toISOString().split('T')[0],
         payment_method: item.payment_method_hint ?? null,
