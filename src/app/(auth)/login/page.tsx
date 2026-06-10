@@ -32,7 +32,7 @@ export default function LoginPage() {
     try {
       const { error: err } = await supabase.auth.signInAnonymously()
       if (err) throw err
-      router.push('/')
+      router.push('/auth/check')
     } catch (e: any) {
       setError('게스트 모드를 사용할 수 없어요.')
       setGuestLoading(false)
@@ -123,6 +123,4 @@ export default function LoginPage() {
           <p style={{ fontSize: 13, color: '#ef4444', textAlign: 'center', marginTop: 4 }}>{error}</p>
         )}
       </div>
-    </div>
-  )
-}
+    </d
