@@ -1,7 +1,7 @@
 'use client'
 import React, { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { THEMES } from '@/lib/themes'
 import type { Theme } from '@/types'
 import { subscribePush, unsubscribePush, isSubscribed } from '@/lib/push'
@@ -50,6 +50,8 @@ interface Props {
 export default function SettingsForm({ profile, userId, email, provider, isGuest = false, hasGoogle = false }: Props) {
   const router = useRouter()
   const supabase = createClient()
+  const searchParams = useSearchParams()
+  const linkError = searchParams.get('link_error')
   // localStorage 우선 (applyTheme에서 즉시 저장) → DB profile 순
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
@@ -136,11 +138,13 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
   async function handleGoogleLink() {
     setGoogleLinking(true)
     try {
-      // prompt: 'select_account' → Chrome 기억 계정 자동 선택 방지, 항상 계정 선택 화면 표시
+      const redirectTo = isGuest
+        ? `${window.location.origin}/auth/callback?from=guest_link`
+        : `${window.location.origin}/auth/callback`
       const { error } = await supabase.auth.linkIdentity({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo,
           queryParams: { prompt: 'select_account' },
         },
       })
@@ -310,6 +314,14 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
             로그아웃하거나 기기를 변경하면 모든 데이터가 사라져요.<br />
             Google 계정으로 연동하면 영구 보관됩니다.
           </p>
+          {linkError === 'already_linked' && (
+            <div style={{
+              background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10,
+              padding: '10px 14px', marginBottom: 10, fontSize: 13, color: '#dc2626'
+            }}>
+              이 Google 계정은 다른 스펜로그 계정에 이미 연결되어 있어요.
+            </div>
+          )}
           <button onClick={handleGoogleLink} disabled={googleLinking} style={{
             width: '100%', padding: '12px', borderRadius: 12,
             background: '#fff', border: '1.5px solid #fde68a',
