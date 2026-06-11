@@ -27,8 +27,25 @@ export default function ApplyFixedCosts({ fixedCosts, userId, appliedNames, this
     setApplying(true)
     const supabase = createClient()
     const today = dayjs().format('YYYY-MM-DD')
+
+    // savings_payments에서 이미 루틴 완료 처리된 항목 제외 (중복 방지)
+    const { data: paidPayments } = await supabase
+      .from('savings_payments')
+      .select('fixed_cost_id')
+      .eq('user_id', userId)
+      .eq('year_month', thisMonth)
+      .eq('is_paid', true)
+    const paidIds = new Set(paidPayments?.map((p: { fixed_cost_id: string }) => p.fixed_cost_id) ?? [])
+    const toInsert = notApplied.filter(f => !paidIds.has(f.id))
+
+    if (toInsert.length === 0) {
+      setApplying(false)
+      setDone(true)
+      return
+    }
+
     await supabase.from('expenses').insert(
-      notApplied.map(f => ({
+      toInsert.map(f => ({
         user_id: userId,
         name: f.name,
         amount: f.amount,

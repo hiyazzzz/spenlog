@@ -297,6 +297,19 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       source: 'manual',
     })
 
+    // 연결 계좌 잔액 차감
+    if (cardPaySheet.linked_account) {
+      const { data: acc } = await supabase
+        .from('accounts')
+        .select('balance')
+        .eq('id', cardPaySheet.linked_account)
+        .single()
+      if (acc != null) {
+        const newBalance = (acc.balance ?? 0) - amount
+        await supabase.from('accounts').update({ balance: newBalance }).eq('id', cardPaySheet.linked_account)
+      }
+    }
+
     setCardPaidIds(s => new Set([...s, cardPaySheet!.id]))
     setCardPaySaving(false)
     setCardPaySheet(null)
