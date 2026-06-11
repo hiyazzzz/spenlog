@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -19,6 +19,16 @@
 
 # production
 /build
+/dist
+
+# turborepo
+.turbo
+
+# expo
+.expo/
+expo-env.d.ts
+/ios
+/android
 
 # misc
 .DS_Store
@@ -32,6 +42,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
