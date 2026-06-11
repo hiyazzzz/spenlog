@@ -63,4 +63,5 @@ export interface Card {
   linked_account: string | null
   due_day: number | null
   limit_amount: number | null
+  billing_start_day?: number | null
 }

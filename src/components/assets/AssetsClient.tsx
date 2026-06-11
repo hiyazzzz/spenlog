@@ -8,6 +8,7 @@ import CategoryManager from './CategoryManager'
 import RoutineBanner from './RoutineBanner'
 import { Account, Card, FixedCost } from '@/types'
 import { formatCurrency } from '@/lib/format'
+import dayjs from 'dayjs'
 import AssetsGuide from './AssetsGuide'
 
 interface Budget { id: string; category: string; amount: number; month: string }
@@ -49,7 +50,7 @@ function Section({ icon, title, summary, children, defaultOpen = false }: {
 }
 
 function InlineForm({ fields, onSave, onCancel }: {
-  fields: { label: string; key: string; type?: string; options?: string[]; placeholder?: string }[]
+  fields: { label: string; key: string; type?: string; options?: string[]; placeholder?: string; hint?: string }[]
   onSave: (vals: Record<string, string>) => void
   onCancel: () => void
 }) {
@@ -81,6 +82,7 @@ function InlineForm({ fields, onSave, onCancel }: {
               onChange={e => setVals(v => ({ ...v, [f.key]: f.type === 'number' ? fmt(e.target.value) : e.target.value }))}
               style={inp} />
           )}
+          {f.hint && <p style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>{f.hint}</p>}
         </div>
       ))}
       <div style={{ display: 'flex', gap: 8 }}>
@@ -181,6 +183,23 @@ function BudgetRow({ category, budgetAmt, spent, onSave }: {
   )
 }
 
+
+function getCardBillingPeriod(card: Card, targetMonth: string): { start: string; end: string } {
+  if (!card.billing_start_day || card.billing_start_day === 1) {
+    const start = `${targetMonth}-01`
+    const end = dayjs(start).endOf("month").format("YYYY-MM-DD")
+    return { start, end }
+  }
+  const startDay = card.billing_start_day
+  const prevMonth = dayjs(`${targetMonth}-01`).subtract(1, "month")
+  const start = prevMonth.format("YYYY-MM") + "-" + String(startDay).padStart(2, "0")
+  const endDay = startDay - 1
+  const end = endDay === 0
+    ? dayjs(`${targetMonth}-01`).subtract(1, "day").format("YYYY-MM-DD")
+    : `${targetMonth}-${String(endDay).padStart(2, "0")}`
+  return { start, end }
+}
+
 export default function AssetsClient({ profile, userId, accounts, cards, fixedCosts, budgets, thisMonthSpent, categorySpent, thisMonth, customCategories, expenses = [] }: Props) {
   const supabase = createClient()
   const router = useRouter()
@@ -210,25 +229,21 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const [cardPaidIds, setCardPaidIds] = useState<Set<string>>(new Set())
   const [cardPayToast, setCardPayToast] = useState('')
 
-  // 이번 달 카드 납부 완료 목록 초기 로딩 (expenses 테이블 기준)
+  // 이번 달 카드 납부 완료 목록 초기 로딩 (savings_payments 테이블 기준)
   useEffect(() => {
     async function loadPaidCards() {
-      const startOfMonth = thisMonth + '-01'
       const { data } = await supabase
-        .from('expenses')
-        .select('payment_method, name')
+        .from('savings_payments')
+        .select('card_id')
         .eq('user_id', userId)
-        .gte('date', startOfMonth)
-        .ilike('name', '%카드 대금%')
+        .eq('year_month', thisMonth)
+        .eq('is_paid', true)
+        .not('card_id', 'is', null)
       if (data) {
-        const paidCardNames = new Set(data.map(e => e.payment_method).filter(Boolean))
-        const paidIds = new Set(
-          localCards.filter(c => paidCardNames.has(c.name)).map(c => c.id)
-        )
-        setCardPaidIds(paidIds)
+        setCardPaidIds(new Set(data.map((p: { card_id: string }) => p.card_id).filter(Boolean)))
       }
     }
-    if (localCards.length > 0) loadPaidCards()
+    loadPaidCards()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, thisMonth])
 
@@ -272,10 +287,14 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
     const mm = String(today.getMonth() + 1).padStart(2, '0')
     const dd = String(today.getDate()).padStart(2, '0')
     setCardPaySheet(card)
-    setCardPayAmount('')
     setCardPayDate(`${yyyy}-${mm}-${dd}`)
     setCardPayMemo('')
     setCardPayAmountErr(false)
+    const billingPeriod = getCardBillingPeriod(card, thisMonth)
+    const total = expenses
+      .filter(e => e.payment_method === card.name && e.date >= billingPeriod.start && e.date <= billingPeriod.end)
+      .reduce((s, e) => s + Number(e.amount), 0)
+    setCardPayAmount(total > 0 ? String(total) : '')
   }
 
   async function saveCardPayment() {
@@ -310,6 +329,17 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
         await supabase.from('accounts').update({ balance: newBalance }).eq('id', cardPaySheet.linked_account)
       }
     }
+
+    // Record to savings_payments for completion tracking
+    await supabase.from('savings_payments').upsert({
+      user_id: userId,
+      fixed_cost_id: null,
+      card_id: cardPaySheet.id,
+      year_month: thisMonth,
+      amount: amount,
+      is_paid: true,
+      paid_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,year_month,card_id' })
 
     setCardPaidIds(s => new Set([...s, cardPaySheet!.id]))
     setCardPaySaving(false)
@@ -352,6 +382,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
     const { data } = await supabase.from('cards').insert({
       user_id: userId, name: vals.name, bank: vals.bank,
       due_day: parseInt(vals.due_day) || null,
+      billing_start_day: parseInt(vals.billing_start_day) || null,
       linked_account_id: linkedId,
     }).select().single()
     if (data) setLocalCards(c => [...c, data])
@@ -620,6 +651,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
               { label: '카드명', key: 'name', placeholder: '예) 신한카드' },
               { label: '카드사', key: 'bank', placeholder: '예) 신한' },
               { label: '대금 출금일', key: 'due_day', placeholder: '예) 15' },
+              { label: '청구 시작일 (선택)', key: 'billing_start_day', placeholder: '없음', type: 'number', hint: '미입력 시 매월 1일 기준' },
               { label: '연결 계좌/카드', key: 'linked_account_id', options: linkedOptions },
             ]}
             onSave={addCard}
@@ -627,7 +659,12 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
         )}
         {localCards.length === 0 && !showAddCard && <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 10 }}>{TEXTS.assets.noCards}</p>}
         {localCards.map(card => {
-          const cardExpenses = expenses.filter(e => e.payment_method === card.name)
+          const billingPeriod = getCardBillingPeriod(card, thisMonth)
+          const cardExpenses = expenses.filter(e =>
+            e.payment_method === card.name &&
+            e.date >= billingPeriod.start &&
+            e.date <= billingPeriod.end
+          )
           const cardTotal = cardExpenses.reduce((s, e) => s + Number(e.amount), 0)
           const isExpanded = expandedCardId === card.id
           const payStatus = getCardPayStatus(card)
@@ -647,6 +684,11 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                     {card.bank}{card.due_day ? ' · 납부일 매월 ' + card.due_day + '일' : ''}
                     {card.linked_account ? ' · ' + (localAccounts.find(a => a.id === card.linked_account)?.name ?? '') : ''}
                   </p>
+                  {cardTotal > 0 && !cardPaidIds.has(card.id) && (
+                    <span style={{ fontSize: 11, color: '#6b7280' }}>
+                      예상 대금 <strong style={{ color: '#1f2937' }}>{formatCurrency(cardTotal)}</strong>
+                    </span>
+                  )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   {card.due_day && !cardPaidIds.has(card.id) && (
