@@ -1,5 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react'
+import { TEXTS } from '@/config/texts'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { CATEGORIES } from '@/lib/themes'
@@ -313,7 +314,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
     setCardPaidIds(s => new Set([...s, cardPaySheet!.id]))
     setCardPaySaving(false)
     setCardPaySheet(null)
-    setCardPayToast('기록됐어요 ✓')
+    setCardPayToast(TEXTS.assets.cardPaySheet.toast)
     setTimeout(() => setCardPayToast(''), 2500)
     router.refresh()
   }
@@ -427,8 +428,8 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             onClick={() => router.push('/onboarding')}
             style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', padding: 0 }}
           >
-            <p style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 2 }}>🏦 자산 설정을 완성해봐요!</p>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>계좌·카드·고정비를 등록하면 가계부가 완성돼요</p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 2 }}>{TEXTS.assets.bannerTitle}</p>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>{TEXTS.assets.bannerDesc}</p>
           </button>
           <button onClick={() => {
             setShowOnboardingBanner(false)
@@ -445,7 +446,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
         </div>
       )}
 
-      <h1 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-accent)' }}>자산</h1>
+      <h1 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-accent)' }}>{TEXTS.assets.title}</h1>
 
       {/* 루틴 배너 */}
       <RoutineBanner
@@ -473,7 +474,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
         ) : (
           <div>
             <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 4 }}>월 수입 (세후)</label>
+              <label style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 4 }}>{TEXTS.assets.incomeLabel}</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <input type="text" inputMode="numeric" value={income}
                   onChange={e => setIncome(fmt(e.target.value))}
@@ -482,7 +483,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
               </div>
             </div>
             <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 4 }}>저축 목표 (선택)</label>
+              <label style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 4 }}>{TEXTS.assets.savingGoalLabel}</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <input type="text" inputMode="numeric" value={savingGoal}
                   onChange={e => setSavingGoal(fmt(e.target.value))}
@@ -492,8 +493,8 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             </div>
             {incomeError && <p style={{ fontSize: 12, color: '#ef4444', marginBottom: 8 }}>{incomeError}</p>}
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={saveIncome} style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: 'var(--color-primary)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>저장</button>
-              <button onClick={() => setEditingIncome(false)} style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
+              <button onClick={saveIncome} style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: 'var(--color-primary)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.assets.btnSave}</button>
+              <button onClick={() => setEditingIncome(false)} style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.assets.btnCancel}</button>
             </div>
           </div>
         )}
@@ -508,17 +509,17 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
           padding: '18px 16px', cursor: 'pointer', fontFamily: 'inherit',
           boxShadow: '0 1px 4px rgba(0,0,0,0.04)', marginBottom: 10,
         }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: '#1f2937' }}>예산</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: '#1f2937' }}>{TEXTS.assets.sectionBudget}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 13, color: totalBudget > 0 ? 'var(--color-accent)' : '#9ca3af' }}>
-            {totalBudget > 0 ? `총 ${formatCurrency(totalBudget)} 설정` : '미설정'}
+            {totalBudget > 0 ? TEXTS.assets.budgetSet(totalBudget) : TEXTS.assets.budgetNotSet}
           </span>
           <span style={{ fontSize: 16, color: '#9ca3af' }}>›</span>
         </div>
       </button>
 
       {/* 3. 계좌/현금 */}
-      <Section icon="" title="계좌 / 현금" summary={`총 잔액 ${formatCurrency(totalBalance)}`}>
+      <Section icon="" title={TEXTS.assets.sectionAccount} summary={TEXTS.assets.totalBalance(totalBalance)}>
         {showAddAccount && (
           <InlineForm
             fields={[
@@ -530,7 +531,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             onSave={addAccount}
             onCancel={() => setShowAddAccount(false)} />
         )}
-        {localAccounts.length === 0 && !showAddAccount && <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 10 }}>등록된 계좌가 없어요</p>}
+        {localAccounts.length === 0 && !showAddAccount && <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 10 }}>{TEXTS.assets.noAccounts}</p>}
         {localAccounts.map(acc => (
           <div key={acc.id} style={rowStyle}>
             <div>
@@ -539,18 +540,18 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-accent)' }}>{formatCurrency(acc.balance ?? 0)}</span>
-              <button onClick={() => deleteAccount(acc.id)} style={{ fontSize: 11, color: '#ef4444', background: '#fef2f2', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
+              <button onClick={() => deleteAccount(acc.id)} style={{ fontSize: 11, color: '#ef4444', background: '#fef2f2', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.assets.btnDelete}</button>
             </div>
           </div>
         ))}
         {showCashForm ? (
           <div style={{ marginTop: 8, padding: '14px', background: '#f0fdf4', borderRadius: 12, border: '1px solid #bbf7d0' }}>
-            <p style={{ fontSize: 12, fontWeight: 700, color: '#065f46', marginBottom: 10 }}>💵 현금 추가</p>
+            <p style={{ fontSize: 12, fontWeight: 700, color: '#065f46', marginBottom: 10 }}>{TEXTS.assets.cashForm.title}</p>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <div style={{ flex: 1, position: 'relative' }}>
                 <input
                   type="text" inputMode="numeric" autoFocus
-                  placeholder="보유 현금 잔액"
+                  placeholder={TEXTS.assets.cashForm.placeholder}
                   value={cashBalance ? Number(cashBalance.replace(/,/g, '')).toLocaleString() : ''}
                   onChange={e => setCashBalance(e.target.value.replace(/[^0-9]/g, ''))}
                   onKeyDown={e => {
@@ -571,7 +572,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                     background: '#fff', boxSizing: 'border-box',
                   }}
                 />
-                <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#9ca3af' }}>원</span>
+                <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#9ca3af' }}>{TEXTS.assets.cashForm.suffix}</span>
               </div>
               <button
                 onClick={() => {
@@ -590,7 +591,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                   fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                   whiteSpace: 'nowrap',
                 }}
-              >등록</button>
+              >{TEXTS.assets.cashForm.btnAdd}</button>
               <button
                 onClick={() => { setShowCashForm(false); setCashBalance('') }}
                 style={{
@@ -598,7 +599,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                   border: '1.5px solid #d1fae5', background: '#fff',
                   fontSize: 12, color: '#6b7280', cursor: 'pointer', fontFamily: 'inherit',
                 }}
-              >취소</button>
+              >{TEXTS.assets.cashForm.btnCancel}</button>
             </div>
           </div>
         ) : null}
@@ -606,13 +607,13 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
           <button
             onClick={() => { setShowCashForm(s => !s); setShowAddAccount(false) }}
             style={{ ...fullAddBtn, flex: 1, background: '#f0fdf4', color: '#059669' }}
-          >💵 현금 추가</button>
-          <button onClick={() => { setShowAddAccount(s => !s); setShowCashForm(false) }} style={{ ...fullAddBtn, flex: 1 }}>+ 계좌 추가</button>
+          >{TEXTS.assets.btnAddCash}</button>
+          <button onClick={() => { setShowAddAccount(s => !s); setShowCashForm(false) }} style={{ ...fullAddBtn, flex: 1 }}>{TEXTS.assets.btnAddAccount}</button>
         </div>
       </Section>
 
       {/* 4. 카드 */}
-      <Section icon="" title="카드" summary={localCards.length > 0 ? localCards.length + '개 등록' : '미등록'}>
+      <Section icon="" title={TEXTS.assets.sectionCard} summary={localCards.length > 0 ? TEXTS.assets.cardCount(localCards.length) : TEXTS.assets.cardNone}>
         {showAddCard && (
           <InlineForm
             fields={[
@@ -624,7 +625,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             onSave={addCard}
             onCancel={() => setShowAddCard(false)} />
         )}
-        {localCards.length === 0 && !showAddCard && <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 10 }}>등록된 카드가 없어요</p>}
+        {localCards.length === 0 && !showAddCard && <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 10 }}>{TEXTS.assets.noCards}</p>}
         {localCards.map(card => {
           const cardExpenses = expenses.filter(e => e.payment_method === card.name)
           const cardTotal = cardExpenses.reduce((s, e) => s + Number(e.amount), 0)
@@ -664,7 +665,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
               {isExpanded && (
                 <div style={{ background: '#f9fafb', borderRadius: '0 0 10px 10px', padding: '8px 12px', marginBottom: 4 }}>
                   {cardExpenses.length === 0 ? (
-                    <p style={{ fontSize: 12, color: '#9ca3af', textAlign: 'center', padding: '8px 0' }}>이 카드로 결제한 내역이 없어요</p>
+                    <p style={{ fontSize: 12, color: '#9ca3af', textAlign: 'center', padding: '8px 0' }}>{TEXTS.assets.cardNoExpense}</p>
                   ) : (
                     cardExpenses.map(e => (
                       <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
@@ -686,14 +687,14 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             </div>
           )
         })}
-        <button onClick={() => setShowAddCard(s => !s)} style={fullAddBtn}>+ 카드 추가</button>
+        <button onClick={() => setShowAddCard(s => !s)} style={fullAddBtn}>{TEXTS.assets.btnAddCard}</button>
       </Section>
 
       {/* 5. 고정비 */}
-      <Section icon="" title="고정비" summary={`월 ${formatCurrency(fixedExpenseTotal)} 지출`}>
+      <Section icon="" title={TEXTS.assets.sectionFixed} summary={TEXTS.assets.fixedMonthly(fixedExpenseTotal)}>
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>고정 지출</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{TEXTS.assets.fixedSection.expense}</span>
             <button onClick={() => setShowAddFixed(showAddFixed === 'expense' ? null : 'expense')} style={addBtnStyle('var(--color-primary)', 'var(--color-primary-light)')}>+ 추가</button>
           </div>
           {showAddFixed === 'expense' && (
@@ -707,16 +708,16 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
               onSave={v => addFixed(v, '고정지출')}
               onCancel={() => setShowAddFixed(null)} />
           )}
-          {fixedExpenses.length === 0 && <p style={{ fontSize: 12, color: '#9ca3af' }}>고정 지출이 없어요</p>}
+          {fixedExpenses.length === 0 && <p style={{ fontSize: 12, color: '#9ca3af' }}>{TEXTS.assets.noFixedExpense}</p>}
           {fixedExpenses.map(f => <FixedRow key={f.id} item={f}
             accountName={localAccounts.find(a => a.id === (f as any).linked_account_id)?.name}
             onDelete={() => deleteFixed(f.id)}
             onEdit={(u: Record<string, unknown>) => editFixed(f.id, u)} />)}
-          <p style={{ fontSize: 12, color: '#6b7280', marginTop: 6, fontWeight: 600 }}>소계 {formatCurrency(fixedExpenseTotal)}</p>
+          <p style={{ fontSize: 12, color: '#6b7280', marginTop: 6, fontWeight: 600 }}>{TEXTS.assets.fixedSection.subtotal(fixedExpenseTotal)}</p>
         </div>
         <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>고정 저축</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{TEXTS.assets.fixedSection.saving}</span>
             <button onClick={() => setShowAddFixed(showAddFixed === 'saving' ? null : 'saving')} style={addBtnStyle('#059669', '#f0fdf4')}>+ 추가</button>
           </div>
           {showAddFixed === 'saving' && (
@@ -731,13 +732,13 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
               onSave={v => addFixed(v, '고정저축')}
               onCancel={() => setShowAddFixed(null)} />
           )}
-          {fixedSavings.length === 0 && <p style={{ fontSize: 12, color: '#9ca3af' }}>고정 저축이 없어요</p>}
+          {fixedSavings.length === 0 && <p style={{ fontSize: 12, color: '#9ca3af' }}>{TEXTS.assets.noFixedSaving}</p>}
           {fixedSavings.map(f => <FixedRow key={f.id} item={f}
             accountName={localAccounts.find(a => a.id === (f as any).linked_account_id)?.name}
             targetAccountName={localAccounts.find(a => a.id === (f as any).linked_target_account_id)?.name}
             onDelete={() => deleteFixed(f.id)}
             onEdit={(u: Record<string, unknown>) => editFixed(f.id, u)} />)}
-          <p style={{ fontSize: 12, color: '#059669', marginTop: 6, fontWeight: 600 }}>소계 {formatCurrency(fixedSavingTotal)}</p>
+          <p style={{ fontSize: 12, color: '#059669', marginTop: 6, fontWeight: 600 }}>{TEXTS.assets.fixedSection.subtotalSaving(fixedSavingTotal)}</p>
         </div>
       </Section>
     </div>
@@ -777,11 +778,11 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             </p>
           </div>
           <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6, fontWeight: 600 }}>납부 금액 *</label>
+            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6, fontWeight: 600 }}>{TEXTS.assets.cardPaySheet.labelAmount}</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 14, color: '#6b7280' }}>납부금액</span>
               <input
-                type="text" inputMode="numeric" placeholder="0"
+                type="text" inputMode="numeric" placeholder={TEXTS.assets.cardPaySheet.amountPh}
                 value={cardPayAmount}
                 onChange={e => {
                   const n = e.target.value.replace(/[^0-9]/g, '')
@@ -797,10 +798,10 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                 }}
               />
             </div>
-            {cardPayAmountErr && <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>금액을 입력해주세요</p>}
+            {cardPayAmountErr && <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{TEXTS.assets.cardPaySheet.errAmount}</p>}
           </div>
           <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6, fontWeight: 600 }}>납부일</label>
+            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6, fontWeight: 600 }}>{TEXTS.assets.cardPaySheet.labelDate}</label>
             <input type="date" value={cardPayDate}
               onChange={e => setCardPayDate(e.target.value)}
               style={{
@@ -812,8 +813,8 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             />
           </div>
           <div style={{ marginBottom: 20 }}>
-            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6, fontWeight: 600 }}>메모 (선택)</label>
-            <input type="text" placeholder="간단히 남겨보세요"
+            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6, fontWeight: 600 }}>{TEXTS.assets.cardPaySheet.labelMemo}</label>
+            <input type="text" placeholder={TEXTS.assets.cardPaySheet.memoPh}
               value={cardPayMemo} onChange={e => setCardPayMemo(e.target.value)}
               style={{
                 width: '100%', padding: '12px', borderRadius: 12,
@@ -830,7 +831,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                 background: '#f3f4f6', color: '#374151',
                 border: 'none', fontSize: 14, fontWeight: 600,
                 cursor: 'pointer', fontFamily: 'inherit',
-              }}>취소</button>
+              }}>{TEXTS.assets.cardPaySheet.btnCancel}</button>
             <button onClick={saveCardPayment} disabled={cardPaySaving}
               style={{
                 flex: 1, padding: '14px', borderRadius: 14, border: 'none',

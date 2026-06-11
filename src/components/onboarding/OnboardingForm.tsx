@@ -1,4 +1,5 @@
 'use client'
+import { TEXTS } from '@/config/texts'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -195,7 +196,7 @@ export default function OnboardingForm({ userId, email }: Props) {
       }
       setStep('welcome')
       setTimeout(() => router.push('/'), 2000)
-    } catch (e: any) { setError('저장 오류: ' + e.message); setSaving(false) }
+    } catch (e: any) { setError(TEXTS.onboarding.errSave(e.message)); setSaving(false) }
   }
 
   if (step === 'intro') {
@@ -213,7 +214,7 @@ export default function OnboardingForm({ userId, email }: Props) {
             {INTRO_SLIDES.map((_, i) => (<div key={i} style={{ width: i === introSlide ? 20 : 6, height: 6, borderRadius: 3, background: i === introSlide ? 'var(--color-primary)' : '#e5e7eb', transition: 'all 0.3s' }} />))}
           </div>
           {introSlide < INTRO_SLIDES.length - 1
-            ? <button onClick={() => setIntroSlide(s => s + 1)} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: 'var(--color-primary)', color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>다음 →</button>
+            ? <button onClick={() => setIntroSlide(s => s + 1)} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: 'var(--color-primary)', color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.onboarding.btnNext}</button>
             : <button onClick={() => setStep('name')} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: 'var(--color-primary)', color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>시작하기 🎉</button>
           }
         </div>
@@ -225,17 +226,17 @@ export default function OnboardingForm({ userId, email }: Props) {
     return (
       <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
         <ProgressBar current={0} total={TOTAL_STEPS} color={primary} />
-        <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '8px' }}>안녕하세요! 😊</h1>
-        <p style={{ fontSize: '15px', color: '#B8A8AC', marginBottom: '32px' }}>어떻게 불러드릴까요?</p>
+        <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '8px' }}>{TEXTS.onboarding.nameTitle}</h1>
+        <p style={{ fontSize: '15px', color: '#B8A8AC', marginBottom: '32px' }}>{TEXTS.onboarding.nameSubtitle}</p>
         <div style={{ background: primaryLight, borderRadius: '16px', padding: '20px', marginBottom: '16px', textAlign: 'center' as const }}>
           <p style={{ fontSize: '22px', fontWeight: '700', color: primary, marginBottom: '12px' }}>{suggestedName}</p>
-          <button onClick={() => setSuggestedName(randomName())} style={{ padding: '8px 18px', borderRadius: '20px', border: '1.5px solid ' + primary, background: 'white', color: primary, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>🔀 다른 이름</button>
+          <button onClick={() => setSuggestedName(randomName())} style={{ padding: '8px 18px', borderRadius: '20px', border: '1.5px solid ' + primary, background: 'white', color: primary, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.onboarding.nameBtnShuffle}</button>
         </div>
-        <p style={{ fontSize: '13px', color: '#B8A8AC', marginBottom: '8px' }}>또는 직접 입력</p>
-        <input type="text" placeholder="닉네임 입력 (선택)" value={name} onChange={e => setName(e.target.value)} maxLength={12} style={inputStyle} />
-        <p style={{ fontSize: '11px', color: '#C4A0A8', marginTop: '6px' }}>입력하지 않으면 {'"'}{suggestedName}{'"'}으로 시작해요</p>
+        <p style={{ fontSize: '13px', color: '#B8A8AC', marginBottom: '8px' }}>{TEXTS.onboarding.nameOrLabel}</p>
+        <input type="text" placeholder={TEXTS.onboarding.nameInputPh} value={name} onChange={e => setName(e.target.value)} maxLength={12} style={inputStyle} />
+        <p style={{ fontSize: '11px', color: '#C4A0A8', marginTop: '6px' }}>{TEXTS.onboarding.nameDefaultHint(suggestedName)}</p>
         <div style={{ marginTop: '32px' }}>
-          <button onClick={() => setStep('theme')} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>다음 →</button>
+          <button onClick={() => setStep('theme')} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.onboarding.btnNext}</button>
         </div>
       </div>
     )
@@ -246,8 +247,8 @@ export default function OnboardingForm({ userId, email }: Props) {
       <>
         <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
           <ProgressBar current={1} total={TOTAL_STEPS} color={primary} />
-          <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '8px' }}>나만의 감성을 골라봐요 🎨</h1>
-          <p style={{ fontSize: '15px', color: '#B8A8AC', marginBottom: '32px' }}>언제든지 설정에서 바꾸당 수 있어요</p>
+          <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '8px' }}>{TEXTS.onboarding.themeTitle}</h1>
+          <p style={{ fontSize: '15px', color: '#B8A8AC', marginBottom: '32px' }}>{TEXTS.onboarding.themeSubtitle}</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
             {THEME_LIST.map(({ key, premium }) => {
               const t = THEMES[key]
@@ -263,28 +264,28 @@ export default function OnboardingForm({ userId, email }: Props) {
               )
             })}
           </div>
-          <p style={{ fontSize: 12, color: '#B8A8AC', textAlign: 'center' as const, marginBottom: 24 }}>✨ 더 많은 테마는 설정에서 만나보세요!</p>
+          <p style={{ fontSize: 12, color: '#B8A8AC', textAlign: 'center' as const, marginBottom: 24 }}>{TEXTS.onboarding.themeMoreNote}</p>
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px' }}>
             <button onClick={async () => {
               await supabase.from('users').upsert({ id: userId, onboarding_completed: true }, { onConflict: 'id' })
               if (typeof window !== 'undefined') localStorage.setItem('spenlog_onboarding_completed', 'true')
               setStep('income')
             }} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>다음 →</button>
-            <button onClick={() => setStep('name')} style={{ background: 'none', border: 'none', color: '#B8A8AC', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>← 이전</button>
+            <button onClick={() => setStep('name')} style={{ background: 'none', border: 'none', color: '#B8A8AC', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.onboarding.btnPrev}</button>
           </div>
         </div>
         {showPremiumSheet && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-end' }}>
             <div style={{ width: '100%', background: '#fff', borderRadius: '20px 20px 0 0', padding: '28px 24px 40px' }}>
               <p style={{ fontSize: 22, textAlign: 'center', marginBottom: 8 }}>💎</p>
-              <p style={{ fontSize: 16, fontWeight: 700, color: '#1f2937', textAlign: 'center', marginBottom: 8 }}>프리미엄 전용 테마예요</p>
-              <p style={{ fontSize: 13, color: '#6b7280', textAlign: 'center', lineHeight: 1.6, marginBottom: 24 }}>설정 탭에서 프리미엄으로 업그레이드하면 모든 테마를 자유롭게 사용할 수 있어요</p>
+              <p style={{ fontSize: 16, fontWeight: 700, color: '#1f2937', textAlign: 'center', marginBottom: 8 }}>{TEXTS.onboarding.themePremiumTitle}</p>
+              <p style={{ fontSize: 13, color: '#6b7280', textAlign: 'center', lineHeight: 1.6, marginBottom: 24 }}>{TEXTS.onboarding.themePremiumDesc}</p>
               <button onClick={async () => {
                 setTheme('Burgundy'); setShowPremiumSheet(false)
                 await supabase.from('users').upsert({ id: userId, onboarding_completed: true }, { onConflict: 'id' })
                 if (typeof window !== 'undefined') localStorage.setItem('spenlog_onboarding_completed', 'true')
                 setStep('income')
-              }} style={{ width: '100%', padding: '14px', borderRadius: 14, background: '#f3f4f6', color: '#6b7280', fontSize: 14, fontWeight: 500, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>기본 테마로 계속</button>
+              }} style={{ width: '100%', padding: '14px', borderRadius: 14, background: '#f3f4f6', color: '#6b7280', fontSize: 14, fontWeight: 500, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.onboarding.themeBtnDefault}</button>
             </div>
           </div>
         )}
@@ -296,18 +297,18 @@ export default function OnboardingForm({ userId, email }: Props) {
     return (
       <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
         <ProgressBar current={2} total={TOTAL_STEPS} color={primary} />
-        <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '8px' }}>월 수입을 알려줘요 💰</h1>
-        <p style={{ fontSize: '15px', color: '#B8A8AC', marginBottom: '32px' }}>세후 실수령 기준이에요. 나중에 바꾸당 수 있어요.</p>
-        <label style={{ fontSize: '13px', color: '#9A7A80', marginBottom: '8px', display: 'block', fontWeight: '600' }}>월 수입 (세후)</label>
+        <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '8px' }}>{TEXTS.onboarding.incomeTitle}</h1>
+        <p style={{ fontSize: '15px', color: '#B8A8AC', marginBottom: '32px' }}>{TEXTS.onboarding.incomeSubtitle}</p>
+        <label style={{ fontSize: '13px', color: '#9A7A80', marginBottom: '8px', display: 'block', fontWeight: '600' }}>{TEXTS.onboarding.incomeLabel}</label>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <input type="text" inputMode="numeric" placeholder="300" value={income} onChange={e => setIncome(formatWon(e.target.value))} style={{ ...inputStyle, flex: 1 }} autoFocus />
           <span style={{ fontSize: '15px', color: primary, fontWeight: '600', whiteSpace: 'nowrap' as const }}>만 원</span>
         </div>
-        {income && <p style={{ fontSize: '12px', color: '#9A7A80', marginTop: '6px' }}>= {parseMan(income).toLocaleString()}원</p>}
+        {income && <p style={{ fontSize: '12px', color: '#9A7A80', marginTop: '6px' }}>{TEXTS.onboarding.incomeHint(parseMan(income))}</p>}
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px', marginTop: '32px' }}>
           <button onClick={() => setStep('goal')} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>다음 →</button>
-          <button onClick={() => { setIncome(''); setStep('goal') }} style={{ background: 'none', border: 'none', color: '#B8A8AC', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>건너뛰기</button>
-          <button onClick={() => setStep('theme')} style={{ background: 'none', border: 'none', color: '#C4A0A8', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>← 이전</button>
+          <button onClick={() => { setIncome(''); setStep('goal') }} style={{ background: 'none', border: 'none', color: '#B8A8AC', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.onboarding.btnSkip}</button>
+          <button onClick={() => setStep('theme')} style={{ background: 'none', border: 'none', color: '#C4A0A8', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.onboarding.btnPrev}</button>
         </div>
       </div>
     )
@@ -317,15 +318,15 @@ export default function OnboardingForm({ userId, email }: Props) {
     return (
       <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
         <ProgressBar current={3} total={TOTAL_STEPS} color={primary} />
-        <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '8px' }}>저축 목표가 있나요? 🎯</h1>
-        <p style={{ fontSize: '15px', color: '#B8A8AC', marginBottom: '32px' }}>매달 이만큼 저축하는 게 목표예요</p>
-        <label style={{ fontSize: '13px', color: '#9A7A80', marginBottom: '8px', display: 'block', fontWeight: '600' }}>월 저축 목표 <span style={{ fontWeight: '400', color: '#C4A0A8' }}>(선택)</span></label>
+        <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '8px' }}>{TEXTS.onboarding.goalTitle}</h1>
+        <p style={{ fontSize: '15px', color: '#B8A8AC', marginBottom: '32px' }}>{TEXTS.onboarding.goalSubtitle}</p>
+        <label style={{ fontSize: '13px', color: '#9A7A80', marginBottom: '8px', display: 'block', fontWeight: '600' }}>{TEXTS.onboarding.goalLabel} <span style={{ fontWeight: '400', color: '#C4A0A8' }}>{TEXTS.onboarding.goalLabelOpt}</span></label>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <input type="text" inputMode="numeric" placeholder="50" value={goal} onChange={e => setGoal(formatWon(e.target.value))} style={{ ...inputStyle, flex: 1 }} autoFocus />
           <span style={{ fontSize: '15px', color: primary, fontWeight: '600', whiteSpace: 'nowrap' as const }}>만 원</span>
         </div>
-        {goal && <p style={{ fontSize: '12px', color: '#9A7A80', marginTop: '6px' }}>= {parseMan(goal).toLocaleString()}원</p>}
-        <p style={{ fontSize: '11px', color: '#C4A0A8', marginTop: '8px' }}>💡 입력하면 홈 화면에서 저축 달성률을 볼 수 있어요</p>
+        {goal && <p style={{ fontSize: '12px', color: '#9A7A80', marginTop: '6px' }}>{TEXTS.onboarding.goalHint(parseMan(goal))}</p>}
+        <p style={{ fontSize: '11px', color: '#C4A0A8', marginTop: '8px' }}>{TEXTS.onboarding.goalTip}</p>
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px', marginTop: '32px' }}>
           <button onClick={async () => {
             await supabase.from('users').update({ init_setup_completed: true }).eq('id', userId)
@@ -348,26 +349,26 @@ export default function OnboardingForm({ userId, email }: Props) {
     return (
       <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
         <ProgressBar current={4} total={TOTAL_STEPS} color={primary} />
-        <h1 style={{ fontSize: '24px', fontWeight: '800', color: primary, marginBottom: '6px' }}>예산을 설정해봐요 📋</h1>
-        <p style={{ fontSize: '14px', color: '#B8A8AC', marginBottom: '20px' }}>나중에 예산 탭에서 바꾸당 수 있어요</p>
+        <h1 style={{ fontSize: '24px', fontWeight: '800', color: primary, marginBottom: '6px' }}>{TEXTS.onboarding.budgetTitle}</h1>
+        <p style={{ fontSize: '14px', color: '#B8A8AC', marginBottom: '20px' }}>{TEXTS.onboarding.budgetSubtitle}</p>
         <div style={{ display: 'flex', background: primaryLight, borderRadius: 12, padding: 3, marginBottom: 20, gap: 3 }}>
           {(['ai', 'manual'] as const).map(m => (
             <button key={m} onClick={() => setBudgetMode(m)} style={{ flex: 1, padding: '9px', borderRadius: 10, border: 'none', background: budgetMode === m ? primary : 'transparent', color: budgetMode === m ? '#fff' : primary, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
-              {m === 'ai' ? '✨ AI 추천' : '직접 입력'}
+              {m === 'ai' ? TEXTS.onboarding.budgetTabAI : TEXTS.onboarding.budgetTabManual}
             </button>
           ))}
         </div>
         {budgetMode === 'ai' && !budgetLoaded && (
           <div style={{ textAlign: 'center' as const, padding: '24px 0' }}>
-            <p style={{ fontSize: 14, color: '#9A7A80', marginBottom: 16 }}>{income ? `월 수입 ${income}만원 기준으로 예산을 추천받아요` : '기본 비율로 예산을 추천해드릴게요'}</p>
-            <button onClick={loadAIBudgets} disabled={budgetLoading} style={{ padding: '14px 28px', borderRadius: 14, background: primary, color: '#fff', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{budgetLoading ? '분석 중...' : '✨ AI 추천 받기'}</button>
+            <p style={{ fontSize: 14, color: '#9A7A80', marginBottom: 16 }}>{income ? TEXTS.onboarding.budgetAIBasis(income) : TEXTS.onboarding.budgetAINoIncome}</p>
+            <button onClick={loadAIBudgets} disabled={budgetLoading} style={{ padding: '14px 28px', borderRadius: 14, background: primary, color: '#fff', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{budgetLoading ? TEXTS.onboarding.budgetBtnAILoading : TEXTS.onboarding.budgetBtnAI}</button>
           </div>
         )}
         {(budgetMode === 'manual' || (budgetMode === 'ai' && budgetLoaded)) && (
           <>
             {budgetMode === 'ai' && (
               <div style={{ background: primaryLight, borderRadius: 12, padding: '10px 14px', marginBottom: 14 }}>
-                <p style={{ fontSize: 12, color: primary, lineHeight: 1.5 }}>💡 {budgetUsedFallback ? '지출 기록이 없어 기본 비율으로 추천했어요' : budgetReason}</p>
+                <p style={{ fontSize: 12, color: primary, lineHeight: 1.5 }}>{budgetUsedFallback ? TEXTS.onboarding.budgetFallbackNote : '💡 ' + budgetReason}</p>
               </div>
             )}
             <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10, marginBottom: 8 }}>
@@ -394,8 +395,8 @@ export default function OnboardingForm({ userId, email }: Props) {
     return (
       <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
         <ProgressBar current={5} total={TOTAL_STEPS} color={primary} />
-        <h1 style={{ fontSize: '24px', fontWeight: '800', color: primary, marginBottom: '6px' }}>통장을 등록해봐요 🏦</h1>
-        <p style={{ fontSize: '14px', color: '#B8A8AC', marginBottom: '20px' }}>잔액을 관리하고 싶은 계좌예요 <span style={{ fontSize: 12 }}>(선택)</span></p>
+        <h1 style={{ fontSize: '24px', fontWeight: '800', color: primary, marginBottom: '6px' }}>{TEXTS.onboarding.assetsTitle}</h1>
+        <p style={{ fontSize: '14px', color: '#B8A8AC', marginBottom: '20px' }}>{TEXTS.onboarding.assetsSubtitle} <span style={{ fontSize: 12 }}>{TEXTS.onboarding.assetsOpt}</span></p>
         {accounts.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, marginBottom: 16 }}>
             {accounts.map(acc => (
@@ -410,16 +411,16 @@ export default function OnboardingForm({ userId, email }: Props) {
           </div>
         )}
         <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid ' + primaryLight, padding: 16, marginBottom: 16 }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: primary, marginBottom: 12 }}>계좌 추가</p>
+          <p style={{ fontSize: 13, fontWeight: 700, color: primary, marginBottom: 12 }}>{TEXTS.onboarding.assetsAddTitle}</p>
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
-            <input type="text" placeholder="계좌 이름 (예: 주거래통장)" value={accName} onChange={e => setAccName(e.target.value)} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14 }} />
-            <input type="text" placeholder="은행명 (예: 카카오뱅크)" value={accBank} onChange={e => setAccBank(e.target.value)} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14 }} />
+            <input type="text" placeholder={TEXTS.onboarding.assetsNamePh} value={accName} onChange={e => setAccName(e.target.value)} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14 }} />
+            <input type="text" placeholder={TEXTS.onboarding.assetsBankPh} value={accBank} onChange={e => setAccBank(e.target.value)} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14 }} />
             <div style={{ display: 'flex', gap: 8 }}>
-              <input type="text" inputMode="numeric" placeholder="현재 잔액" value={accBalance} onChange={e => setAccBalance(formatWon(e.target.value))} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14, flex: 1 }} />
+              <input type="text" inputMode="numeric" placeholder={TEXTS.onboarding.assetsBalancePh} value={accBalance} onChange={e => setAccBalance(formatWon(e.target.value))} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14, flex: 1 }} />
               <span style={{ fontSize: 13, color: '#9A7A80', alignSelf: 'center', flexShrink: 0 }}>원</span>
             </div>
           </div>
-          <button onClick={addAccount} disabled={accAdding || !accName.trim()} style={{ width: '100%', marginTop: 12, padding: '10px', borderRadius: 12, background: accName.trim() ? primary : '#f3f4f6', color: accName.trim() ? '#fff' : '#9ca3af', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{accAdding ? '추가 중...' : '+ 계좌 추가'}</button>
+          <button onClick={addAccount} disabled={accAdding || !accName.trim()} style={{ width: '100%', marginTop: 12, padding: '10px', borderRadius: 12, background: accName.trim() ? primary : '#f3f4f6', color: accName.trim() ? '#fff' : '#9ca3af', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.onboarding.assetsBtnAdd(accAdding)}</button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px' }}>
           <button onClick={() => setStep('cards')} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>다음 →</button>
@@ -438,8 +439,8 @@ export default function OnboardingForm({ userId, email }: Props) {
     return (
       <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
         <ProgressBar current={6} total={TOTAL_STEPS} color={primary} />
-        <h1 style={{ fontSize: '24px', fontWeight: '800', color: primary, marginBottom: '6px' }}>카드를 등록해봐요 💳</h1>
-        <p style={{ fontSize: '14px', color: '#B8A8AC', marginBottom: '20px' }}>지출 입력 시 결제수단으로 사용해요 <span style={{ fontSize: 12 }}>(선택)</span></p>
+        <h1 style={{ fontSize: '24px', fontWeight: '800', color: primary, marginBottom: '6px' }}>{TEXTS.onboarding.cardsTitle}</h1>
+        <p style={{ fontSize: '14px', color: '#B8A8AC', marginBottom: '20px' }}>{TEXTS.onboarding.cardsSubtitle} <span style={{ fontSize: 12 }}>{TEXTS.onboarding.cardsOpt}</span></p>
         {cards.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, marginBottom: 16 }}>
             {cards.map(card => (
@@ -454,12 +455,12 @@ export default function OnboardingForm({ userId, email }: Props) {
           </div>
         )}
         <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid ' + primaryLight, padding: 16, marginBottom: 16 }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: primary, marginBottom: 12 }}>카드 추가</p>
+          <p style={{ fontSize: 13, fontWeight: 700, color: primary, marginBottom: 12 }}>{TEXTS.onboarding.cardsAddTitle}</p>
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
-            <input type="text" placeholder="카드 이름 (예: 신한카드)" value={cardName} onChange={e => setCardName(e.target.value)} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14 }} />
-            <input type="text" placeholder="카드사 (예: 신한)" value={cardBank} onChange={e => setCardBank(e.target.value)} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14 }} />
+            <input type="text" placeholder={TEXTS.onboarding.cardsNamePh} value={cardName} onChange={e => setCardName(e.target.value)} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14 }} />
+            <input type="text" placeholder={TEXTS.onboarding.cardsBankPh} value={cardBank} onChange={e => setCardBank(e.target.value)} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14 }} />
           </div>
-          <button onClick={addCard} disabled={cardAdding || !cardName.trim()} style={{ width: '100%', marginTop: 12, padding: '10px', borderRadius: 12, background: cardName.trim() ? primary : '#f3f4f6', color: cardName.trim() ? '#fff' : '#9ca3af', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{cardAdding ? '추가 중...' : '+ 카드 추가'}</button>
+          <button onClick={addCard} disabled={cardAdding || !cardName.trim()} style={{ width: '100%', marginTop: 12, padding: '10px', borderRadius: 12, background: cardName.trim() ? primary : '#f3f4f6', color: cardName.trim() ? '#fff' : '#9ca3af', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.onboarding.cardsBtnAdd(cardAdding)}</button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px' }}>
           <button onClick={() => setStep('fixedcosts')} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>다음 →</button>
@@ -476,9 +477,9 @@ export default function OnboardingForm({ userId, email }: Props) {
     return (
       <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
         <ProgressBar current={7} total={TOTAL_STEPS} color={primary} />
-        <h1 style={{ fontSize: '24px', fontWeight: '800', color: primary, marginBottom: '6px' }}>고정비를 등록해봐요 📌</h1>
-        <p style={{ fontSize: '14px', color: '#B8A8AC', marginBottom: '8px' }}>매달 나가는 돈을 한 번에 정리해요 <span style={{ fontSize: 12 }}>(선택)</span></p>
-        <p style={{ fontSize: 12, color: '#C4A0A8', marginBottom: 20 }}>💡 월세·통신비·구독료·적산자동 등 매달 반복되는 지출을 등록하는 곣이에요</p>
+        <h1 style={{ fontSize: '24px', fontWeight: '800', color: primary, marginBottom: '6px' }}>{TEXTS.onboarding.fixedTitle}</h1>
+        <p style={{ fontSize: '14px', color: '#B8A8AC', marginBottom: '8px' }}>{TEXTS.onboarding.fixedSubtitle} <span style={{ fontSize: 12 }}>{TEXTS.onboarding.fixedOpt}</span></p>
+        <p style={{ fontSize: 12, color: '#C4A0A8', marginBottom: 20 }}>{TEXTS.onboarding.fixedTip}</p>
 
         {fixedCosts.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, marginBottom: 16 }}>
@@ -489,7 +490,7 @@ export default function OnboardingForm({ userId, email }: Props) {
               <div key={fc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: primaryLight, borderRadius: 12, padding: '10px 14px' }}>
                 <div>
                   <p style={{ fontSize: 14, fontWeight: 700, color: primary }}>{fc.name}</p>
-                  <p style={{ fontSize: 12, color: '#9A7A80' }}>{fc.amount.toLocaleString()}원{fc.due_day ? ` · 매월 ${fc.due_day}일` : ''}</p>
+                  <p style={{ fontSize: 12, color: '#9A7A80' }}>{fc.amount.toLocaleString()}원{fc.due_day ? ` · ${TEXTS.onboarding.fixedDueSuffix(fc.due_day)}` : ''}</p>
                 </div>
                 <button onClick={() => removeFixedCost(fc.id)} style={{ fontSize: 16, background: 'none', border: 'none', cursor: 'pointer', color: '#d1d5db' }}>✕</button>
               </div>
@@ -501,7 +502,7 @@ export default function OnboardingForm({ userId, email }: Props) {
               <div key={fc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f0fdf4', borderRadius: 12, padding: '10px 14px', border: '1px solid #bbf7d0' }}>
                 <div>
                   <p style={{ fontSize: 14, fontWeight: 700, color: '#16a34a' }}>{fc.name}</p>
-                  <p style={{ fontSize: 12, color: '#9A7A80' }}>{fc.amount.toLocaleString()}원{fc.due_day ? ` · 매월 ${fc.due_day}일` : ''}</p>
+                  <p style={{ fontSize: 12, color: '#9A7A80' }}>{fc.amount.toLocaleString()}원{fc.due_day ? ` · ${TEXTS.onboarding.fixedDueSuffix(fc.due_day)}` : ''}</p>
                 </div>
                 <button onClick={() => removeFixedCost(fc.id)} style={{ fontSize: 16, background: 'none', border: 'none', cursor: 'pointer', color: '#d1d5db' }}>✕</button>
               </div>
@@ -510,22 +511,22 @@ export default function OnboardingForm({ userId, email }: Props) {
         )}
 
         <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid ' + primaryLight, padding: 16, marginBottom: 16 }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: primary, marginBottom: 12 }}>고정비 추가</p>
+          <p style={{ fontSize: 13, fontWeight: 700, color: primary, marginBottom: 12 }}>{TEXTS.onboarding.fixedAddTitle}</p>
           <div style={{ display: 'flex', background: primaryLight, borderRadius: 10, padding: 3, marginBottom: 10, gap: 3 }}>
             {(['고정지출', '고정저축'] as FixedKind[]).map(k => (
               <button key={k} onClick={() => setFcKind(k)} style={{ flex: 1, padding: '7px', borderRadius: 8, border: 'none', background: fcKind === k ? primary : 'transparent', color: fcKind === k ? '#fff' : primary, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>{k}</button>
             ))}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
-            <input type="text" placeholder="이름 (예: 월세, 넥플릭스)" value={fcName} onChange={e => setFcName(e.target.value)} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14 }} />
+            <input type="text" placeholder={TEXTS.onboarding.fixedNamePh} value={fcName} onChange={e => setFcName(e.target.value)} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14 }} />
             <div style={{ display: 'flex', gap: 8 }}>
-              <input type="text" inputMode="numeric" placeholder="금액" value={fcAmount} onChange={e => setFcAmount(formatWon(e.target.value))} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14, flex: 2 }} />
-              <span style={{ fontSize: 13, color: '#9A7A80', alignSelf: 'center', flexShrink: 0 }}>원</span>
-              <input type="text" inputMode="numeric" placeholder="낙부일" value={fcDueDay} onChange={e => setFcDueDay(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14, flex: 1 }} />
+              <input type="text" inputMode="numeric" placeholder={TEXTS.onboarding.fixedAmountPh} value={fcAmount} onChange={e => setFcAmount(formatWon(e.target.value))} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14, flex: 2 }} />
+              <span style={{ fontSize: 13, color: '#9A7A80', alignSelf: 'center', flexShrink: 0 }}>{TEXTS.onboarding.fixedAmountSuffix}</span>
+              <input type="text" inputMode="numeric" placeholder={TEXTS.onboarding.fixedDuePh} value={fcDueDay} onChange={e => setFcDueDay(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14, flex: 1 }} />
               <span style={{ fontSize: 13, color: '#9A7A80', alignSelf: 'center', flexShrink: 0 }}>일</span>
             </div>
           </div>
-          <button onClick={addFixedCost} disabled={fcAdding || !fcName.trim() || !fcAmount} style={{ width: '100%', marginTop: 12, padding: '10px', borderRadius: 12, background: (fcName.trim() && fcAmount) ? primary : '#f3f4f6', color: (fcName.trim() && fcAmount) ? '#fff' : '#9ca3af', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{fcAdding ? '추가 중...' : '+ 고정비 추가'}</button>
+          <button onClick={addFixedCost} disabled={fcAdding || !fcName.trim() || !fcAmount} style={{ width: '100%', marginTop: 12, padding: '10px', borderRadius: 12, background: (fcName.trim() && fcAmount) ? primary : '#f3f4f6', color: (fcName.trim() && fcAmount) ? '#fff' : '#9ca3af', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.onboarding.fixedBtnAdd(fcAdding)}</button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px' }}>
@@ -541,9 +542,9 @@ export default function OnboardingForm({ userId, email }: Props) {
     return (
       <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
         <ProgressBar current={8} total={TOTAL_STEPS} color={primary} />
-        <h1 style={{ fontSize: '24px', fontWeight: '800', color: primary, marginBottom: '6px' }}>카테고리를 확인해요 🏷️</h1>
-        <p style={{ fontSize: '14px', color: '#B8A8AC', marginBottom: '6px' }}>필요하면 추가·삭제할 수 있어요</p>
-        <p style={{ fontSize: 12, color: '#C4A0A8', marginBottom: 16 }}>💡 다른 카테고리는 설정 탭에서도 관리할 수 있어요</p>
+        <h1 style={{ fontSize: '24px', fontWeight: '800', color: primary, marginBottom: '6px' }}>{TEXTS.onboarding.catsTitle}</h1>
+        <p style={{ fontSize: '14px', color: '#B8A8AC', marginBottom: '6px' }}>{TEXTS.onboarding.catsSubtitle}</p>
+        <p style={{ fontSize: 12, color: '#C4A0A8', marginBottom: 16 }}>{TEXTS.onboarding.catsTip}</p>
         <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 16 }}>
           {cats.map(cat => (
             <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 6, background: primaryLight, borderRadius: 20, padding: '7px 12px' }}>
@@ -553,13 +554,13 @@ export default function OnboardingForm({ userId, email }: Props) {
           ))}
         </div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-          <input type="text" placeholder="새 카테고리 이름" value={newCat} onChange={e => setNewCat(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && newCat.trim()) { setCats(prev => [...prev, newCat.trim()]); setNewCat('') } }} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14, flex: 1 }} />
+          <input type="text" placeholder={TEXTS.onboarding.catsNewPh} value={newCat} onChange={e => setNewCat(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && newCat.trim()) { setCats(prev => [...prev, newCat.trim()]); setNewCat('') } }} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14, flex: 1 }} />
           <button onClick={() => { if (newCat.trim()) { setCats(prev => [...prev, newCat.trim()]); setNewCat('') } }} style={{ padding: '10px 16px', borderRadius: 12, background: primary, color: '#fff', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>추가</button>
         </div>
-        <p style={{ fontSize: 11, color: '#C4A0A8', marginBottom: 20 }}>💡 수입 카테고리는 수입 기록 시 사용돼요</p>
+        <p style={{ fontSize: 11, color: '#C4A0A8', marginBottom: 20 }}>{TEXTS.onboarding.catsIncomeTip}</p>
         {error && <p style={{ fontSize: '13px', color: '#E05070', marginBottom: '8px' }}>{error}</p>}
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px', marginTop: '8px' }}>
-          <button onClick={handleFinish} disabled={saving} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: saving ? '#C4A0A8' : primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>{saving ? '저장 중...' : '시작하기 🎉'}</button>
+          <button onClick={handleFinish} disabled={saving} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: saving ? '#C4A0A8' : primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>{saving ? TEXTS.onboarding.btnStartSaving : TEXTS.onboarding.btnStart}</button>
           <button onClick={() => setStep('fixedcosts')} style={{ background: 'none', border: 'none', color: '#C4A0A8', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>← 이전</button>
         </div>
       </div>
@@ -570,9 +571,9 @@ export default function OnboardingForm({ userId, email }: Props) {
   return (
     <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', minHeight: '60vh', textAlign: 'center' as const }}>
       <div style={{ fontSize: '64px', marginBottom: '24px' }}>🌿</div>
-      <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '12px' }}>{finalName}님,</h1>
-      <p style={{ fontSize: '18px', fontWeight: '600', color: primary, marginBottom: '8px' }}>Spenlog가 준비돼어요!</p>
-      <p style={{ fontSize: '15px', color: '#B8A8AC', lineHeight: 1.6 }}>오늘부터 소비를 기록해봐요.</p>
+      <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '12px' }}>{finalName}{TEXTS.onboarding.completeSuffix}</h1>
+      <p style={{ fontSize: '18px', fontWeight: '600', color: primary, marginBottom: '8px' }}>{TEXTS.onboarding.completeTitle}</p>
+      <p style={{ fontSize: '15px', color: '#B8A8AC', lineHeight: 1.6 }}>{TEXTS.onboarding.completeSubtitle}</p>
     </div>
   )
 }

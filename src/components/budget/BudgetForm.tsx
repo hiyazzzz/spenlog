@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Budget } from '@/types'
+import { TEXTS } from '@/config/texts'
 
 interface Expense { category: string; amount: number }
 interface RecentExpense { category: string; amount: number; month: string }
@@ -132,7 +133,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
 
   async function handleAiRecommend() {
     if (!income) {
-      setAiToast('자산 탭에서 월 수입을 먼저 입력해주세요')
+      setAiToast(TEXTS.budget.toastNoIncome)
       setTimeout(() => setAiToast(null), 3000)
       return
     }
@@ -168,7 +169,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
       setAmounts(newAmounts)
       setSelectedPreset('ai-custom')
       setAiReason(data.reason ?? null)
-      setAiToast('AI 예산 추천이 완료됐어요')
+      setAiToast(TEXTS.budget.toastAIDone)
       setTimeout(() => setAiToast(null), 3000)
     } catch {
       const fallback = fallbackAmounts(income, fixedSavings)
@@ -176,7 +177,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
       setAiAmounts(newAmounts)
       setAmounts(newAmounts)
       setSelectedPreset('ai-custom')
-      setAiToast('AI 예산 추천이 완료됐어요')
+      setAiToast(TEXTS.budget.toastAIDone)
       setTimeout(() => setAiToast(null), 3000)
     } finally {
       setAiLoading(false)
@@ -256,7 +257,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
             background: tab === t ? 'var(--color-primary)' : 'transparent',
             color: tab === t ? '#fff' : '#B8A8AC',
           }}>
-            {t === 'manual' ? '✏️ 직접 입력' : '✨ 스마트 추천'}
+            {t === 'manual' ? TEXTS.budget.tabManual : TEXTS.budget.tabAI}
           </button>
         ))}
       </div>
@@ -267,17 +268,17 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
           {income > 0 ? (
             <>
               <p className="text-xs text-gray-400 mb-1">
-                월 수입 <span className="font-semibold text-gray-600">{income.toLocaleString()}원</span> 기준
+                {TEXTS.budget.incomeBasis(income)}
               </p>
               {fixedSavings > 0 && (
                 <p className="text-xs text-emerald-600 mb-3">
-                  고정저축 {fixedSavings.toLocaleString()}원 반영됨
+                  {TEXTS.budget.fixedSavingNote(fixedSavings)}
                 </p>
               )}
             </>
           ) : (
             <p className="text-xs text-gray-400 mb-3">
-              <a href="/assets" style={{ color: 'var(--color-primary)' }}>자산 탭</a>에서 월 수입을 입력하면 더 정확해요
+              <a href="/assets" style={{ color: 'var(--color-primary)' }}>{TEXTS.budget.assetTabName}</a>{TEXTS.budget.assetLinkNote}
             </p>
           )}
 
@@ -301,7 +302,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
                   <p style={{ fontSize: '10px', color: '#aaa', marginBottom: '4px' }}>{preset.desc}</p>
                   {income > 0 && (
                     <p style={{ fontSize: '11px', fontWeight: '600', color: '#555' }}>
-                      지출 {spendBudget.toLocaleString()}원
+                      {TEXTS.budget.spendBudget(spendBudget)}
                     </p>
                   )}
                 </button>
@@ -328,7 +329,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
                 내 소비 패턴 분석 중...
               </>
             ) : (
-              <>✨ 내 소비패턴 기반 AI 맞춤 추천</>
+              <>{TEXTS.budget.btnAIRecommend}</>
             )}
           </button>
 
@@ -350,20 +351,20 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
             const addSave = Math.max(0, targetSave - fixedSavings)
             return (
               <div className="rounded-xl p-3 mb-3" style={{ background: 'rgba(16,185,129,0.08)' }}>
-                <p className="text-xs font-semibold text-emerald-700 mb-2">💚 저축 플랜</p>
+                <p className="text-xs font-semibold text-emerald-700 mb-2">{TEXTS.budget.savingPlanTitle}</p>
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">목표 저축</span>
+                    <span className="text-gray-500">{TEXTS.budget.savingTarget}</span>
                     <span className="font-semibold text-emerald-600">{targetSave.toLocaleString()}원</span>
                   </div>
                   {fixedSavings > 0 && (
                     <div className="flex justify-between text-xs">
-                      <span className="text-gray-500">고정저축 (이미 확보)</span>
+                      <span className="text-gray-500">{TEXTS.budget.savingFixed}</span>
                       <span className="font-medium text-gray-600">{fixedSavings.toLocaleString()}원</span>
                     </div>
                   )}
                   <div className="flex justify-between text-xs border-t border-emerald-100 pt-1 mt-1">
-                    <span className="text-gray-500">추가 저축 목표</span>
+                    <span className="text-gray-500">{TEXTS.budget.savingExtra}</span>
                     <span className="font-bold text-emerald-700">{addSave.toLocaleString()}원</span>
                   </div>
                 </div>
@@ -374,7 +375,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
           {/* 카테고리별 배분 */}
           {selectedPreset && income > 0 && (
             <div className="space-y-1.5">
-              <p className="text-xs text-gray-400 mb-2">📊 지출 예산 배분</p>
+              <p className="text-xs text-gray-400 mb-2">{TEXTS.budget.distTitle}</p>
               {allCategories.map(cat => (
                 <div key={cat} className="flex justify-between text-xs py-1 border-b border-gray-50">
                   <span className="text-gray-600">{cat}</span>
@@ -393,7 +394,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
               color: '#fff', fontSize: '13px', fontWeight: '600', border: 'none',
               cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
             }}>
-              {loading ? '저장 중...' : savedOk ? '✓ 저장됨' : '이 플랜으로 저장하기'}
+              {loading ? TEXTS.budget.btnSavePlanSaving : savedOk ? TEXTS.budget.btnSavePlanSaved : TEXTS.budget.btnSavePlan}
             </button>
           )}
         </div>
@@ -403,7 +404,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
       {tab === 'manual' && totalBudget > 0 && (
         <div className="bg-white rounded-2xl p-4 border border-gray-100">
           <div className="flex justify-between text-xs mb-2">
-            <span className="text-gray-500 font-medium">전체 예산 달성률</span>
+            <span className="text-gray-500 font-medium">{TEXTS.budget.totalProgress}</span>
             <span className={`font-bold ${overallPct > 100 ? 'text-rose-500' : overallPct >= 80 ? 'text-amber-500' : 'text-emerald-600'}`}>
               {overallPct}%
             </span>
@@ -415,8 +416,8 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
             }} />
           </div>
           <div className="flex justify-between text-[11px] text-gray-400 mt-1.5">
-            <span>지출 {totalSpent.toLocaleString()}원</span>
-            <span>예산 {totalBudget.toLocaleString()}원</span>
+            <span>{TEXTS.budget.spentLabel(totalSpent)}</span>
+            <span>{TEXTS.budget.budgetLabel(totalBudget)}</span>
           </div>
         </div>
       )}
@@ -453,12 +454,12 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
                           fontSize: 13, fontWeight: 600, color: '#374151',
                           textAlign: 'right', fontFamily: 'inherit',
                         }}
-                        placeholder="예산 미설정"
+                        placeholder={TEXTS.budget.placeholderAmount}
                         value={amounts[cat] ? Number(amounts[cat]).toLocaleString() : ''}
                         onChange={(e) => handleChange(cat, e.target.value.replace(/,/g, ''))}
                         disabled={!enabledCats[cat]}
                       />
-                      <span style={{ fontSize: 12, color: '#9ca3af', flexShrink: 0 }}>원</span>
+                      <span style={{ fontSize: 12, color: '#9ca3af', flexShrink: 0 }}>{TEXTS.budget.unitWon}</span>
                     </div>
                     {/* 토글 */}
                     <button
@@ -488,7 +489,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: 10, color: over ? '#ef4444' : '#9ca3af', fontWeight: over ? 600 : 400 }}>
-                          {spent > 0 ? `지출 ${spent.toLocaleString()}원` : '지출 없음'}
+                          {spent > 0 ? TEXTS.budget.spentAmount(spent) : TEXTS.budget.spentNoExpense}
                         </span>
                         <span style={{ fontSize: 10, color: '#9ca3af' }}>{pct}%{over ? ' 초과!' : ''}</span>
                       </div>
@@ -505,7 +506,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
             color: '#fff', fontSize: '14px', fontWeight: '600', border: 'none',
             cursor: loading ? 'not-allowed' : 'pointer', transition: 'background 0.3s', fontFamily: 'inherit',
           }}>
-            {loading ? '저장 중...' : savedOk ? '✓ 저장됨' : '예산 저장하기'}
+            {loading ? TEXTS.budget.btnSaveManualSaving : savedOk ? TEXTS.budget.btnSaveManualSaved : TEXTS.budget.btnSaveManual}
           </button>
         </>
       )}

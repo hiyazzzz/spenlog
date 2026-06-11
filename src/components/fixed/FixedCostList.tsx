@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { TEXTS } from '@/config/texts'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { FixedCost, FixedCostType, FixedCostKind } from '@/types'
@@ -75,7 +76,7 @@ export default function FixedCostList({ initialItems, userId }: Props) {
 
       <div className="bg-white rounded-2xl border border-gray-100 mb-4 overflow-hidden">
         {filtered.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-8">등록된 {activeKind} 항목이 없어요.</p>
+          <p className="text-xs text-gray-400 text-center py-8">{TEXTS.fixed.noItems(activeKind)}</p>
         ) : (
           <div className="divide-y divide-gray-50">
             {filtered.map((item) => (
@@ -83,7 +84,7 @@ export default function FixedCostList({ initialItems, userId }: Props) {
                 <div>
                   <p className="text-sm font-medium text-gray-800">{item.name}</p>
                   <p className="text-[11px] text-gray-400 mt-0.5">
-                    {item.type}{item.due_day ? ` · 매월 ${item.due_day}일` : ''}
+                    {item.type}{item.due_day ? ` · ${TEXTS.fixed.dueDateLabel(item.due_day)}` : ''}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -112,10 +113,10 @@ export default function FixedCostList({ initialItems, userId }: Props) {
             ))}
           </div>
           <input className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none"
-            placeholder={kind === '고정저축' ? '항목명 (예: 청약통장, 적금)' : '항목명 (예: 넷플릭스, 월세)'}
+            placeholder={TEXTS.fixed.formNamePh(kind)}
             value={name} onChange={e => setName(e.target.value)} />
           <input className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none"
-            placeholder="금액" type="text" inputMode="numeric"
+            placeholder={TEXTS.fixed.formAmountPh} type="text" inputMode="numeric"
             value={amount} onChange={e => setAmount(e.target.value.replace(/[^0-9]/g, ''))} />
           <div className="flex gap-2">
             {TYPES.map(t => (
@@ -127,10 +128,10 @@ export default function FixedCostList({ initialItems, userId }: Props) {
             ))}
           </div>
           <input className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none"
-            placeholder="이체일 (선택, 숫자만)" type="text" inputMode="numeric"
+            placeholder={TEXTS.fixed.formDuePh} type="text" inputMode="numeric"
             value={dueDay} onChange={e => setDueDay(e.target.value.replace(/[^0-9]/g, ''))} />
           <div className="flex gap-2">
-            <button onClick={() => setShowForm(false)} className="flex-1 py-2 rounded-xl text-sm bg-gray-100 text-gray-500">취소</button>
+            <button onClick={() => setShowForm(false)} className="flex-1 py-2 rounded-xl text-sm bg-gray-100 text-gray-500">{TEXTS.fixed.btnCancel}</button>
             <button onClick={handleAdd} disabled={saving}
               className="flex-1 py-2 rounded-xl text-sm text-white font-medium disabled:opacity-50"
               style={{ background: 'var(--color-primary)' }}>

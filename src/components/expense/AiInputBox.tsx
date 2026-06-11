@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { TEXTS } from '@/config/texts'
 import { useAiInputStore } from '@/store/useAiInputStore'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -73,7 +74,7 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
         setFailModal(true)
       }
     } catch {
-      setFailMsg('네트워크 오류')
+      setFailMsg(TEXTS.ai.networkError)
       setFailModal(true)
     } finally {
       setLoading(false)
@@ -106,8 +107,8 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
         const newCount = saveFailCount + 1
         setSaveFailCount(newCount)
         setSaveError(newCount >= 2
-          ? '저장에 계속 실패하고 있어요. 직접 입력 탭을 이용해주세요.'
-          : '저장 중 오류가 발생했어요.')
+          ? TEXTS.ai.saveErrorPersist
+          : TEXTS.ai.saveErrorRetry)
         return
       }
       setPreviews([])
@@ -119,8 +120,8 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
       const newCount = saveFailCount + 1
       setSaveFailCount(newCount)
       setSaveError(newCount >= 2
-        ? '저장에 계속 실패하고 있어요. 직접 입력 탭을 이용해주세요.'
-        : '네트워크 오류가 발생했어요.')
+        ? TEXTS.ai.saveErrorNetworkPersist
+        : TEXTS.ai.saveErrorNetworkRetry)
     } finally {
       setSaving(false)
     }
@@ -175,19 +176,19 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
             </div>
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
               <p style={{ fontSize: 20, marginBottom: 6 }}>😅</p>
-              <p style={{ fontSize: 16, fontWeight: 700, color: '#1f2937', marginBottom: 4 }}>인식에 실패했어요</p>
-              <p style={{ fontSize: 13, color: '#9ca3af' }}>여기서 바로 입력할 수 있어요</p>
+              <p style={{ fontSize: 16, fontWeight: 700, color: '#1f2937', marginBottom: 4 }}>{TEXTS.ai.failTitle}</p>
+              <p style={{ fontSize: 13, color: '#9ca3af' }}>{TEXTS.ai.failSubtitle}</p>
             </div>
 
             {/* 인라인 입력 폼 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
               {/* 금액 */}
               <div style={{ background: '#f9fafb', borderRadius: 12, padding: '12px 14px' }}>
-                <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>금액 *</p>
+                <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>{TEXTS.ai.inlineAmount}</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <input
                     type="text" inputMode="numeric" autoFocus
-                    placeholder="0"
+                    placeholder={TEXTS.ai.inlineAmountPlaceholder}
                     value={inlineForm.amount ? Number(inlineForm.amount.replace(/,/g,'')).toLocaleString() : ''}
                     onChange={e => setInlineForm(p => ({ ...p, amount: e.target.value.replace(/[^0-9]/g,'') }))}
                     style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 18, fontWeight: 700, outline: 'none', fontFamily: 'inherit', color: '#1f2937' }}
@@ -196,9 +197,9 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
               </div>
               {/* 항목명 */}
               <div style={{ background: '#f9fafb', borderRadius: 12, padding: '12px 14px' }}>
-                <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>항목명 *</p>
+                <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>{TEXTS.ai.inlineName}</p>
                 <input
-                  type="text" placeholder="예) 스타벅스"
+                  type="text" placeholder={TEXTS.ai.inlineNamePlaceholder}
                   value={inlineForm.name}
                   onChange={e => setInlineForm(p => ({ ...p, name: e.target.value }))}
                   style={{ width: '100%', border: 'none', background: 'transparent', fontSize: 14, outline: 'none', fontFamily: 'inherit', color: '#1f2937' }}
@@ -248,7 +249,7 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
                 fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 10,
                 opacity: (!inlineForm.name.trim() || !inlineForm.amount) ? 0.5 : 1,
               }}
-            >{inlineSaved ? '✓ 저장됐어요!' : inlineSaving ? '저장 중...' : '저장하기'}</button>
+            >{inlineSaved ? TEXTS.ai.failSaved : inlineSaving ? TEXTS.ai.failSaving : TEXTS.ai.failBtnSave}</button>
             <button
               onClick={() => setFailModal(false)}
               style={{
@@ -266,7 +267,7 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
         <textarea
           className="w-full text-sm resize-none outline-none text-gray-700 placeholder:text-gray-300"
           rows={compact ? 2 : 3}
-          placeholder={compact ? '오늘 소비 내역을 알려줘!' : '오늘 소비 내역을 알려줘!\n예) 아아 삼천원\n예) 스벅 6천원 배민 치킨 18000원'}
+          placeholder={compact ? TEXTS.ai.placeholder : TEXTS.ai.placeholderFull}
           value={text}
           onChange={e => setText(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) handleSubmit() }}
@@ -284,7 +285,7 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             )}
-            {loading ? '분석 중' : 'AI 분류'}
+            {loading ? TEXTS.ai.btnAnalyzing : TEXTS.ai.btnAnalyze}
           </button>
         </div>
       </div>
@@ -293,7 +294,7 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
       {previews.length > 0 && (
         <div className="mt-3 space-y-2">
           <p className="text-xs font-medium px-1" style={{ color: 'var(--color-primary-mid)' }}>
-            {previews.length}건 인식됨 — 확인 후 저장하세요
+            {TEXTS.ai.recognized(previews.length)}
           </p>
 
           {previews.map((preview, idx) => (
@@ -314,10 +315,10 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
                 <div className="flex gap-2">
                   <button onClick={() => setEditingIdx(editingIdx === idx ? null : idx)}
                     className="text-xs px-2 py-1 rounded-lg bg-white border border-gray-200 text-gray-500">
-                    {editingIdx === idx ? '접기' : '✏️ 수정'}
+                    {editingIdx === idx ? TEXTS.ai.btnFold : TEXTS.ai.btnEdit}
                   </button>
                   <button onClick={() => removePreview(idx)}
-                    className="text-xs px-2 py-1 rounded-lg bg-white border border-gray-200 text-gray-400">삭제</button>
+                    className="text-xs px-2 py-1 rounded-lg bg-white border border-gray-200 text-gray-400">{TEXTS.ai.btnDelete}</button>
                 </div>
               </div>
 
@@ -345,7 +346,7 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
                           background: preview.type === t ? 'var(--color-primary)' : 'transparent',
                           color: preview.type === t ? 'white' : '#9ca3af',
                         }}>
-                        {t === 'expense' ? '지출' : '수입'}
+                        {t === 'expense' ? TEXTS.ai.labelExpense : TEXTS.ai.labelIncome}
                       </button>
                     ))}
                   </div>
@@ -357,7 +358,7 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
                     className="w-full text-sm px-3 py-2 rounded-xl bg-white border border-gray-200 outline-none" />
                   {preview.type === 'expense' ? (
                     <div>
-                      <p className="text-xs font-semibold mb-1.5" style={{ color: '#6366f1' }}>카테고리</p>
+                      <p className="text-xs font-semibold mb-1.5" style={{ color: '#6366f1' }}>{TEXTS.ai.labelCategory}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {cats.filter(c => c !== '수입').map(cat => (
                           <button key={cat} onClick={() => updatePreview(idx, 'category', cat)}
@@ -374,7 +375,7 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
                     </div>
                   ) : (
                     <div>
-                      <p className="text-xs font-semibold mb-1.5" style={{ color: '#059669' }}>수입 경로</p>
+                      <p className="text-xs font-semibold mb-1.5" style={{ color: '#059669' }}>{TEXTS.ai.labelIncomeSource}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {[...accounts.map(a => a.name), '현금', '계좌이체'].map(method => (
                           <button key={method} onClick={() => updatePreview(idx, 'payment_method', method)}
@@ -392,7 +393,7 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
                   )}
                   {preview.type === 'expense' && (
                     <div>
-                      <p className="text-xs font-semibold mb-1.5" style={{ color: '#059669' }}>지출수단</p>
+                      <p className="text-xs font-semibold mb-1.5" style={{ color: '#059669' }}>{TEXTS.ai.labelPaymentExpense}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {[...accounts.map(a => a.name), ...cards.map(c => c.name), '현금', '카카오페이', '네이버페이'].map(method => (
                           <button key={method} onClick={() => updatePreview(idx, 'payment_method', method)}
@@ -441,13 +442,13 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
               )}
-              {saving ? '저장 중...' : saveError ? '다시 시도' : previews.length > 1 ? previews.length + '건 전체 저장' : '저장'}
+              {saving ? TEXTS.ai.btnSaving : saveError ? TEXTS.ai.btnRetry : previews.length > 1 ? TEXTS.ai.btnSaveAll(previews.length) : TEXTS.ai.btnSave}
             </button>
             <button
               onClick={() => { setPreviews([]); setText(''); setEditingIdx(null); setSaveError(''); setSaveFailCount(0) }}
               className="flex-1 bg-white text-gray-500 text-sm py-2.5 rounded-xl border border-gray-200"
             >
-              취소
+              {TEXTS.ai.btnCancel}
             </button>
           </div>
         </div>

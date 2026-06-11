@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { TEXTS } from '@/config/texts'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import dayjs from 'dayjs'
@@ -65,7 +66,7 @@ export default function ApplyFixedCosts({ fixedCosts, userId, appliedNames, this
       <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 mb-4 flex items-center gap-3">
         <span className="text-emerald-500 text-lg">✓</span>
         <p className="text-sm text-emerald-700 font-medium">
-          이번 달 고정비가 모두 반영됐어요 ({fixedCosts.length}건)
+          {TEXTS.fixed.apply.doneTitle(fixedCosts.length)}
         </p>
       </div>
     )
@@ -75,9 +76,9 @@ export default function ApplyFixedCosts({ fixedCosts, userId, appliedNames, this
     <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-4">
       <div className="flex justify-between items-center">
         <div>
-          <p className="text-sm font-semibold text-gray-800">이번 달 고정비 반영</p>
+          <p className="text-sm font-semibold text-gray-800">{TEXTS.fixed.apply.pendingTitle}</p>
           <p className="text-xs text-gray-400 mt-0.5">
-            {notApplied.length}건 미반영 · {notApplied.reduce((s, f) => s + f.amount, 0).toLocaleString()}원
+            {TEXTS.fixed.apply.pendingDesc(notApplied.length, notApplied.reduce((s, f) => s + f.amount, 0))}
           </p>
         </div>
         <button onClick={handleApply} disabled={applying} style={{

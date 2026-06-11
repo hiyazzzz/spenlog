@@ -6,6 +6,7 @@ import { THEMES } from '@/lib/themes'
 import type { Theme } from '@/types'
 import { subscribePush, unsubscribePush, isSubscribed } from '@/lib/push'
 import { isPremiumUnlocked } from '@/lib/premium'
+import { TEXTS } from '@/config/texts'
 import AppGuide from '@/components/AppGuide'
 
 function ToggleSwitch({ on, onToggle, disabled }: { on: boolean; onToggle: () => void; disabled?: boolean }) {
@@ -226,7 +227,7 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
       {guestLogoutConfirm && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end' }}>
           <div style={{ width: '100%', background: '#fff', borderRadius: '20px 20px 0 0', padding: '28px 24px 48px' }}>
-            <p style={{ fontSize: 18, fontWeight: 800, color: '#1f2937', marginBottom: 8 }}>⚠️ 로그아웃 전에 확인해요</p>
+            <p style={{ fontSize: 18, fontWeight: 800, color: '#1f2937', marginBottom: 8 }}>{TEXTS.settings.guestLogoutTitle}</p>
             <p style={{ fontSize: 14, color: '#6b7280', lineHeight: 1.6, marginBottom: 24 }}>
               게스트 계정에서 로그아웃하면<br />
               <strong style={{ color: '#ef4444' }}>모든 기록·설정 데이터가 영구 삭제</strong>됩니다.<br />
@@ -241,7 +242,7 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}>
                 <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-                Google로 연동하고 데이터 보존
+                {TEXTS.settings.guestBannerBtnLink}
               </button>
               <button onClick={() => { setGuestLogoutConfirm(false); handleGuestLogoutAndDelete() }} disabled={loggingOut} style={{
                 width: '100%', padding: '13px', borderRadius: 14,
@@ -276,7 +277,7 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
           </div>
         ) : (
           <div style={{ marginBottom: 4 }}>
-            <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-accent)' }}>{profile?.name ?? '이름 없음'}</span>
+            <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-accent)' }}>{profile?.name ?? TEXTS.settings.noName}</span>
             <button onClick={() => setEditingName(true)}
               style={{ marginLeft: 8, fontSize: 11, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>✏️</button>
           </div>
@@ -303,7 +304,7 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <span style={{ fontSize: 18 }}>⚠️</span>
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#92400e' }}>게스트 계정 사용 중</p>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#92400e' }}>{TEXTS.settings.guestBannerTitle}</p>
           </div>
           <p style={{ fontSize: 13, color: '#b45309', lineHeight: 1.5, marginBottom: 12 }}>
             로그아웃하거나 기기를 변경하면 모든 데이터가 사라져요.<br />
@@ -322,18 +323,18 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
-            {googleLinking ? '연동 중...' : 'Google 계정으로 연동하기'}
+            {googleLinking ? TEXTS.settings.btnLinking : 'Google 계정으로 연동하기'}
           </button>
         </div>
       )}
 
       {/* 계정 섹션 */}
       <div style={card}>
-        <p style={sectionHeader}>👤 계정</p>
+        <p style={sectionHeader}>{TEXTS.settings.sectionAccount}</p>
         <div style={rowStyle}>
           <span style={{ fontSize: 14, color: '#374151' }}>로그인 방식</span>
           <span style={{ fontSize: 13, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4 }}>
-            {isGuest ? '👤 게스트' : (hasGoogle || provider === 'google') ? (
+            {isGuest ? TEXTS.settings.guestLabel : (hasGoogle || provider === 'google') ? (
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -349,7 +350,7 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
         <div style={{ ...rowStyle, borderBottom: 'none' }}>
           <span style={{ fontSize: 14, color: '#374151' }}>계정</span>
           <span style={{ fontSize: 13, color: '#6b7280' }}>
-            {isGuest ? '게스트 계정' : (email || '-')}
+            {isGuest ? TEXTS.settings.guestAccount : (email || '-')}
           </span>
         </div>
 
@@ -375,7 +376,7 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
                   background: 'var(--color-primary-light)', border: 'none',
                   padding: '4px 12px', borderRadius: 20, cursor: 'pointer', fontFamily: 'inherit',
                 }}>
-                  {googleLinking ? '연동 중...' : '연동하기'}
+                  {googleLinking ? TEXTS.settings.btnLinking : TEXTS.settings.btnLink}
                 </button>
               )}
             </div>
@@ -385,7 +386,7 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
 
       {/* 카테고리 관리 링크 */}
       <div style={card}>
-        <p style={sectionHeader}>📂 카테고리</p>
+        <p style={sectionHeader}>{TEXTS.settings.sectionCategory}</p>
         <button onClick={() => router.push('/category')}
           style={{ ...rowStyle, width: '100%', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', borderBottom: 'none' }}>
           <span style={{ fontSize: 14, color: '#374151' }}>카테고리 관리</span>
@@ -401,7 +402,7 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
           padding: '14px 16px',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#9ca3af', letterSpacing: '0.05em' }}>🎨 테마</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#9ca3af', letterSpacing: '0.05em' }}>{TEXTS.settings.sectionTheme}</span>
             {!themeOpen && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{ width: 14, height: 14, borderRadius: 4, background: THEMES[theme]?.primary ?? '#6b7280', flexShrink: 0 }} />
@@ -480,10 +481,10 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
           borderBottom: notiOpen ? '1px solid #f9fafb' : 'none',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#9ca3af', letterSpacing: '0.05em' }}>🔔 알림</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#9ca3af', letterSpacing: '0.05em' }}>{TEXTS.settings.sectionNotif}</span>
             {!notiOpen && (
               <span style={{ fontSize: 12, color: notifications.all ? '#10b981' : '#9ca3af' }}>
-                {notifications.all ? '켜짐' : '꺼짐'}
+                {notifications.all ? TEXTS.settings.notifOn : TEXTS.settings.notifOff}
               </span>
             )}
           </div>
@@ -515,14 +516,14 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
 
         {/* 카드·고정비 납부 리마인드 — 대주제 */}
         <div style={{ padding: '10px 16px 4px', opacity: notifications.all ? 1 : 0.4 }}>
-          <p style={{ fontSize: 12, fontWeight: 700, color: '#6b7280' }}>💳 카드 · 고정비 납부 리마인드</p>
+          <p style={{ fontSize: 12, fontWeight: 700, color: '#6b7280' }}>{TEXTS.settings.notifCardRemind}</p>
         </div>
 
         {/* 출금일 리마인드 */}
         <div style={{ ...rowStyle, paddingLeft: 24, borderBottom: '1px solid #f9fafb', opacity: notifications.all ? 1 : 0.4 }}>
           <div>
-            <p style={{ fontSize: 13, color: '#374151' }}>출금일 리마인드 알림</p>
-            <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>출금일 D-7일부터 매일 발송</p>
+            <p style={{ fontSize: 13, color: '#374151' }}>{TEXTS.settings.notifDueRemind}</p>
+            <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{TEXTS.settings.notifDueDesc}</p>
           </div>
           <ToggleSwitch
             on={notifications.dueDateReminder && notifications.all}
@@ -539,8 +540,8 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
         {/* 당일 미처리 알림 */}
         <div style={{ ...rowStyle, paddingLeft: 24, borderBottom: '1px solid #f9fafb', opacity: notifications.all ? 1 : 0.4 }}>
           <div>
-            <p style={{ fontSize: 13, color: '#374151' }}>당일 미처리 알림</p>
-            <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>출금일 당일 미기록 시 발송</p>
+            <p style={{ fontSize: 13, color: '#374151' }}>{TEXTS.settings.notifDayOf}</p>
+            <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{TEXTS.settings.notifDayOfDesc}</p>
           </div>
           <ToggleSwitch
             on={notifications.dueDateUnprocessed && notifications.all}
@@ -557,8 +558,8 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
         {/* 월간 리포트 */}
         <div style={{ ...rowStyle, borderBottom: '1px solid #f9fafb', opacity: notifications.all ? 1 : 0.4 }}>
           <div>
-            <p style={{ fontSize: 14, color: '#374151' }}>📊 월간 리포트 공개</p>
-            <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>매월 1일 리포트 알림</p>
+            <p style={{ fontSize: 14, color: '#374151' }}>{TEXTS.settings.notifMonthlyReport}</p>
+            <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{TEXTS.settings.notifMonthlyDesc}</p>
           </div>
           <ToggleSwitch
             on={notifications.report && notifications.all}
@@ -575,8 +576,8 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
         {/* 지출 입력 리마인드 */}
         <div style={{ ...rowStyle, borderBottom: 'none', opacity: notifications.all ? 1 : 0.4 }}>
           <div>
-            <p style={{ fontSize: 14, color: '#374151' }}>✏️ 지출 입력 리마인드</p>
-            <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>점심(12:00) · 저녁(19:00)</p>
+            <p style={{ fontSize: 14, color: '#374151' }}>{TEXTS.settings.notifInputRemind}</p>
+            <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{TEXTS.settings.notifInputDesc}</p>
           </div>
           <ToggleSwitch
             on={notifications.reminder && notifications.all}
@@ -605,8 +606,8 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
         </div>
         <div style={{ ...rowStyle, borderBottom: 'none', pointerEvents: isPremium ? 'auto' : 'none' }}>
           <div>
-            <p style={{ fontSize: 14, color: '#374151' }}>홈 화면 움직이는 이미지</p>
-            <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>GIF 재생 켜기/끄기</p>
+            <p style={{ fontSize: 14, color: '#374151' }}>{TEXTS.settings.labelHomeGif}</p>
+            <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{TEXTS.settings.labelHomeGifDesc}</p>
           </div>
           <ToggleSwitch
             on={isPremium && (profile?.gif_autoplay ?? true)}
@@ -620,7 +621,7 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
         {!isPremium && (
           <div style={{ padding: '0 16px 12px' }} onClick={() => router.push('/premium')}>
             <p style={{ fontSize: 12, color: '#9ca3af', cursor: 'pointer' }}>
-              프리미엄에서 홈 화면을 나만의 이미지/GIF로 꾸밀 수 있어요
+              {TEXTS.settings.premiumUpgradeNote}
             </p>
           </div>
         )}
@@ -639,7 +640,7 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
         </div>
         <div style={{ padding: '4px 16px 10px' }}>
           <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 10 }}>
-            지출/수입 내역을 CSV 파일로 내보내 엑셀 등에서 분석할 수 있어요
+            {TEXTS.settings.exportDesc}
           </p>
           <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
             {(['this_month', 'last_3months', 'all'] as const).map(p => (
@@ -650,7 +651,7 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
                   background: csvPeriod === p ? 'var(--color-primary)' : '#f3f4f6',
                   color: csvPeriod === p ? '#fff' : '#6b7280',
                 }}>
-                {p === 'this_month' ? '이번 달' : p === 'last_3months' ? '최근 3개월' : '전체 기간'}
+                {p === 'this_month' ? TEXTS.settings.periodThisMonth : p === 'last_3months' ? TEXTS.settings.periodLast3 : TEXTS.settings.periodAll}
               </button>
             ))}
           </div>
@@ -662,44 +663,44 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
               fontSize: 13, fontWeight: 600, cursor: csvLoading ? 'default' : 'pointer',
               fontFamily: 'inherit', opacity: csvLoading ? 0.7 : 1,
             }}>
-            {csvLoading ? '내보내는 중...' : isPremiumUnlocked(profile) ? '📥 CSV 다운로드' : '🔒 프리미엄 전용'}
+            {csvLoading ? TEXTS.settings.exportLoading : isPremiumUnlocked(profile) ? TEXTS.settings.exportBtnDownload : TEXTS.settings.exportBtnPremium}
           </button>
         </div>
       </div>
 
       {/* 앱 정보 */}
       <div style={card}>
-        <p style={sectionHeader}>ℹ️ 앱 정보</p>
+        <p style={sectionHeader}>{TEXTS.settings.sectionInfo}</p>
         <button onClick={() => setShowGuide(true)}
           style={{ ...rowStyle, width: '100%', textAlign: 'left' as const, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-          <span style={{ fontSize: 14, color: '#374151' }}>앱 가이드 다시 보기</span>
+          <span style={{ fontSize: 14, color: '#374151' }}>{TEXTS.settings.labelAppGuide}</span>
           <span style={{ fontSize: 14, color: '#9ca3af' }}>›</span>
         </button>
         <div style={{ ...rowStyle, borderBottom: 'none' }}>
-          <span style={{ fontSize: 14, color: '#374151' }}>버전</span>
+          <span style={{ fontSize: 14, color: '#374151' }}>{TEXTS.settings.labelVersion}</span>
           <span style={{ fontSize: 13, color: '#9ca3af' }}>1.0.0</span>
         </div>
       </div>
 
       {/* 계정 관리 */}
       <div style={card}>
-        <p style={sectionHeader}>⚠️ 계정 관리</p>
+        <p style={sectionHeader}>{TEXTS.settings.sectionDanger}</p>
         <button onClick={handleLogout} disabled={loggingOut}
           style={{ ...rowStyle, width: '100%', textAlign: 'left' as const, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', borderBottom: '1px solid #f9fafb' }}>
-          <span style={{ fontSize: 14, color: '#374151' }}>{loggingOut ? '로그아웃 중...' : '로그아웃'}</span>
+          <span style={{ fontSize: 14, color: '#374151' }}>{loggingOut ? TEXTS.settings.logoutLoading : TEXTS.settings.logoutLabel}</span>
           <span style={{ fontSize: 14, color: '#9ca3af' }}>›</span>
         </button>
         {!confirmDelete ? (
           <button onClick={() => isGuest ? setGuestLogoutConfirm(true) : setConfirmDelete(true)}
             style={{ ...rowStyle, width: '100%', textAlign: 'left' as const, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', borderBottom: 'none' }}>
-            <span style={{ fontSize: 14, color: '#ef4444' }}>{isGuest ? '게스트 탈퇴' : '회원 탈퇴'}</span>
+            <span style={{ fontSize: 14, color: '#ef4444' }}>{isGuest ? TEXTS.settings.withdrawGuest : TEXTS.settings.withdraw}</span>
             <span style={{ fontSize: 14, color: '#9ca3af' }}>›</span>
           </button>
         ) : confirmDelete === 1 ? (
           <div style={{ padding: '12px 16px' }}>
-            <p style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 6 }}>탈퇴하시겠어요?</p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 6 }}>{TEXTS.settings.withdrawConfirmTitle}</p>
             <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12, lineHeight: 1.6 }}>
-              모든 지출 내역, 자산 설정, 구독 이력이 삭제돼요
+              {TEXTS.settings.withdrawConfirmDesc}
             </p>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => setConfirmDelete(2)}
@@ -714,9 +715,9 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
           </div>
         ) : (
           <div style={{ padding: '12px 16px' }}>
-            <p style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 4 }}>닉네임을 입력해 본인 확인</p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 4 }}>{TEXTS.settings.withdrawVerifyTitle}</p>
             <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 10 }}>
-              "{profile?.name ?? '닉네임'}"을 그대로 입력해주세요
+              {TEXTS.settings.withdrawVerifyDesc(profile?.name ?? '')}
             </p>
             <input
               type="text"
