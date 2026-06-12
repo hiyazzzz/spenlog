@@ -3,11 +3,12 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  // 정적 리소스, auth 경로, 로그인 페이지 제외
+  // 정적 리소스, auth 경로, 로그인 페이지, API 라우트 제외 (모바일 앱은 쿠키 세션이 없어 API를 직접 호출함)
   const isPublic =
     pathname.startsWith('/login') ||
     pathname.startsWith('/auth') ||
     pathname.startsWith('/onboarding') ||
+    pathname.startsWith('/api') ||
     pathname.startsWith('/_next') ||
     pathname.includes('.')
 
