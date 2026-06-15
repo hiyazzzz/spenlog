@@ -69,6 +69,7 @@ export interface FixedCost {
   due_day: number | null
   linked_account_id?: string | null
   linked_target_account_id?: string | null
+  linked_card_id?: string | null
 }
 
 export interface Account {

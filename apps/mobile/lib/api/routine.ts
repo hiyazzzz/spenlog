@@ -35,13 +35,19 @@ export async function recordFixedCostPayment(userId: string, fc: FixedCost, mont
   }, { onConflict: 'user_id,year_month,fixed_cost_id' })
 
   const isTransfer = fc.kind === '고정저축'
+  let paymentMethod: string | null = null
+  if (fc.linked_card_id) {
+    const { data: card } = await supabase.from('cards').select('name').eq('id', fc.linked_card_id).single()
+    paymentMethod = card?.name ?? null
+  }
+
   await supabase.from('expenses').insert({
     user_id: userId,
     name: fc.name,
     amount: fc.amount,
     category: '고정비',
     date: today,
-    payment_method: null,
+    payment_method: paymentMethod,
     type: isTransfer ? 'transfer' : 'expense',
     source: 'routine',
     memo: isTransfer ? '고정 저축 이체' : '고정 지출 처리',

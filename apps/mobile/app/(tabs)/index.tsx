@@ -19,6 +19,12 @@ export default function HomeScreen() {
   const [editOpen, setEditOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [fabOpen, setFabOpen] = useState(false);
+  const [confirmItems, setConfirmItems] = useState<any[]>([]);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editAmount, setEditAmount] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -44,27 +50,34 @@ export default function HomeScreen() {
     if (!text || submitting) return;
     setSubmitting(true);
     try {
-      const userId = await getCurrentUserId();
-      if (!userId) {
-        Alert.alert('로그인이 필요해요');
-        return;
-      }
+      const uid = await getCurrentUserId();
+      if (!uid) { Alert.alert('로그인이 필요해요'); return; }
       const result = await parseAiInput(text);
       if (!result.items || result.items.length === 0) {
         Alert.alert('인식 실패', result.error ?? '금액을 인식하지 못했어요. 예) 아아 3000원 / 커피 삼천원');
         return;
       }
-      const { error: saveErr } = await addExpenses(userId, result.items);
-      if (saveErr) {
-        Alert.alert('저장 실패', saveErr.message);
-        return;
-      }
-      setAiInput('');
-      await load();
+      setConfirmItems(result.items);
+      setShowConfirm(true);
     } catch (e) {
       Alert.alert('오류', e instanceof Error ? e.message : '알 수 없는 오류가 발생했어요');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleConfirmSave() {
+    try {
+      const uid = await getCurrentUserId();
+      if (!uid) return;
+      const { error: saveErr } = await addExpenses(uid, confirmItems);
+      if (saveErr) { Alert.alert('저장 실패', saveErr.message); return; }
+      setShowConfirm(false);
+      setConfirmItems([]);
+      setAiInput('');
+      await load();
+    } catch (e) {
+      Alert.alert('오류', e instanceof Error ? e.message : '알 수 없는 오류가 발생했어요');
     }
   }
 
@@ -309,7 +322,94 @@ export default function HomeScreen() {
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
 
-      <Modal visible={fabOpen} transparent animationType="slide" onRequestClose={() => setFabOpen(false)}>
+      {/* AI 파싱 확인 팝업 */}
+      <Modal visible={showConfirm} transparent animationType="none" onRequestClose={() => setShowConfirm(false)}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmSheet}>
+            <Text style={styles.confirmTitle}>{confirmItems.length}건 인식됨 — 확인 후 저장하세요</Text>
+
+            <ScrollView style={{ maxHeight: 360 }}>
+              {confirmItems.map((item, idx) => (
+                editingIdx === idx ? (
+                  <View key={idx} style={styles.confirmCard}>
+                    <Text style={styles.confirmBadge}>#{idx + 1} 수정</Text>
+                    <TextInput
+                      style={styles.confirmEditInput}
+                      value={editName}
+                      onChangeText={setEditName}
+                      placeholder="이름"
+                    />
+                    <TextInput
+                      style={styles.confirmEditInput}
+                      value={editCategory}
+                      onChangeText={setEditCategory}
+                      placeholder="카테고리"
+                    />
+                    <TextInput
+                      style={styles.confirmEditInput}
+                      value={editAmount}
+                      onChangeText={setEditAmount}
+                      placeholder="금액"
+                      keyboardType="numeric"
+                    />
+                    <TouchableOpacity onPress={() => {
+                      const updated = [...confirmItems];
+                      updated[idx] = { ...updated[idx], name: editName, category: editCategory, amount: parseInt(editAmount) || updated[idx].amount };
+                      setConfirmItems(updated);
+                      setEditingIdx(null);
+                    }}>
+                      <Text style={{ color: COLORS.primary, fontWeight: '700', marginTop: 6 }}>완료</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View key={idx} style={styles.confirmCard}>
+                    <View style={styles.confirmCardHeader}>
+                      <View style={styles.confirmBadgeWrap}>
+                        <Text style={styles.confirmBadge}>#{idx + 1} 자동</Text>
+                      </View>
+                      <View style={styles.confirmCardActions}>
+                        <TouchableOpacity onPress={() => {
+                          setEditingIdx(idx);
+                          setEditName(item.name);
+                          setEditCategory(item.category);
+                          setEditAmount(String(item.amount));
+                        }} style={styles.confirmActionBtn}>
+                          <Text style={styles.confirmActionBtnText}>✏️ 수정</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => {
+                          const updated = confirmItems.filter((_, i) => i !== idx);
+                          if (updated.length === 0) { setShowConfirm(false); setConfirmItems([]); }
+                          else setConfirmItems(updated);
+                        }} style={[styles.confirmActionBtn, styles.confirmActionBtnDelete]}>
+                          <Text style={styles.confirmActionBtnText}>삭제</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    <View style={styles.confirmCardBody}>
+                      <View>
+                        <Text style={styles.confirmItemName}>{item.name}</Text>
+                        <Text style={styles.confirmItemMeta}>{item.category} · {item.date ?? new Date().toISOString().slice(0, 10)}</Text>
+                      </View>
+                      <Text style={styles.confirmItemAmount}>{formatCurrency(item.amount)}원</Text>
+                    </View>
+                  </View>
+                )
+              ))}
+            </ScrollView>
+
+            <View style={styles.confirmButtons}>
+              <TouchableOpacity style={styles.confirmSaveBtn} onPress={handleConfirmSave}>
+                <Text style={styles.confirmSaveBtnText}>저장</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => { setShowConfirm(false); setConfirmItems([]); }}>
+                <Text style={styles.confirmCancelBtnText}>취소</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={fabOpen} transparent animationType="none" onRequestClose={() => setFabOpen(false)}>
         <TouchableOpacity style={styles.fabOverlay} activeOpacity={1} onPress={() => setFabOpen(false)}>
           <View style={styles.fabSheet}>
             <View style={styles.fabSheetHandle} />
@@ -477,4 +577,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   fabSheetBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.gray800 },
+
+  confirmOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
+  confirmSheet: { backgroundColor: '#fff', borderRadius: RADIUS.lg, padding: 20, gap: 12 },
+  confirmTitle: { fontSize: 13, fontWeight: '600', color: COLORS.gray800, marginBottom: 4 },
+  confirmCard: { backgroundColor: '#f8f7ff', borderRadius: RADIUS.md, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: '#e8e4ff' },
+  confirmCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  confirmBadgeWrap: {},
+  confirmBadge: { fontSize: 11, fontWeight: '700', color: COLORS.primary, backgroundColor: '#ede9fe', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start' },
+  confirmCardActions: { flexDirection: 'row', gap: 6 },
+  confirmActionBtn: { backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: COLORS.gray200 },
+  confirmActionBtnDelete: { borderColor: '#fca5a5' },
+  confirmActionBtnText: { fontSize: 11, color: COLORS.gray700 },
+  confirmCardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  confirmItemName: { fontSize: 15, fontWeight: '700', color: COLORS.gray800 },
+  confirmItemMeta: { fontSize: 11, color: COLORS.gray400, marginTop: 2 },
+  confirmItemAmount: { fontSize: 16, fontWeight: '800', color: COLORS.gray800 },
+  confirmEditInput: { borderWidth: 1, borderColor: COLORS.gray200, borderRadius: RADIUS.sm, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13, color: COLORS.gray800, marginBottom: 6, backgroundColor: '#fff' },
+  confirmButtons: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  confirmSaveBtn: { flex: 1, backgroundColor: COLORS.primary, borderRadius: RADIUS.md, paddingVertical: 14, alignItems: 'center' },
+  confirmSaveBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  confirmCancelBtn: { flex: 1, backgroundColor: COLORS.gray100, borderRadius: RADIUS.md, paddingVertical: 14, alignItems: 'center' },
+  confirmCancelBtnText: { color: COLORS.gray600, fontWeight: '600', fontSize: 14 },
 });

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { useRouter } from 'expo-router';
 import { COLORS, RADIUS, formatCurrency } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
@@ -83,6 +83,8 @@ export default function OnboardingScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <View style={{ flex: 1 }}>
       {/* 진행률 바 */}
       <View style={styles.progressBarBg}>
         <View style={[styles.progressBarFill, { width: `${(step / TOTAL_STEPS) * 100}%` }]} />
@@ -216,6 +218,8 @@ export default function OnboardingScreen() {
           <Text style={styles.primaryBtnText}>{step === TOTAL_STEPS ? '완료' : '다음'}</Text>
         </TouchableOpacity>
       </View>
+    </View>
+    </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }

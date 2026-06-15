@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, useThemeColors } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
@@ -7,6 +7,58 @@ import { getFixedCostsData, addFixedCost, deleteFixedCost, type FixedCostsData }
 
 const KINDS = ['고정지출', '고정저축'] as const;
 const TYPES = ['월정액', '연정액', '기타'] as const;
+
+interface SelectOption {
+  key: string;
+  label: string;
+  type: 'account' | 'card';
+  id: string;
+}
+
+function SelectField({
+  label, placeholder, value, onPress, color,
+}: {
+  label: string; placeholder: string; value: string | null; onPress: () => void; color: string;
+}) {
+  return (
+    <View>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TouchableOpacity style={styles.selectField} onPress={onPress}>
+        <Text style={value ? [styles.selectFieldText, { color }] : styles.selectFieldPlaceholder}>
+          {value ?? placeholder}
+        </Text>
+        <Text style={styles.selectFieldChevron}>▾</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function SelectModal({
+  visible, title, options, onSelect, onClose,
+}: {
+  visible: boolean; title: string; options: SelectOption[];
+  onSelect: (option: SelectOption | null) => void; onClose: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
+        <View style={styles.modalSheet}>
+          <Text style={styles.modalTitle}>{title}</Text>
+          <ScrollView style={{ maxHeight: 280 }}>
+            <TouchableOpacity style={styles.modalOption} onPress={() => onSelect(null)}>
+              <Text style={styles.modalOptionTextMuted}>선택 안 함</Text>
+            </TouchableOpacity>
+            {options.map(opt => (
+              <TouchableOpacity key={opt.key} style={styles.modalOption} onPress={() => onSelect(opt)}>
+                <Text style={styles.modalOptionText}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
 
 export default function FixedCostsScreen() {
   const { themeColors } = useThemeColors();
@@ -20,6 +72,14 @@ export default function FixedCostsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // 고정지출: 연결 계좌/카드
+  const [linkedAccountId, setLinkedAccountId] = useState<string | null>(null);
+  const [linkedCardId, setLinkedCardId] = useState<string | null>(null);
+  // 고정저축: 출금 계좌 / 입금(적금) 계좌
+  const [debitAccountId, setDebitAccountId] = useState<string | null>(null);
+  const [creditAccountId, setCreditAccountId] = useState<string | null>(null);
+  const [activePicker, setActivePicker] = useState<'linked' | 'debit' | 'credit' | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -68,6 +128,10 @@ export default function FixedCostsScreen() {
     setAmount('');
     setDueDay('');
     setType('월정액');
+    setLinkedAccountId(null);
+    setLinkedCardId(null);
+    setDebitAccountId(null);
+    setCreditAccountId(null);
     setShowAddForm(false);
   }
 
@@ -88,6 +152,9 @@ export default function FixedCostsScreen() {
         due_day: dueDay ? parseInt(dueDay) : null,
         type,
         kind,
+        linked_account_id: kind === '고정지출' ? linkedAccountId : debitAccountId,
+        linked_target_account_id: kind === '고정저축' ? creditAccountId : null,
+        linked_card_id: kind === '고정지출' ? linkedCardId : null,
       });
       if (err) {
         Alert.alert('추가 실패', err.message);
@@ -98,6 +165,24 @@ export default function FixedCostsScreen() {
     } finally {
       setSaving(false);
     }
+  }
+
+  const accountOptions: SelectOption[] = data.accounts.map(acc => ({
+    key: `account-${acc.id}`, label: `${acc.name} (계좌)`, type: 'account' as const, id: acc.id,
+  }));
+  const linkedOptions: SelectOption[] = [
+    ...accountOptions,
+    ...data.cards.map(card => ({ key: `card-${card.id}`, label: `${card.name} (카드)`, type: 'card' as const, id: card.id })),
+  ];
+
+  function handleLinkedSelect(opt: SelectOption | null) {
+    setLinkedAccountId(opt?.type === 'account' ? opt.id : null);
+    setLinkedCardId(opt?.type === 'card' ? opt.id : null);
+    setActivePicker(null);
+  }
+
+  function selectedLabel(options: SelectOption[], id: string | null) {
+    return options.find(o => o.id === id)?.label ?? null;
   }
 
   function confirmDelete(id: string, itemName: string) {
@@ -113,7 +198,7 @@ export default function FixedCostsScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={[styles.pageTitle, { color: themeColors.accent }]}>고정비</Text>
       <Text style={styles.pageSubtitle}>매달 반복되는 지출과 저축을 관리해요</Text>
 
@@ -136,7 +221,13 @@ export default function FixedCostsScreen() {
           <TouchableOpacity
             key={k}
             style={[styles.tabBtn, kind === k && { backgroundColor: themeColors.primary }]}
-            onPress={() => setKind(k)}
+            onPress={() => {
+              setKind(k);
+              setLinkedAccountId(null);
+              setLinkedCardId(null);
+              setDebitAccountId(null);
+              setCreditAccountId(null);
+            }}
           >
             <Text style={[styles.tabBtnText, kind === k && styles.tabBtnTextActive]}>{k}</Text>
           </TouchableOpacity>
@@ -205,6 +296,35 @@ export default function FixedCostsScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+
+            {kind === '고정지출' ? (
+              <SelectField
+                label="연결 계좌/카드"
+                placeholder="선택 안 함"
+                value={linkedAccountId ? selectedLabel(accountOptions, linkedAccountId)
+                  : linkedCardId ? selectedLabel(linkedOptions, linkedCardId) : null}
+                onPress={() => setActivePicker('linked')}
+                color={themeColors.accent}
+              />
+            ) : (
+              <>
+                <SelectField
+                  label="출금 계좌"
+                  placeholder="선택 안 함"
+                  value={selectedLabel(accountOptions, debitAccountId)}
+                  onPress={() => setActivePicker('debit')}
+                  color={themeColors.accent}
+                />
+                <SelectField
+                  label="입금 계좌 (적금 계좌)"
+                  placeholder="선택 안 함"
+                  value={selectedLabel(accountOptions, creditAccountId)}
+                  onPress={() => setActivePicker('credit')}
+                  color={themeColors.accent}
+                />
+              </>
+            )}
+
             <View style={styles.formBtnRow}>
               <TouchableOpacity style={styles.cancelBtn} onPress={resetForm}>
                 <Text style={styles.cancelBtnText}>취소</Text>
@@ -229,6 +349,28 @@ export default function FixedCostsScreen() {
           </TouchableOpacity>
         )}
       </View>
+
+      <SelectModal
+        visible={activePicker === 'linked'}
+        title="연결 계좌/카드"
+        options={linkedOptions}
+        onSelect={handleLinkedSelect}
+        onClose={() => setActivePicker(null)}
+      />
+      <SelectModal
+        visible={activePicker === 'debit'}
+        title="출금 계좌"
+        options={accountOptions}
+        onSelect={opt => { setDebitAccountId(opt?.id ?? null); setActivePicker(null); }}
+        onClose={() => setActivePicker(null)}
+      />
+      <SelectModal
+        visible={activePicker === 'credit'}
+        title="입금 계좌 (적금 계좌)"
+        options={accountOptions}
+        onSelect={opt => { setCreditAccountId(opt?.id ?? null); setActivePicker(null); }}
+        onClose={() => setActivePicker(null)}
+      />
     </ScrollView>
   );
 }
@@ -299,4 +441,21 @@ const styles = StyleSheet.create({
   cancelBtnText: { fontSize: 13, fontWeight: '600', color: COLORS.gray500 },
   confirmBtn: { flex: 1, paddingVertical: 10, borderRadius: RADIUS.md, backgroundColor: COLORS.primary, alignItems: 'center' },
   confirmBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+  fieldLabel: { fontSize: 11, fontWeight: '600', color: COLORS.gray500, marginBottom: 4 },
+  selectField: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.md,
+    paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#fafafa',
+  },
+  selectFieldText: { fontSize: 13, fontWeight: '600' },
+  selectFieldPlaceholder: { fontSize: 13, color: COLORS.gray400 },
+  selectFieldChevron: { fontSize: 12, color: COLORS.gray400 },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', padding: 24 },
+  modalSheet: { backgroundColor: '#fff', borderRadius: RADIUS.lg, padding: 16, maxHeight: 360 },
+  modalTitle: { fontSize: 14, fontWeight: '700', color: COLORS.gray800, marginBottom: 8 },
+  modalOption: { paddingVertical: 12, borderTopWidth: 1, borderTopColor: COLORS.gray50 },
+  modalOptionText: { fontSize: 13, color: COLORS.gray800 },
+  modalOptionTextMuted: { fontSize: 13, color: COLORS.gray400 },
 });

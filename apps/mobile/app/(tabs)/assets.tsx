@@ -321,7 +321,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
     + cards.filter(c => paidCardIds.has(c.id)).length;
 
   return (
-    <ScrollView style={sharedStyles.panel} contentContainerStyle={sharedStyles.content}>
+    <ScrollView style={sharedStyles.panel} contentContainerStyle={sharedStyles.content} keyboardShouldPersistTaps="handled">
       {/* 0. 이번 달 처리 현황 */}
       <View style={assetStyles.section}>
         <TouchableOpacity style={assetStyles.sectionHeader} onPress={() => setRoutineExpanded(o => !o)} activeOpacity={0.7}>
@@ -537,7 +537,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
       </Section>
 
       {/* 계좌 추가 모달 */}
-      <Modal visible={showAddAccount} transparent animationType="slide" onRequestClose={resetAccountForm}>
+      <Modal visible={showAddAccount} transparent animationType="none" onRequestClose={resetAccountForm}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={assetStyles.modalOverlay}>
           <View style={assetStyles.modalSheet}>
             <Text style={assetStyles.modalTitle}>계좌 추가</Text>
@@ -568,7 +568,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
       </Modal>
 
       {/* 카드 추가 모달 */}
-      <Modal visible={showAddCard} transparent animationType="slide" onRequestClose={resetCardForm}>
+      <Modal visible={showAddCard} transparent animationType="none" onRequestClose={resetCardForm}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={assetStyles.modalOverlay}>
           <View style={assetStyles.modalSheet}>
             <Text style={assetStyles.modalTitle}>카드 추가</Text>
@@ -621,7 +621,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
       </Modal>
 
       {/* 카드 납부 기록 모달 */}
-      <Modal visible={!!cardPaySheet} transparent animationType="slide" onRequestClose={() => setCardPaySheet(null)}>
+      <Modal visible={!!cardPaySheet} transparent animationType="none" onRequestClose={() => setCardPaySheet(null)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={assetStyles.modalOverlay}>
           <View style={assetStyles.modalSheet}>
             <Text style={assetStyles.modalTitle}>{cardPaySheet?.name} 대금 납부 기록</Text>
@@ -765,7 +765,7 @@ function FixedCostsPanel({ themeColors }: { themeColors: ReturnType<typeof getTh
   }
 
   return (
-    <ScrollView style={sharedStyles.panel} contentContainerStyle={sharedStyles.content}>
+    <ScrollView style={sharedStyles.panel} contentContainerStyle={sharedStyles.content} keyboardShouldPersistTaps="handled">
       <Text style={fixedStyles.pageSubtitle}>매달 반복되는 지출과 저축을 관리해요</Text>
 
       {/* 합계 카드 */}
@@ -1037,7 +1037,7 @@ function BudgetPanel({ themeColors }: { themeColors: ReturnType<typeof getThemeC
   const overallPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
 
   return (
-    <ScrollView style={sharedStyles.panel} contentContainerStyle={sharedStyles.content}>
+    <ScrollView style={sharedStyles.panel} contentContainerStyle={sharedStyles.content} keyboardShouldPersistTaps="handled">
       <Text style={budgetStyles.pageSubtitle}>{monthString().replace('-', '년 ')}월 카테고리별 목표 예산</Text>
 
       {/* 탭 */}

@@ -106,7 +106,7 @@ export default function AddExpenseScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.headerRow}>
         <Text style={styles.pageTitle}>직접 입력</Text>
         <TouchableOpacity onPress={() => router.back()}>

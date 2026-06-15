@@ -160,7 +160,7 @@ export default function BudgetScreen() {
   const overallPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={[styles.pageTitle, { color: themeColors.accent }]}>예산 설정</Text>
       <Text style={styles.pageSubtitle}>2026년 6월 카테고리별 목표 예산</Text>
 
@@ -211,7 +211,7 @@ export default function BudgetScreen() {
           {aiAmounts && (
             <View style={styles.aiResultBox}>
               {aiReason && <Text style={styles.aiReasonText}>{aiReason}</Text>}
-              {categories.filter(c => c !== '수입').map(cat => (
+              {categories.filter(c => c !== '수입' && enabledCats[c]).map(cat => (
                 <View key={cat} style={styles.aiResultRow}>
                   <Text style={[styles.aiResultLabel, { color: themeColors.accent }]}>{cat}</Text>
                   <Text style={styles.aiResultValue}>{formatCurrency(aiAmounts[cat] ?? 0)}</Text>

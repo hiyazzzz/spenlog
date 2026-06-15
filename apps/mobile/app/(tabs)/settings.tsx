@@ -370,7 +370,7 @@ export default function SettingsScreen() {
       </View>
 
       {/* 닉네임 변경 모달 */}
-      <Modal visible={nicknameModalOpen} transparent animationType="slide" onRequestClose={() => setNicknameModalOpen(false)}>
+      <Modal visible={nicknameModalOpen} transparent animationType="none" onRequestClose={() => setNicknameModalOpen(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
             <Text style={styles.modalTitle}>닉네임 변경</Text>
@@ -395,7 +395,7 @@ export default function SettingsScreen() {
       </Modal>
 
       {/* 비밀번호 변경 모달 */}
-      <Modal visible={passwordModalOpen} transparent animationType="slide" onRequestClose={() => setPasswordModalOpen(false)}>
+      <Modal visible={passwordModalOpen} transparent animationType="none" onRequestClose={() => setPasswordModalOpen(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
             <Text style={styles.modalTitle}>비밀번호 변경</Text>

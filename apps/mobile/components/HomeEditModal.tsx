@@ -163,7 +163,7 @@ export default function HomeEditModal({
   }
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
+    <Modal visible={visible} animationType="none" onRequestClose={handleClose}>
       <View style={styles.screen}>
         {/* 상단 편집 바 */}
         <View style={styles.topBar}>
