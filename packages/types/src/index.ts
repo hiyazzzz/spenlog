@@ -56,7 +56,7 @@ export interface Budget {
   category: Category
   amount: number
   month: string // 'YYYY-MM'
-  source?: string | null
+  source?: 'ai' | 'manual' | null
 }
 
 export interface FixedCost {
