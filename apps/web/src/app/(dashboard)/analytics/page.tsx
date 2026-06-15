@@ -27,22 +27,22 @@ export default async function AnalyticsPage({ searchParams }: Props) {
     supabase.from('categories').select('name').eq('user_id', user.id).eq('is_hidden', false).order('sort_order'),
   ])
 
-  const thisTotal = (thisMonthExpenses ?? []).filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
-  const lastTotal = (lastMonthExpenses ?? []).filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
+  const thisTotal = (thisMonthExpenses ?? []).filter(e => (e.type ?? 'expense') === 'expense').reduce((s, e) => s + e.amount, 0)
+  const lastTotal = (lastMonthExpenses ?? []).filter(e => (e.type ?? 'expense') === 'expense').reduce((s, e) => s + e.amount, 0)
   const diff = thisTotal - lastTotal
   const diffPercent = lastTotal > 0 ? Math.round((diff / lastTotal) * 100) : 0
 
   // 유저 커스텀 카테고리, 없으면 expenses에서 동적 수집
   const userCatNames = (categoriesData ?? []).map(c => c.name)
   const expenseCats = [...new Set([
-    ...(thisMonthExpenses ?? []).filter(e => e.type === 'expense').map(e => e.category),
-    ...(lastMonthExpenses ?? []).filter(e => e.type === 'expense').map(e => e.category),
+    ...(thisMonthExpenses ?? []).filter(e => (e.type ?? 'expense') === 'expense').map(e => e.category),
+    ...(lastMonthExpenses ?? []).filter(e => (e.type ?? 'expense') === 'expense').map(e => e.category),
   ])]
   const allCats = userCatNames.length > 0 ? userCatNames : expenseCats
 
   const byCat = allCats.map((cat) => {
-    const thisAmt = (thisMonthExpenses ?? []).filter(e => e.category === cat && e.type === 'expense').reduce((s, e) => s + e.amount, 0)
-    const lastAmt = (lastMonthExpenses ?? []).filter(e => e.category === cat && e.type === 'expense').reduce((s, e) => s + e.amount, 0)
+    const thisAmt = (thisMonthExpenses ?? []).filter(e => e.category === cat && (e.type ?? 'expense') === 'expense').reduce((s, e) => s + e.amount, 0)
+    const lastAmt = (lastMonthExpenses ?? []).filter(e => e.category === cat && (e.type ?? 'expense') === 'expense').reduce((s, e) => s + e.amount, 0)
     return { cat, thisAmt, lastAmt }
   }).filter(b => b.thisAmt > 0 || b.lastAmt > 0).sort((a, b) => b.thisAmt - a.thisAmt)
 
@@ -50,7 +50,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
 
   // 일별 지출
   const dailyMap = new Map<number, number>()
-  ;(thisMonthExpenses ?? []).filter(e => e.type === 'expense').forEach(e => {
+  ;(thisMonthExpenses ?? []).filter(e => (e.type ?? 'expense') === 'expense').forEach(e => {
     const day = parseInt(e.date.split('-')[2])
     dailyMap.set(day, (dailyMap.get(day) ?? 0) + e.amount)
   })

@@ -159,7 +159,7 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
   }
 
   async function handleGoogleUnlink() {
-    if (!window.confirm('구글 연동을 해제하시겠습니까?')) return
+    if (!window.confirm('구글 계정 연동을 해제하시겠습니까?')) return
     setGoogleUnlinking(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -176,6 +176,7 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
       if (error) throw error
       setGoogleLinked(false)
       alert('구글 연동이 해제되었어요')
+      router.refresh()
     } catch (e: any) {
       alert('연동 해제 중 오류가 발생했어요: ' + (e?.message ?? '알 수 없는 오류'))
     } finally {
