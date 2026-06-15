@@ -11,6 +11,7 @@ import GifAwareCoverImage from '@/components/dashboard/GifAwareCoverImage'
 import GreetingText from '@/components/dashboard/GreetingText'
 import { formatCurrency } from '@/lib/format'
 import { isPremiumUnlocked } from '@/lib/premium'
+import { THEME_COVER_GRADIENTS } from '@/lib/themes'
 
 export default async function DashboardHomePage() {
   const supabase = await createClient()
@@ -45,6 +46,7 @@ export default async function DashboardHomePage() {
   const categoryUrls: Record<string, string | null> = {}
   topCats.forEach((cat, i) => { categoryUrls[cat.name] = imgFields[i] ?? null })
   const gifAutoplay = profile?.gif_autoplay ?? true
+  const coverGradient = THEME_COVER_GRADIENTS[(profile?.theme as string) ?? 'Burgundy'] ?? THEME_COVER_GRADIENTS.Burgundy
 
   const card = {
     background: '#fff',
@@ -61,7 +63,7 @@ export default async function DashboardHomePage() {
       {/* 커버 이미지 배너 */}
       <div style={{
         height: 200, borderRadius: 16, overflow: 'hidden', position: 'relative',
-        background: coverUrl ? undefined : 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-mid) 100%)',
+        background: coverUrl ? undefined : coverGradient,
       }}>
         {coverUrl && (
           <GifAwareCoverImage src={coverUrl} autoplay={gifAutoplay} />
@@ -109,6 +111,7 @@ export default async function DashboardHomePage() {
           }))}
           expenses={(allExpenses ?? []).map(e => ({ category: e.category ?? '', amount: e.amount, type: e.type ?? 'expense' }))}
           budgets={(budgets ?? []).map(b => ({ category: b.category, amount: b.amount }))}
+          currentGreeting={(profile as any)?.greeting_custom_text ?? null}
         />
       </div>
 

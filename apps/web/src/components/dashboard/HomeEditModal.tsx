@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/format'
-import { THEME_CARD_PALETTES } from '@/lib/themes'
+import { THEME_CARD_PALETTES, THEME_COVER_GRADIENTS } from '@/lib/themes'
 import dayjs from 'dayjs'
 
 const DEFAULT_CAT_KEYS = ['생활비', '활동비', '고정비', '친목비']
@@ -24,18 +24,21 @@ interface Props {
   recentExpenses?: { id: string; name?: string; memo?: string; amount: number; category: string; date?: string; payment_method?: string | null }[]
   expenses?: { category: string; amount: number; type?: string }[]
   budgets?: { category: string; amount: number }[]
+  currentGreeting?: string | null
 }
 
 export default function HomeEditModal({
   userId, isPremium, currentCoverUrl, currentCategoryUrls,
   displayName = '소비요정', totalSpent = 0, savingGoal = 0, actualSaving = 0,
   userCategories, theme, recentExpenses = [], expenses = [], budgets = [],
+  currentGreeting = null,
 }: Props) {
   const supabase = createClient()
   const router = useRouter()
   const catKeysToUse = (userCategories && userCategories.length > 0 ? userCategories : DEFAULT_CAT_KEYS).slice(0, 4)
   const CAT_FIELD: Record<string, string> = Object.fromEntries(catKeysToUse.map((cat, i) => [cat, CAT_FIELD_IDX[i]]))
   const palette = THEME_CARD_PALETTES[(theme as string) ?? 'Burgundy'] ?? DEFAULT_PALETTE
+  const coverGradient = THEME_COVER_GRADIENTS[(theme as string) ?? 'Burgundy'] ?? THEME_COVER_GRADIENTS.Burgundy
 
   // HomeCategoryGrid와 동일한 계산
   const catMap: Record<string, number> = {}
@@ -52,6 +55,8 @@ export default function HomeEditModal({
   const [saving, setSaving] = useState(false)
   const [showPremiumSheet, setShowPremiumSheet] = useState(false)
   const [dirty, setDirty] = useState(false)
+  const [greetingText, setGreetingText] = useState(currentGreeting ?? '')
+  const [greetingSaving, setGreetingSaving] = useState(false)
   const coverRef = useRef<HTMLInputElement>(null)
   const catRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
@@ -59,8 +64,9 @@ export default function HomeEditModal({
     if (!open) {
       setCoverPreview(currentCoverUrl)
       setCatPreviews(currentCategoryUrls)
+      setGreetingText(currentGreeting ?? '')
     }
-  }, [currentCoverUrl, currentCategoryUrls, open])
+  }, [currentCoverUrl, currentCategoryUrls, currentGreeting, open])
 
   useEffect(() => {
     if (open) {
@@ -160,6 +166,26 @@ export default function HomeEditModal({
     router.refresh()
   }
 
+  // TODO: greeting_custom_text 컬럼 마이그레이션 적용 전까지는 저장 API가 500을 반환함.
+  // TODO: 인사말 커스텀 편집을 프리미엄 기능으로 묶을지 여부 기획 확인 필요 (현재는 무료로 동작)
+  async function saveGreeting() {
+    setGreetingSaving(true)
+    try {
+      const res = await fetch('/api/greeting', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: greetingText }),
+      })
+      if (!res.ok) {
+        alert('인사말 저장에 실패했어요')
+        return
+      }
+      router.refresh()
+    } finally {
+      setGreetingSaving(false)
+    }
+  }
+
   function handleApply() {
     if (!dirty) { setOpen(false); return }
     if (!isPremium) { setShowPremiumSheet(true); return }
@@ -241,7 +267,7 @@ export default function HomeEditModal({
             {/* 1. 커버 배너 — 편집 가능 */}
             <div style={{
               height: 200, borderRadius: 16, overflow: 'hidden', position: 'relative',
-              background: coverPreview ? undefined : 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-mid) 100%)',
+              background: coverPreview ? undefined : coverGradient,
             }}>
               {coverPreview && (
                 <img src={coverPreview} alt="cover"
@@ -290,6 +316,35 @@ export default function HomeEditModal({
               </div>
               <input ref={coverRef} type="file" accept="image/png,image/jpeg,image/gif"
                 style={{ display: 'none' }} onChange={handleCoverPick} />
+            </div>
+
+            {/* 1.5 인사말 편집 — skeleton (greeting_custom_text 마이그레이션 적용 전까지 저장 비활성) */}
+            <div style={card}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#1f2937', marginBottom: 10 }}>인사말 편집</p>
+              <input
+                type="text"
+                value={greetingText}
+                onChange={e => setGreetingText(e.target.value)}
+                placeholder="나만의 인사말을 입력해보세요 (최대 40자)"
+                maxLength={40}
+                style={{
+                  width: '100%', padding: '10px 12px', borderRadius: 10,
+                  border: '1px solid #f3f4f6', fontSize: 13, fontFamily: 'inherit',
+                  color: '#1f2937', boxSizing: 'border-box' as const,
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                <button
+                  onClick={saveGreeting}
+                  disabled={greetingSaving || greetingText.trim().length === 0}
+                  style={{
+                    padding: '6px 14px', borderRadius: 10, border: 'none',
+                    background: greetingSaving ? '#d1d5db' : 'var(--color-primary)',
+                    color: '#fff', fontSize: 12, fontWeight: 700,
+                    cursor: greetingSaving ? 'default' : 'pointer', fontFamily: 'inherit',
+                  }}
+                >{greetingSaving ? '저장 중...' : '저장'}</button>
+              </div>
             </div>
 
             {/* 2. 한 줄 기록 — 반투명 딤 (홈화면과 동일한 UI) */}

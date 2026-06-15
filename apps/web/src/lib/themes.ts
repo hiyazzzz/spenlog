@@ -42,3 +42,11 @@ export const THEME_CARD_PALETTES: Record<string, string[]> = {
   Lavender:   ['#5C4B8A', '#3D2E6B', '#7A6AAA', '#4A3A78'],
   Terracotta: ['#A0522D', '#7A3518', '#C4784A', '#854520'],
 }
+
+// 홈 커버 배너 — 커버 이미지 없을 때 테마별 그래디언트 (CSS var 대신 실제 색상값 사용 → 첫 렌더 시 FOUC 방지)
+export const THEME_COVER_GRADIENTS: Record<string, string> = {
+  Burgundy:   'linear-gradient(135deg, #6B1E2E 0%, #C4748A 100%)',
+  Sage:       'linear-gradient(135deg, #4A6741 0%, #8AAF84 100%)',
+  Lavender:   'linear-gradient(135deg, #5C4B8A 0%, #9B8EC4 100%)',
+  Terracotta: 'linear-gradient(135deg, #A0522D 0%, #C48A6A 100%)',
+}
