@@ -1,10 +1,22 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { isPremiumUnlocked } from '@/lib/premium'
 
 export async function GET(req: Request) {
   try {
-    const supabase = await createClient()
+    // 모바일: Authorization: Bearer {access_token} 헤더로 인증 (쿠키 세션 없음)
+    const authHeader = req.headers.get('authorization')
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+
+    const supabase = bearerToken
+      ? createSupabaseClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          { global: { headers: { Authorization: `Bearer ${bearerToken}` } } }
+        )
+      : await createClient()
+
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

@@ -3,6 +3,10 @@
     {
       "path": "/api/routine/execute",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/push/send?type=daily",
+      "schedule": "0 9 * * *"
     }
   ]
 }

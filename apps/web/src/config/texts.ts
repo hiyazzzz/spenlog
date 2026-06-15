@@ -249,6 +249,8 @@ export const TEXTS = {
     labelAccount: '계정',
     labelCategoryManage: '카테고리 관리',
     labelAppGuide: '앱 가이드 다시 보기',
+    labelTerms: '이용약관',
+    labelPrivacy: '개인정보처리방침',
     labelVersion: '버전',
     guestAccount: '게스트 계정',
     guestLabel: '👤 게스트',

@@ -2,11 +2,16 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { File, Paths } from 'expo-file-system';
+// TODO: expo-sharing 패키지 설치 필요 (npm install expo-sharing) — 설치 후 아래 주석 해제
+// import * as Sharing from 'expo-sharing';
 import { COLORS, RADIUS, CARD_SHADOW, getThemeColors } from '@/constants/theme';
 import { getCurrentUserId, supabase } from '@/lib/supabase';
 import { getProfile, updateTheme, updateName, updatePushSettings, type PushSettings } from '@/lib/api/settings';
 import { isPremiumUnlocked } from '@/lib/premium';
 import type { Theme, User } from '@spenlog/types';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://spenlog.vercel.app';
 
 const BASIC_THEMES = [
   { key: 'Burgundy', name: '버건디', color: '#6B1E2E' },
@@ -82,6 +87,7 @@ export default function SettingsScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+  const [csvLoading, setCsvLoading] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -170,6 +176,50 @@ export default function SettingsScreen() {
 
   function notReady() {
     Alert.alert('준비 중', '아직 준비 중인 기능이에요');
+  }
+
+  async function handleCsvExport() {
+    if (!isPremiumUnlocked(profile)) {
+      Alert.alert('프리미엄 기능', 'CSV 내보내기는 프리미엄 전용 기능이에요');
+      return;
+    }
+    if (csvLoading) return;
+    setCsvLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch(`${API_URL}/api/export/csv`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.error === 'NO_DATA') {
+          Alert.alert('내보내기 실패', '해당 기간에 내역이 없어요');
+        } else {
+          Alert.alert('내보내기 실패', data.error ?? '알 수 없는 오류가 발생했어요');
+        }
+        return;
+      }
+      const csv = await res.text();
+      const now = new Date();
+      const fileName = `spenlog_export_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}.csv`;
+      const file = new File(Paths.document, fileName);
+      if (file.exists) file.delete();
+      file.create();
+      file.write(csv);
+
+      // TODO: expo-sharing 설치 후 공유 시트 노출
+      // if (await Sharing.isAvailableAsync()) {
+      //   await Sharing.shareAsync(file.uri, { mimeType: 'text/csv', dialogTitle: 'CSV 내보내기' });
+      // } else {
+      //   Alert.alert('내보내기 완료', `${fileName} 파일이 저장됐어요`);
+      // }
+      Alert.alert('내보내기 완료', `${fileName} 파일이 저장됐어요`);
+    } catch {
+      Alert.alert('오류', '내보내기 중 문제가 발생했어요');
+    } finally {
+      setCsvLoading(false);
+    }
   }
 
   if (loading) {
@@ -279,8 +329,12 @@ export default function SettingsScreen() {
 
       {/* 내보내기 */}
       <Section title="데이터 내보내기">
-        <TouchableOpacity style={styles.exportBtn} onPress={notReady}>
-          <Ionicons name="download-outline" size={16} color={COLORS.primary} />
+        <TouchableOpacity style={styles.exportBtn} onPress={handleCsvExport} disabled={csvLoading}>
+          {csvLoading ? (
+            <ActivityIndicator size="small" color={COLORS.primary} />
+          ) : (
+            <Ionicons name="download-outline" size={16} color={COLORS.primary} />
+          )}
           <Text style={styles.exportBtnText}>{isPremium ? 'CSV로 내보내기' : 'CSV로 내보내기 (프리미엄)'}</Text>
         </TouchableOpacity>
       </Section>

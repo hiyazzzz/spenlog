@@ -718,6 +718,16 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
           <span style={{ fontSize: 14, color: '#374151' }}>{TEXTS.settings.labelAppGuide}</span>
           <span style={{ fontSize: 14, color: '#9ca3af' }}>›</span>
         </button>
+        <button onClick={() => router.push('/terms')}
+          style={{ ...rowStyle, width: '100%', textAlign: 'left' as const, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+          <span style={{ fontSize: 14, color: '#374151' }}>{TEXTS.settings.labelTerms}</span>
+          <span style={{ fontSize: 14, color: '#9ca3af' }}>›</span>
+        </button>
+        <button onClick={() => router.push('/privacy')}
+          style={{ ...rowStyle, width: '100%', textAlign: 'left' as const, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+          <span style={{ fontSize: 14, color: '#374151' }}>{TEXTS.settings.labelPrivacy}</span>
+          <span style={{ fontSize: 14, color: '#9ca3af' }}>›</span>
+        </button>
         <div style={{ ...rowStyle, borderBottom: 'none' }}>
           <span style={{ fontSize: 14, color: '#374151' }}>{TEXTS.settings.labelVersion}</span>
           <span style={{ fontSize: 13, color: '#9ca3af' }}>1.0.0</span>
