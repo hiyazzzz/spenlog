@@ -128,7 +128,7 @@ export default async function DashboardHomePage() {
             </svg>
           </Link>
         </div>
-        <AiInputBox userId={user.id} userCategories={(userCategories ?? []).map(c => c.name)} />
+        <AiInputBox userId={user.id} userCategories={(userCategories ?? []).map(c => c.name)} compact />
       </div>
 
       {/* 카테고리 2x2 그리드 */}
