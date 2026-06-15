@@ -25,6 +25,7 @@ export default function HomeScreen() {
   const [editName, setEditName] = useState('');
   const [editCategory, setEditCategory] = useState('');
   const [editAmount, setEditAmount] = useState('');
+  const [editType, setEditType] = useState<'expense' | 'income'>('expense');
 
   const load = useCallback(async () => {
     try {
@@ -333,18 +334,33 @@ export default function HomeScreen() {
                 editingIdx === idx ? (
                   <View key={idx} style={styles.confirmCard}>
                     <Text style={styles.confirmBadge}>#{idx + 1} 수정</Text>
+                    <View style={styles.confirmTypeToggle}>
+                      {(['expense', 'income'] as const).map(t => (
+                        <TouchableOpacity
+                          key={t}
+                          style={[styles.confirmTypeBtn, editType === t && styles.confirmTypeBtnActive]}
+                          onPress={() => setEditType(t)}
+                        >
+                          <Text style={[styles.confirmTypeBtnText, editType === t && styles.confirmTypeBtnTextActive]}>
+                            {t === 'expense' ? '💸 지출' : '💰 수입'}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                     <TextInput
                       style={styles.confirmEditInput}
                       value={editName}
                       onChangeText={setEditName}
                       placeholder="이름"
                     />
-                    <TextInput
-                      style={styles.confirmEditInput}
-                      value={editCategory}
-                      onChangeText={setEditCategory}
-                      placeholder="카테고리"
-                    />
+                    {editType === 'expense' && (
+                      <TextInput
+                        style={styles.confirmEditInput}
+                        value={editCategory}
+                        onChangeText={setEditCategory}
+                        placeholder="카테고리"
+                      />
+                    )}
                     <TextInput
                       style={styles.confirmEditInput}
                       value={editAmount}
@@ -354,7 +370,13 @@ export default function HomeScreen() {
                     />
                     <TouchableOpacity onPress={() => {
                       const updated = [...confirmItems];
-                      updated[idx] = { ...updated[idx], name: editName, category: editCategory, amount: parseInt(editAmount) || updated[idx].amount };
+                      updated[idx] = {
+                        ...updated[idx],
+                        name: editName,
+                        category: editType === 'income' ? '수입' : editCategory,
+                        amount: parseInt(editAmount) || updated[idx].amount,
+                        type: editType,
+                      };
                       setConfirmItems(updated);
                       setEditingIdx(null);
                     }}>
@@ -364,8 +386,11 @@ export default function HomeScreen() {
                 ) : (
                   <View key={idx} style={styles.confirmCard}>
                     <View style={styles.confirmCardHeader}>
-                      <View style={styles.confirmBadgeWrap}>
+                      <View style={[styles.confirmBadgeWrap, { flexDirection: 'row', gap: 6 }]}>
                         <Text style={styles.confirmBadge}>#{idx + 1} 자동</Text>
+                        <Text style={[styles.confirmBadge, item.type === 'income' ? styles.confirmBadgeIncome : styles.confirmBadgeExpense]}>
+                          {item.type === 'income' ? '💰 수입' : '💸 지출'}
+                        </Text>
                       </View>
                       <View style={styles.confirmCardActions}>
                         <TouchableOpacity onPress={() => {
@@ -373,6 +398,7 @@ export default function HomeScreen() {
                           setEditName(item.name);
                           setEditCategory(item.category);
                           setEditAmount(String(item.amount));
+                          setEditType(item.type === 'income' ? 'income' : 'expense');
                         }} style={styles.confirmActionBtn}>
                           <Text style={styles.confirmActionBtnText}>✏️ 수정</Text>
                         </TouchableOpacity>
@@ -390,7 +416,9 @@ export default function HomeScreen() {
                         <Text style={styles.confirmItemName}>{item.name}</Text>
                         <Text style={styles.confirmItemMeta}>{item.category} · {item.date ?? new Date().toISOString().slice(0, 10)}</Text>
                       </View>
-                      <Text style={styles.confirmItemAmount}>{formatCurrency(item.amount)}원</Text>
+                      <Text style={[styles.confirmItemAmount, item.type === 'income' && { color: COLORS.green }]}>
+                        {item.type === 'income' ? '+' : ''}{formatCurrency(item.amount)}원
+                      </Text>
                     </View>
                   </View>
                 )
@@ -585,6 +613,13 @@ const styles = StyleSheet.create({
   confirmCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   confirmBadgeWrap: {},
   confirmBadge: { fontSize: 11, fontWeight: '700', color: COLORS.primary, backgroundColor: '#ede9fe', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start' },
+  confirmBadgeIncome: { color: COLORS.green, backgroundColor: COLORS.greenBg },
+  confirmBadgeExpense: { color: COLORS.red, backgroundColor: COLORS.redBg },
+  confirmTypeToggle: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: RADIUS.sm, borderWidth: 1, borderColor: COLORS.gray200, padding: 3, marginBottom: 8 },
+  confirmTypeBtn: { flex: 1, paddingVertical: 8, borderRadius: RADIUS.sm, alignItems: 'center' },
+  confirmTypeBtnActive: { backgroundColor: COLORS.primary },
+  confirmTypeBtnText: { fontSize: 12, fontWeight: '600', color: COLORS.gray400 },
+  confirmTypeBtnTextActive: { color: '#fff' },
   confirmCardActions: { flexDirection: 'row', gap: 6 },
   confirmActionBtn: { backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: COLORS.gray200 },
   confirmActionBtnDelete: { borderColor: '#fca5a5' },
