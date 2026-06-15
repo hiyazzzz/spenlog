@@ -1,36 +1,60 @@
 import Anthropic from '@anthropic-ai/sdk'
 
+// Gemini 모델 우선순위 (stable → preview 순)
+const GEMINI_MODELS = [
+  'gemini-2.0-flash',
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-preview-05-20',
+  'gemini-1.5-flash',
+]
+
+async function callGeminiModel(model: string, prompt: string, apiKey: string, signal: AbortSignal): Promise<string | null> {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 2048, temperature: 0.1 },
+      }),
+      signal,
+    }
+  )
+  if (!res.ok) {
+    if (res.status === 429) throw new Error('GEMINI_RATE_LIMIT')
+    const errText = await res.text().catch(() => '')
+    console.error(`[ai-input] Gemini ${model} HTTP ${res.status}:`, errText)
+    return null
+  }
+  const data = await res.json()
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null
+  if (text) console.log(`[ai-input] Gemini ${model} OK`)
+  return text
+}
+
 async function callGemini(prompt: string): Promise<string | null> {
   const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) return null
+  if (!apiKey) {
+    console.log('[ai-input] GEMINI_API_KEY not set')
+    return null
+  }
 
   try {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 8000)
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 2048, temperature: 0.1 },
-        }),
-        signal: controller.signal,
+    const timeout = setTimeout(() => controller.abort(), 10000)
+    try {
+      for (const model of GEMINI_MODELS) {
+        const result = await callGeminiModel(model, prompt, apiKey, controller.signal)
+        if (result) return result
       }
-    )
-    clearTimeout(timeout)
-    if (!res.ok) {
-      if (res.status === 429) throw new Error('GEMINI_RATE_LIMIT')
-      const errText = await res.text().catch(() => '')
-      console.error(`[ai-input] Gemini HTTP ${res.status}:`, errText)
       return null
+    } finally {
+      clearTimeout(timeout)
     }
-    const data = await res.json()
-    console.log('[ai-input] Gemini raw:', JSON.stringify(data).slice(0, 300))
-    return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null
   } catch (e: any) {
     if (e.message === 'GEMINI_RATE_LIMIT') throw e
+    console.error('[ai-input] Gemini error:', e?.message)
     return null
   }
 }
