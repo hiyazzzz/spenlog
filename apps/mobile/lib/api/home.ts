@@ -37,7 +37,7 @@ export async function getHomeData(userId: string): Promise<HomeData> {
 
   return {
     profile: (profile as User) ?? null,
-    expenses: (expenses as Expense[]) ?? [],
+    expenses: ((expenses as Expense[]) ?? []).map(e => ({ ...e, type: e.type ?? 'expense' })),
     budgets: (budgets as Budget[]) ?? [],
     categories: categories ?? [],
     fixedCosts: (fixedCosts as Pick<FixedCost, 'amount' | 'kind'>[]) ?? [],

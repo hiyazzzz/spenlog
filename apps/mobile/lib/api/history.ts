@@ -23,7 +23,7 @@ export async function getHistoryData(userId: string): Promise<HistoryData> {
   )] as string[]
 
   return {
-    expenses: (expenses as Expense[]) ?? [],
+    expenses: ((expenses as Expense[]) ?? []).map(e => ({ ...e, type: e.type ?? 'expense' })),
     paymentMethods,
     userCategories,
   }

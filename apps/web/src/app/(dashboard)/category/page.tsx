@@ -39,7 +39,7 @@ export default async function CategoryRoute() {
   }
 
   const spentMap: Record<string, number> = {}
-  ;(expenses ?? []).filter(e => e.type === 'expense').forEach(e => {
+  ;(expenses ?? []).filter(e => (e.type ?? 'expense') === 'expense').forEach(e => {
     spentMap[e.category] = (spentMap[e.category] ?? 0) + e.amount
   })
 

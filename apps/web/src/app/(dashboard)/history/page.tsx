@@ -19,14 +19,16 @@ export default async function HistoryPage() {
   ])
   const userCategories = (categories ?? []).map(c => c.name)
 
+  const normalizedExpenses = (expenses ?? []).map(e => ({ ...e, type: e.type ?? 'expense' }))
+
   const paymentMethods = [...new Set(
-    (expenses ?? []).map(e => e.payment_method).filter(Boolean)
+    normalizedExpenses.map(e => e.payment_method).filter(Boolean)
   )] as string[]
 
   return (
     <HistoryClient
       userId={user.id}
-      initialExpenses={expenses ?? []}
+      initialExpenses={normalizedExpenses}
       paymentMethods={paymentMethods}
       userCategories={userCategories}
     />

@@ -28,7 +28,7 @@ export default async function DashboardHomePage() {
     supabase.from('fixed_costs').select('amount, kind').eq('user_id', user.id),
   ])
 
-  const allExpenses = expenses ?? []
+  const allExpenses = (expenses ?? []).map(e => ({ ...e, type: e.type ?? 'expense' }))
   const totalSpent = allExpenses.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
   const recentExpenses = allExpenses.filter(e => e.type === 'expense').slice(0, 3)
   const savingGoal = profile?.saving_goal ?? 0
