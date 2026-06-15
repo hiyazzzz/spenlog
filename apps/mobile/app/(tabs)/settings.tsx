@@ -246,7 +246,7 @@ export default function SettingsScreen() {
           <Text style={styles.profileName}>{profile?.name || '소비요정'}</Text>
           <Text style={styles.profileEmail}>{profile?.email ?? ''}</Text>
         </View>
-        <TouchableOpacity style={[styles.premiumBtn, { backgroundColor: themeColors.accent }]} onPress={notReady}>
+        <TouchableOpacity style={[styles.premiumBtn, { backgroundColor: themeColors.accent }]} onPress={() => router.push('/premium')}>
           <Text style={styles.premiumBtnText}>{isPremium ? '✨ 프리미엄 이용중' : '✨ 프리미엄'}</Text>
         </TouchableOpacity>
       </View>
