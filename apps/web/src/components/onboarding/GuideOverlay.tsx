@@ -2,11 +2,12 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import GuideDots from '@/components/ui/GuideDots'
 
-// TODO: GuideOverlay(최초 온보딩 시 자동 노출, 실제 UI 요소 하이라이트)와
+// GuideOverlay(최초 온보딩 시 자동 노출, 실제 UI 요소 하이라이트)와
 // src/components/AppGuide.tsx(설정 > "앱 가이드 다시 보기"에서 수동 호출, 바텀시트 형태)는
-// 둘 다 guide_completed 플래그를 갱신하지만 UI/트리거가 달라 별도 컴포넌트로 유지함.
-// 향후 가이드 콘텐츠 통합 필요 시 검토 (spenlog_app_guide_spec_v1.md 참고)
+// 둘 다 guide_completed 플래그를 갱신하지만 UI/트리거가 달라 별도 컴포넌트로 유지.
+// 도트 인디케이터는 components/ui/GuideDots로 공유.
 
 interface Step {
   title: string
@@ -157,18 +158,16 @@ export default function GuideOverlay({ userId }: Props) {
       </div>
 
       {/* 도트 인디케이터 */}
-      <div style={{
-        position: 'fixed', top: 54, left: 0, right: 0,
-        display: 'flex', justifyContent: 'center', gap: 6, zIndex: 10001,
-      }}>
-        {STEPS.map((_, i) => (
-          <div key={i} style={{
-            width: i === step ? 22 : 6, height: 6, borderRadius: 3,
-            background: i === step ? 'white' : 'rgba(255,255,255,0.3)',
-            transition: 'all 0.25s',
-          }} />
-        ))}
-      </div>
+      <GuideDots
+        total={STEPS.length}
+        current={step}
+        activeColor="white"
+        inactiveColor="rgba(255,255,255,0.3)"
+        activeWidth={22}
+        inactiveWidth={6}
+        size={6}
+        style={{ position: 'fixed', top: 54, left: 0, right: 0, zIndex: 10001 }}
+      />
 
       {/* 중앙 팝업 + 화살표 */}
       <div style={{

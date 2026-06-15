@@ -1,11 +1,12 @@
 'use client'
 import React, { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import GuideDots from '@/components/ui/GuideDots'
 
-// TODO: AppGuide(설정 > "앱 가이드 다시 보기"에서 수동 호출, 바텀시트 형태)와
+// AppGuide(설정 > "앱 가이드 다시 보기"에서 수동 호출, 바텀시트 형태)와
 // src/components/onboarding/GuideOverlay.tsx(최초 온보딩 시 자동 노출, 실제 UI 요소 하이라이트)는
-// 둘 다 guide_completed 플래그를 갱신하지만 UI/트리거가 달라 별도 컴포넌트로 유지함.
-// 향후 가이드 콘텐츠 통합 필요 시 검토 (spenlog_app_guide_spec_v1.md 참고)
+// 둘 다 guide_completed 플래그를 갱신하지만 UI/트리거가 달라 별도 컴포넌트로 유지.
+// 도트 인디케이터는 components/ui/GuideDots로 공유.
 
 interface AppGuideProps {
   onClose: () => void
@@ -148,17 +149,17 @@ export default function AppGuide({ onClose }: AppGuideProps) {
         </div>
 
         {/* 도트 인디케이터 */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 6, padding: '8px 0' }}>
-          {STEPS.map((_, i) => (
-            <button key={i} onClick={() => setStep(i)}
-              style={{
-                width: i === step ? 20 : 8, height: 8, borderRadius: 4, border: 'none',
-                background: i === step ? 'var(--color-primary, #7c3aed)' : '#e5e7eb',
-                cursor: 'pointer', padding: 0,
-                transition: 'width 0.25s, background 0.25s',
-              }} />
-          ))}
-        </div>
+        <GuideDots
+          total={STEPS.length}
+          current={step}
+          onSelect={setStep}
+          activeColor="var(--color-primary, #7c3aed)"
+          inactiveColor="#e5e7eb"
+          activeWidth={20}
+          inactiveWidth={8}
+          size={8}
+          style={{ padding: '8px 0' }}
+        />
 
         {/* 버튼 */}
         <div style={{ padding: '8px 20px 20px', display: 'flex', gap: 10 }}>
