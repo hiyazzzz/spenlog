@@ -13,6 +13,7 @@
     "@anthropic-ai/sdk": "^0.100.1",
     "@spenlog/types": "workspace:*",
     "@spenlog/supabase": "workspace:*",
+    "@spenlog/utils": "workspace:*",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "2.107.0",
     "@types/web-push": "^3.6.4",

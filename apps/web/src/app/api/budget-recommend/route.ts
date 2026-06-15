@@ -1,4 +1,3 @@
-import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 interface RecentExpense {
@@ -70,10 +69,6 @@ function fallbackAmounts(income: number, fixedSavings: number, categories: strin
 
 export async function POST(req: Request) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
     const body: RecommendInput = await req.json()
     const { income, fixedSavings, recentExpenses, currentBudgets, categories: reqCategories } = body
     const categories = (reqCategories && reqCategories.length > 0)

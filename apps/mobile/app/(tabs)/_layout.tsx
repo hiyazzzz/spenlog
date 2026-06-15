@@ -1,85 +1,86 @@
-import { SymbolView } from 'expo-symbols';
-import { Tabs } from 'expo-router';
-
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { Tabs, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
+import { View, ActivityIndicator } from 'react-native';
+import { COLORS } from '@/constants/theme';
+import { getCurrentUserId } from '@/lib/supabase';
+import { checkOnboardingStatus } from '@/lib/api/settings';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const router = useRouter();
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const uid = await getCurrentUserId();
+      if (!uid) {
+        router.replace('/login');
+        return;
+      }
+      const completed = await checkOnboardingStatus(uid);
+      if (!active) return;
+      if (!completed) {
+        router.replace('/onboarding');
+        return;
+      }
+      setReady(true);
+    })();
+    return () => { active = false; };
+  }, []);
+
+  if (!ready) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg }}>
+        <ActivityIndicator color={COLORS.primary} />
+      </View>
+    );
+  }
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
+    <Tabs screenOptions={{ tabBarActiveTintColor: '#6366f1' }}>
       <Tabs.Screen
         name="index"
         options={{
           title: '홈',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{ ios: 'house.fill', android: 'home', web: 'home' }}
-              tintColor={color}
-              size={28}
-            />
-          ),
+          tabBarIcon: ({ color }) => <Ionicons name="home" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: '내역',
+          tabBarIcon: ({ color }) => <Ionicons name="list" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="assets"
         options={{
           title: '자산',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{ ios: 'creditcard.fill', android: 'credit_card', web: 'credit_card' }}
-              tintColor={color}
-              size={28}
-            />
-          ),
+          tabBarIcon: ({ color }) => <Ionicons name="wallet" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="fixed"
+        name="report"
         options={{
-          title: '고정비',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{ ios: 'calendar', android: 'event', web: 'event' }}
-              tintColor={color}
-              size={28}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="budget"
-        options={{
-          title: '예산',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{ ios: 'chart.pie.fill', android: 'pie_chart', web: 'pie_chart' }}
-              tintColor={color}
-              size={28}
-            />
-          ),
+          title: '리포트',
+          tabBarIcon: ({ color }) => <Ionicons name="stats-chart" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: '설정',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{ ios: 'gearshape.fill', android: 'settings', web: 'settings' }}
-              tintColor={color}
-              size={28}
-            />
-          ),
+          tabBarIcon: ({ color }) => <Ionicons name="settings" size={24} color={color} />,
         }}
+      />
+      <Tabs.Screen
+        name="fixed-costs"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="budget"
+        options={{ href: null }}
       />
     </Tabs>
   );

@@ -8,6 +8,7 @@ interface CoachInput {
   savingGoal: number
   savedAmount: number
   catData: { cat: string; amount: number; prevAmount: number }[]
+  userId?: string // 모바일 앱은 쿠키 세션이 없어 직접 전달
 }
 
 async function generateCoach(input: CoachInput): Promise<{ step1: string; step2: string; step3: string }> {
@@ -58,16 +59,17 @@ export async function POST(req: Request) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const body: CoachInput = await req.json()
     const { yearMonth } = body
+    const userId = user?.id ?? body.userId
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     // 캐시 확인
     const { data: cached } = await supabase
       .from('reports')
       .select('ai_coach')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('year_month', yearMonth)
       .single()
 
@@ -80,7 +82,7 @@ export async function POST(req: Request) {
 
     // 저장 (upsert)
     await supabase.from('reports').upsert({
-      user_id: user.id,
+      user_id: userId,
       year_month: yearMonth,
       total_expense: body.totalSpent,
       ai_coach: coach,

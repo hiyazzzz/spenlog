@@ -13,6 +13,22 @@ export interface User {
   income: number
   saving_goal: number
   created_at: string
+  home_cover_url?: string | null
+  category_img_url_1?: string | null
+  category_img_url_2?: string | null
+  category_img_url_3?: string | null
+  category_img_url_4?: string | null
+  onboarding_completed?: boolean | null
+  push_enabled?: boolean | null
+  push_expense_reminder?: boolean | null
+  push_due_date_reminder?: boolean | null
+  push_due_date_unprocessed?: boolean | null
+  push_report?: boolean | null
+  is_premium?: boolean | null
+  is_developer?: boolean | null
+  premium_status?: string | null
+  premium_expires_at?: string | null
+  trial_started_at?: string | null
 }
 
 export interface Expense {
@@ -44,6 +60,8 @@ export interface FixedCost {
   type: FixedCostType
   kind: FixedCostKind
   due_day: number | null
+  linked_account_id?: string | null
+  linked_target_account_id?: string | null
 }
 
 export interface Account {
@@ -64,4 +82,5 @@ export interface Card {
   due_day: number | null
   limit_amount: number | null
   billing_start_day?: number | null
+  linked_account_id?: string | null
 }
