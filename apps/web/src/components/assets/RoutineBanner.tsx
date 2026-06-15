@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { recordFixedCostPayment } from '@/lib/routine'
 import dayjs from 'dayjs'
 
 interface FixedCost {
@@ -65,48 +66,12 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccount
   async function recordPayment(fc: FixedCost) {
     setProcessing(fc.id)
     try {
-      const today = new Date().toISOString().split('T')[0]
-
-      // 1. savings_payments 기록
-      await supabase.from('savings_payments').upsert({
-        user_id: userId, fixed_cost_id: fc.id,
-        year_month: thisMonth, is_paid: true, paid_amount: fc.amount,
-      })
-
-      // 2. expenses 테이블에 내역 저장 (내역 탭 반영)
-      const isTransfer = fc.kind === '고정저축'
-      await supabase.from('expenses').insert({
-        user_id: userId,
-        name: fc.name,
-        amount: fc.amount,
-        category: '고정비',
-        date: today,
-        payment_method: null,
-        type: isTransfer ? 'transfer' : 'expense',
-        source: 'routine',
-        memo: isTransfer ? '고정 저축 이체' : '고정 지출 처리',
-      })
-
-      // 3. 연결 계좌 잔액 변동 + 즉각 UI 동기화
-      const accountUpdates: AccountUpdate[] = []
-      if (fc.linked_account_id) {
-        const { data: srcAcc } = await supabase
-          .from('accounts').select('balance').eq('id', fc.linked_account_id).single()
-        if (srcAcc != null) {
-          const newBalance = (srcAcc.balance ?? 0) - fc.amount
-          await supabase.from('accounts').update({ balance: newBalance }).eq('id', fc.linked_account_id)
-          accountUpdates.push({ id: fc.linked_account_id, balance: newBalance })
-        }
-      }
-      if (fc.kind === '고정저축' && fc.linked_target_account_id) {
-        const { data: tgtAcc } = await supabase
-          .from('accounts').select('balance').eq('id', fc.linked_target_account_id).single()
-        if (tgtAcc != null) {
-          const newBalance = (tgtAcc.balance ?? 0) + fc.amount
-          await supabase.from('accounts').update({ balance: newBalance }).eq('id', fc.linked_target_account_id)
-          accountUpdates.push({ id: fc.linked_target_account_id, balance: newBalance })
-        }
-      }
+      const { accountUpdates } = await recordFixedCostPayment(supabase, userId, {
+        id: fc.id, name: fc.name, amount: fc.amount,
+        kind: fc.kind as '고정지출' | '고정저축',
+        linked_account_id: fc.linked_account_id,
+        linked_target_account_id: fc.linked_target_account_id,
+      }, thisMonth)
       if (accountUpdates.length > 0) onAccountsChange?.(accountUpdates)
 
       setPayments(p => ({ ...p, [fc.id]: true }))

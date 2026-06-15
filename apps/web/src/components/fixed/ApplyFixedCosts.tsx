@@ -2,10 +2,9 @@
 import { useState } from 'react'
 import { TEXTS } from '@/config/texts'
 import { createClient } from '@/lib/supabase/client'
+import { recordFixedCostPayment, getPaidIds } from '@/lib/routine'
 import { useRouter } from 'next/navigation'
-import dayjs from 'dayjs'
-
-interface FixedCost { id: string; name: string; amount: number; type: string }
+import type { FixedCost } from '@spenlog/types'
 
 interface Props {
   fixedCosts: FixedCost[]
@@ -27,16 +26,9 @@ export default function ApplyFixedCosts({ fixedCosts, userId, appliedNames, this
     if (notApplied.length === 0) return
     setApplying(true)
     const supabase = createClient()
-    const today = dayjs().format('YYYY-MM-DD')
 
     // savings_payments에서 이미 루틴 완료 처리된 항목 제외 (중복 방지)
-    const { data: paidPayments } = await supabase
-      .from('savings_payments')
-      .select('fixed_cost_id')
-      .eq('user_id', userId)
-      .eq('year_month', thisMonth)
-      .eq('is_paid', true)
-    const paidIds = new Set(paidPayments?.map((p: { fixed_cost_id: string }) => p.fixed_cost_id) ?? [])
+    const { fixedCostIds: paidIds } = await getPaidIds(supabase, userId, thisMonth)
     const toInsert = notApplied.filter(f => !paidIds.has(f.id))
 
     if (toInsert.length === 0) {
@@ -45,17 +37,13 @@ export default function ApplyFixedCosts({ fixedCosts, userId, appliedNames, this
       return
     }
 
-    await supabase.from('expenses').insert(
-      toInsert.map(f => ({
-        user_id: userId,
-        name: f.name,
-        amount: f.amount,
-        category: '고정비',
-        date: today,
-        payment_method: null,
-        memo: '고정비 자동 반영',
-      }))
-    )
+    for (const f of toInsert) {
+      await recordFixedCostPayment(supabase, userId, {
+        id: f.id, name: f.name, amount: f.amount,
+        kind: f.kind, linked_account_id: f.linked_account_id,
+        linked_target_account_id: f.linked_target_account_id,
+      }, thisMonth)
+    }
     setApplying(false)
     setDone(true)
     router.refresh()
