@@ -19,6 +19,10 @@ export interface User {
   category_img_url_3?: string | null
   category_img_url_4?: string | null
   onboarding_completed?: boolean | null
+  init_setup_completed?: boolean | null
+  asset_setup_completed?: boolean | null
+  asset_setup_skipped?: boolean | null
+  guide_completed?: boolean | null
   push_enabled?: boolean | null
   push_expense_reminder?: boolean | null
   push_due_date_reminder?: boolean | null
