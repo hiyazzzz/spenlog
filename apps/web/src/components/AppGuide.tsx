@@ -2,11 +2,13 @@
 import React, { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import GuideDots from '@/components/ui/GuideDots'
+import { markGuideCompleted } from '@/lib/guide'
 
 // AppGuide(설정 > "앱 가이드 다시 보기"에서 수동 호출, 바텀시트 형태)와
 // src/components/onboarding/GuideOverlay.tsx(최초 온보딩 시 자동 노출, 실제 UI 요소 하이라이트)는
 // 둘 다 guide_completed 플래그를 갱신하지만 UI/트리거가 달라 별도 컴포넌트로 유지.
-// 도트 인디케이터는 components/ui/GuideDots로 공유.
+// 도트 인디케이터는 components/ui/GuideDots, 플래그 업데이트는 lib/guide로 공유.
+// TODO: STEPS 콘텐츠(기능 설명 5단계 vs GuideOverlay의 코치마크 5단계)는 내용이 달라 통합하지 않음.
 
 interface AppGuideProps {
   onClose: () => void
@@ -55,13 +57,10 @@ export default function AppGuide({ onClose }: AppGuideProps) {
   const [leaving, setLeaving] = useState(false)
 
   async function finish() {
-    // guide_completed 플래그 업데이트
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        await supabase.from('users').update({ guide_completed: true }).eq('id', user.id)
-      }
+      if (user) await markGuideCompleted(supabase, user.id)
     } catch (_) {}
     handleClose()
   }

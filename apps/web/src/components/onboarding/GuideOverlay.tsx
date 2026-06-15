@@ -3,11 +3,14 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import GuideDots from '@/components/ui/GuideDots'
+import { markGuideCompleted } from '@/lib/guide'
 
 // GuideOverlay(최초 온보딩 시 자동 노출, 실제 UI 요소 하이라이트)와
 // src/components/AppGuide.tsx(설정 > "앱 가이드 다시 보기"에서 수동 호출, 바텀시트 형태)는
 // 둘 다 guide_completed 플래그를 갱신하지만 UI/트리거가 달라 별도 컴포넌트로 유지.
-// 도트 인디케이터는 components/ui/GuideDots로 공유.
+// 도트 인디케이터는 components/ui/GuideDots, 플래그 업데이트는 lib/guide로 공유.
+// TODO: STEPS 콘텐츠(코치마크 5단계 vs 기능 설명 5단계)는 내용이 달라 통합하지 않음.
+// 기획 변경으로 두 가이드의 콘텐츠를 일치시켜야 한다면 STEPS 데이터 구조부터 재검토 필요.
 
 interface Step {
   title: string
@@ -55,7 +58,7 @@ export default function GuideOverlay({ userId }: Props) {
 
   async function dismiss(goAssets = false) {
     setVisible(false)
-    await supabase.from('users').upsert({ id: userId, guide_completed: true }, { onConflict: 'id' })
+    await markGuideCompleted(supabase, userId)
     if (goAssets) router.push('/assets')
     else router.refresh()
   }
