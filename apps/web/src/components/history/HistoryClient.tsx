@@ -48,7 +48,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
       if (search && !e.name.toLowerCase().includes(search.toLowerCase())) return false
       if (filterCat && e.category !== filterCat) return false
       if (filterPay && e.payment_method !== filterPay) return false
-      if (filterType && e.type !== filterType) return false
+      if (filterType && (e.type ?? 'expense') !== filterType) return false
       return true
     })
     switch (sort) {
@@ -77,7 +77,8 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
     expenses
       .filter(e => e.date.startsWith(calMonth))
       .forEach(e => {
-        if (e.type === 'income') {
+        const type = e.type ?? 'expense'
+        if (type === 'income') {
           calIncomeSet.add(e.date)
         } else {
           calExpenseMap.set(e.date, (calExpenseMap.get(e.date) ?? 0) + e.amount)
@@ -176,8 +177,8 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
             </div>
           )}
           {grouped.map(([date, items]) => {
-            const expenseSum = items.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
-            const incomeSum = items.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0)
+            const expenseSum = items.filter(e => (e.type ?? 'expense') === 'expense').reduce((s, e) => s + e.amount, 0)
+            const incomeSum = items.filter(e => (e.type ?? 'expense') === 'income').reduce((s, e) => s + e.amount, 0)
             return (
               <div key={date} className="mb-4">
                 <div className="flex justify-between items-center mb-2 px-1">
@@ -224,19 +225,21 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
 }
 
 function ExpenseRow({ expense, onTap }: { expense: Expense; onTap: () => void }) {
-  const isIncome = expense.type === 'income'
+  const type = expense.type ?? 'expense'
+  const isIncome = type === 'income'
+  const isTransfer = type === 'transfer'
   return (
     <button onClick={onTap} className="w-full flex justify-between items-center p-4 text-left hover:bg-gray-50 transition-colors">
       <div>
         <div className="flex items-center gap-1.5">
           <p className="text-sm font-semibold text-gray-800">{expense.name}</p>
           {isIncome && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-semibold">수입</span>}
-          {expense.type === 'transfer' && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-500 font-semibold">이체</span>}
+          {isTransfer && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-500 font-semibold">이체</span>}
         </div>
         <p className="text-xs text-gray-400 mt-0.5">{expense.category}{expense.payment_method && ` · ${expense.payment_method}`}</p>
       </div>
-      <span className={`text-sm font-bold ${isIncome ? 'text-emerald-500' : expense.type === 'transfer' ? 'text-blue-500' : 'text-rose-400'}`}>
-        {isIncome ? '+' : expense.type === 'transfer' ? '↔' : '-'}{expense.amount.toLocaleString()}원
+      <span className={`text-sm font-bold ${isIncome ? 'text-emerald-500' : isTransfer ? 'text-blue-500' : 'text-rose-400'}`}>
+        {isIncome ? '+' : isTransfer ? '↔' : '-'}{expense.amount.toLocaleString()}원
       </span>
     </button>
   )
@@ -251,7 +254,7 @@ function EditRow({ expense, onSave, onDelete, onCancel, userCategories }: {
   onCancel: () => void
   userCategories?: string[]
 }) {
-  const [form, setForm] = useState({ ...expense, amount: expense.amount.toLocaleString(), payment_method: expense.payment_method ?? '' })
+  const [form, setForm] = useState({ ...expense, type: expense.type ?? 'expense', amount: expense.amount.toLocaleString(), payment_method: expense.payment_method ?? '' })
   function u(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
 
   return (
@@ -384,8 +387,8 @@ function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, to
           <div className="flex justify-between items-center p-4 border-b border-gray-50">
             <span className="text-sm font-bold text-gray-700">{dayjs(selectedDate).format('M월 D일 (ddd)')}</span>
             <span className="text-sm font-bold text-rose-400">
-              {selectedItems.filter(e => e.type !== 'income').length > 0
-                ? `-${selectedItems.filter(e => e.type !== 'income').reduce((s, e) => s + e.amount, 0).toLocaleString()}원`
+              {selectedItems.filter(e => (e.type ?? 'expense') !== 'income').length > 0
+                ? `-${selectedItems.filter(e => (e.type ?? 'expense') !== 'income').reduce((s, e) => s + e.amount, 0).toLocaleString()}원`
                 : ''}
             </span>
           </div>

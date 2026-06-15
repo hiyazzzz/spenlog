@@ -57,7 +57,7 @@ export default function HistoryScreen() {
       if (search && !e.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (filterCat && e.category !== filterCat) return false;
       if (filterPay && e.payment_method !== filterPay) return false;
-      if (filterType && e.type !== filterType) return false;
+      if (filterType && (e.type ?? 'expense') !== filterType) return false;
       return true;
     });
     switch (sort) {
@@ -84,7 +84,8 @@ export default function HistoryScreen() {
     const expenseMap = new Map<string, number>();
     const incomeSet = new Set<string>();
     expenses.filter(e => e.date.startsWith(calMonth)).forEach(e => {
-      if (e.type === 'income') {
+      const type = e.type ?? 'expense';
+      if (type === 'income') {
         incomeSet.add(e.date);
       } else {
         expenseMap.set(e.date, (expenseMap.get(e.date) ?? 0) + e.amount);
@@ -200,8 +201,8 @@ export default function HistoryScreen() {
             </View>
           )}
           {grouped.map(([date, items]) => {
-            const expenseSum = items.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0);
-            const incomeSum = items.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0);
+            const expenseSum = items.filter(e => (e.type ?? 'expense') === 'expense').reduce((s, e) => s + e.amount, 0);
+            const incomeSum = items.filter(e => (e.type ?? 'expense') === 'income').reduce((s, e) => s + e.amount, 0);
             const net = expenseSum - incomeSum;
             return (
               <View key={date} style={{ marginBottom: 16 }}>
@@ -253,9 +254,9 @@ export default function HistoryScreen() {
         <View style={[styles.card, { marginTop: 12 }]}>
           <View style={styles.selectedHeaderRow}>
             <Text style={styles.dateLabel}>{dayjs(selectedDate).format('M월 D일 (ddd)')}</Text>
-            {selectedItems.filter(e => e.type !== 'income').length > 0 && (
+            {selectedItems.filter(e => (e.type ?? 'expense') !== 'income').length > 0 && (
               <Text style={[styles.dateSum, { color: COLORS.red }]}>
-                -{formatCurrency(selectedItems.filter(e => e.type !== 'income').reduce((s, e) => s + e.amount, 0)).replace('원', '')}원
+                -{formatCurrency(selectedItems.filter(e => (e.type ?? 'expense') !== 'income').reduce((s, e) => s + e.amount, 0)).replace('원', '')}원
               </Text>
             )}
           </View>
@@ -278,7 +279,7 @@ export default function HistoryScreen() {
 }
 
 function ExpenseRow({ expense, onTap }: { expense: Expense; onTap: () => void }) {
-  const isIncome = expense.type === 'income';
+  const isIncome = (expense.type ?? 'expense') === 'income';
   return (
     <TouchableOpacity style={styles.row} onPress={onTap} activeOpacity={0.7}>
       <View style={{ flex: 1 }}>
