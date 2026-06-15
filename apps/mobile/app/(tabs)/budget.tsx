@@ -141,7 +141,7 @@ export default function BudgetScreen() {
       }
       const planEnabled = Object.fromEntries(categories.map(c => [c, true]));
       const planAmountStrings = Object.fromEntries(categories.map(c => [c, String(planAmounts[c] ?? 0)]));
-      await saveBudgets(userId, monthString(), categories, planEnabled, planAmountStrings);
+      await saveBudgets(userId, monthString(), categories, planEnabled, planAmountStrings, 'ai');
       Alert.alert('저장 완료', '예산이 저장됐어요');
       setSelectedPreset(null);
       setAiAmounts(null);

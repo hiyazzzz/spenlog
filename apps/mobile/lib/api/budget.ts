@@ -67,7 +67,8 @@ export async function saveBudgets(
   month: string,
   categories: string[],
   enabledCats: Record<string, boolean>,
-  amounts: Record<string, string>
+  amounts: Record<string, string>,
+  source: 'manual' | 'ai' = 'manual'
 ) {
   const onCats = categories.filter(cat => enabledCats[cat])
   const offCats = categories.filter(cat => !enabledCats[cat])
@@ -78,6 +79,7 @@ export async function saveBudgets(
       category: cat,
       amount: parseInt(amounts[cat] || '0') || 0,
       month,
+      source,
     }))
     await supabase.from('budgets').upsert(upsertData, { onConflict: 'user_id,category,month' })
   }

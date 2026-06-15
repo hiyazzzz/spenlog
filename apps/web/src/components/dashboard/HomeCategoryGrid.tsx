@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { THEME_CARD_PALETTES } from '@/lib/themes'
 import { formatCurrency } from '@/lib/format'
+import { useGifAwareSrc } from '@/lib/useGifAwareSrc'
 
 interface Expense { category: string; amount: number; type?: string }
 interface Budget { category: string; amount: number }
@@ -15,14 +16,23 @@ interface Props {
   categoryImages?: (string | null | undefined)[]  // 슬롯(위치) 기반 배열 — 카테고리명이 아닌 인덱스로 접근
   userCategories?: Category[]
   theme?: string | null
+  gifAutoplay?: boolean
 }
 
 const DEFAULT_CATS = ['생활비', '활동비', '고정비', '친목비']
 const DEFAULT_PALETTE = THEME_CARD_PALETTES['Burgundy']
 
-export default function HomeCategoryGrid({ expenses, budgets, categoryImages, userCategories, theme }: Props) {
+export default function HomeCategoryGrid({ expenses, budgets, categoryImages, userCategories, theme, gifAutoplay = true }: Props) {
   const router = useRouter()
   const [palette, setPalette] = useState<string[]>(() => THEME_CARD_PALETTES[(theme as string) ?? 'Burgundy'] ?? DEFAULT_PALETTE)
+
+  // 슬롯(0~3) 고정 — gif_autoplay가 꺼져있으면 GIF 첫 프레임으로 대체
+  const resolvedImages = [
+    useGifAwareSrc(categoryImages?.[0], gifAutoplay),
+    useGifAwareSrc(categoryImages?.[1], gifAutoplay),
+    useGifAwareSrc(categoryImages?.[2], gifAutoplay),
+    useGifAwareSrc(categoryImages?.[3], gifAutoplay),
+  ]
 
   useEffect(() => {
     const t = theme ?? (typeof window !== 'undefined' ? localStorage.getItem('spenlog_theme') : null) ?? 'Burgundy'
@@ -56,7 +66,7 @@ export default function HomeCategoryGrid({ expenses, budgets, categoryImages, us
           const budget = budgets?.find(b => b.category === cat)?.amount ?? 0
           const pct = budget > 0 ? Math.min(Math.round((spent / budget) * 100), 100) : 0
           const over = budget > 0 && spent > budget
-          const imgUrl = categoryImages?.[idx] ?? null  // 슬롯 인덱스로 접근
+          const imgUrl = resolvedImages[idx] ?? null  // 슬롯 인덱스로 접근
           const barColor = over ? '#ef4444' : pct >= 70 ? '#f59e0b' : 'var(--color-primary)'
           const cardBgColor = palette[idx] ?? palette[0]
 

@@ -7,6 +7,8 @@ import AiInputBox from '@/components/expense/AiInputBox'
 import HomeCategoryGrid from '@/components/dashboard/HomeCategoryGrid'
 import RecentExpenses from '@/components/dashboard/RecentExpenses'
 import HomeEditModal from '@/components/dashboard/HomeEditModal'
+import GifAwareCoverImage from '@/components/dashboard/GifAwareCoverImage'
+import GreetingText from '@/components/dashboard/GreetingText'
 import { formatCurrency } from '@/lib/format'
 import { isPremiumUnlocked } from '@/lib/premium'
 
@@ -42,6 +44,7 @@ export default async function DashboardHomePage() {
   // HomeEditModal 용 — 편집 UI에서 이름 키 필요
   const categoryUrls: Record<string, string | null> = {}
   topCats.forEach((cat, i) => { categoryUrls[cat.name] = imgFields[i] ?? null })
+  const gifAutoplay = profile?.gif_autoplay ?? true
 
   const card = {
     background: '#fff',
@@ -61,13 +64,12 @@ export default async function DashboardHomePage() {
         background: coverUrl ? undefined : 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-mid) 100%)',
       }}>
         {coverUrl && (
-          <img src={coverUrl} alt="cover"
-            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
+          <GifAwareCoverImage src={coverUrl} autoplay={gifAutoplay} />
         )}
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)' }} />
         {/* 인사말 — 상단 좌측 */}
         <div style={{ position: 'absolute', top: 18, left: 18 }}>
-          <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginBottom: 4 }}>안녕하세요 👋</p>
+          <GreetingText fallback="안녕하세요 👋" />
           <p style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>{displayName}님</p>
         </div>
         {/* 스탯 — 하단 풀워스 바 */}
@@ -131,7 +133,7 @@ export default async function DashboardHomePage() {
 
       {/* 카테고리 2x2 그리드 */}
       <div style={card}>
-        <HomeCategoryGrid expenses={allExpenses} budgets={budgets ?? []} categoryImages={categoryImageSlots} userCategories={userCategories ?? []} theme={profile?.theme ?? null} />
+        <HomeCategoryGrid expenses={allExpenses} budgets={budgets ?? []} categoryImages={categoryImageSlots} userCategories={userCategories ?? []} theme={profile?.theme ?? null} gifAutoplay={gifAutoplay} />
       </div>
 
       {/* 최근 지출 내역 */}

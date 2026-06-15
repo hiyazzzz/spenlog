@@ -29,6 +29,8 @@ export interface User {
   premium_status?: string | null
   premium_expires_at?: string | null
   trial_started_at?: string | null
+  gif_autoplay?: boolean | null
+  greeting_last_ids?: string | null
 }
 
 export interface Expense {
@@ -50,6 +52,7 @@ export interface Budget {
   category: Category
   amount: number
   month: string // 'YYYY-MM'
+  source?: string | null
 }
 
 export interface FixedCost {

@@ -206,12 +206,14 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
     const offCats = allCategories.filter(cat => !enabledCats[cat])
 
     // ON 카테고리: upsert
+    const source = tab === 'ai' && selectedPreset ? 'ai' : 'manual'
     if (onCats.length > 0) {
       const upsertData = onCats.map(cat => ({
         user_id: userId,
         category: cat,
         amount: parseInt(amounts[cat] || '0'),
         month: thisMonth,
+        source,
       }))
       await supabase.from('budgets').upsert(upsertData, { onConflict: 'user_id,category,month' })
     }
