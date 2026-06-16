@@ -20,9 +20,11 @@
       "fallbackToCacheTimeout": 0
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.spenlog.app"
     },
     "android": {
+      "package": "com.spenlog.app",
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
       }
