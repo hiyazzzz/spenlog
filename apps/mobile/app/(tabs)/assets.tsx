@@ -654,39 +654,30 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
   );
 }
 
+const KINDS = ['고정지출', '고정저축'] as const;
 const TYPES = ['월정액', '연정액', '기타'] as const;
 
 function FixedCostsPanel({ themeColors }: { themeColors: ReturnType<typeof getThemeColors> }) {
+  const [kind, setKind] = useState<typeof KINDS[number]>('고정지출');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [name, setName] = useState('');
+  const [amount, setAmount] = useState('');
+  const [dueDay, setDueDay] = useState('');
+  const [type, setType] = useState<typeof TYPES[number]>('월정액');
   const [data, setData] = useState<FixedCostsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-
-  // 고정 지출 폼
-  const [showExpenseForm, setShowExpenseForm] = useState(false);
-  const [expName, setExpName] = useState('');
-  const [expAmount, setExpAmount] = useState('');
-  const [expDueDay, setExpDueDay] = useState('');
-  const [expAccountId, setExpAccountId] = useState<string | null>(null);
-  const [expCardId, setExpCardId] = useState<string | null>(null);
-  const [savingExp, setSavingExp] = useState(false);
-
-  // 고정 저축 폼
-  const [showSavingForm, setShowSavingForm] = useState(false);
-  const [savName, setSavName] = useState('');
-  const [savAmount, setSavAmount] = useState('');
-  const [savDueDay, setSavDueDay] = useState('');
-  const [savDebitAccId, setSavDebitAccId] = useState<string | null>(null);
-  const [savCreditAccId, setSavCreditAccId] = useState<string | null>(null);
-  const [savingSav, setSavingSav] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     try {
       setError(null);
-      const uid = await getCurrentUserId();
-      if (!uid) { setError('로그인이 필요해요'); return; }
-      setUserId(uid);
-      setData(await getFixedCostsData(uid));
+      const userId = await getCurrentUserId();
+      if (!userId) {
+        setError('로그인이 필요해요');
+        return;
+      }
+      setData(await getFixedCostsData(userId));
     } catch (e) {
       setError(e instanceof Error ? e.message : '데이터를 불러오지 못했어요');
     } finally {
@@ -696,381 +687,723 @@ function FixedCostsPanel({ themeColors }: { themeColors: ReturnType<typeof getTh
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return (
-    <View style={[sharedStyles.panel, sharedStyles.center]}>
-      <ActivityIndicator color={COLORS.primary} />
-    </View>
-  );
+  if (loading) {
+    return (
+      <View style={[sharedStyles.panel, sharedStyles.center]}>
+        <ActivityIndicator color={COLORS.primary} />
+      </View>
+    );
+  }
 
-  if (error || !data) return (
-    <View style={[sharedStyles.panel, sharedStyles.center]}>
-      <Text style={sharedStyles.emptyText}>{error ?? '데이터를 불러오지 못했어요'}</Text>
-    </View>
-  );
+  if (error || !data) {
+    return (
+      <View style={[sharedStyles.panel, sharedStyles.center]}>
+        <Text style={sharedStyles.emptyText}>{error ?? '데이터를 불러오지 못했어요'}</Text>
+      </View>
+    );
+  }
 
   const fixedCosts = data.fixedCosts;
-  const allAccounts = data.accounts.filter(a => a.type !== '현금');
-  const cards = data.cards;
   const expenseItems = fixedCosts.filter(f => f.kind === '고정지출');
   const savingItems = fixedCosts.filter(f => f.kind === '고정저축');
   const expenseTotal = expenseItems.reduce((s, f) => s + f.amount, 0);
   const savingTotal = savingItems.reduce((s, f) => s + f.amount, 0);
 
-  function resetExpenseForm() {
-    setExpName(''); setExpAmount(''); setExpDueDay('');
-    setExpAccountId(null); setExpCardId(null);
-    setShowExpenseForm(false);
+  const items = kind === '고정지출' ? expenseItems : savingItems;
+
+  function resetForm() {
+    setName('');
+    setAmount('');
+    setDueDay('');
+    setType('월정액');
+    setShowAddForm(false);
   }
 
-  function resetSavingForm() {
-    setSavName(''); setSavAmount(''); setSavDueDay('');
-    setSavDebitAccId(null); setSavCreditAccId(null);
-    setShowSavingForm(false);
-  }
-
-  async function handleAddExpense() {
-    const trimmed = expName.trim();
-    const parsed = parseInt(expAmount) || 0;
-    if (!trimmed || parsed <= 0 || savingExp || !userId) return;
-    setSavingExp(true);
+  async function handleAdd() {
+    const trimmedName = name.trim();
+    const parsedAmount = parseInt(amount) || 0;
+    if (!trimmedName || parsedAmount <= 0 || saving) return;
+    setSaving(true);
     try {
+      const userId = await getCurrentUserId();
+      if (!userId) {
+        Alert.alert('로그인이 필요해요');
+        return;
+      }
       const { error: err } = await addFixedCost(userId, {
-        name: trimmed, amount: parsed,
-        due_day: expDueDay ? parseInt(expDueDay) : null,
-        type: '월정액', kind: '고정지출',
-        linked_account_id: expAccountId,
-        linked_card_id: expCardId,
+        name: trimmedName,
+        amount: parsedAmount,
+        due_day: dueDay ? parseInt(dueDay) : null,
+        type,
+        kind,
       });
-      if (err) { Alert.alert('추가 실패', err.message); return; }
-      resetExpenseForm();
+      if (err) {
+        Alert.alert('추가 실패', err.message);
+        return;
+      }
+      resetForm();
       await load();
     } finally {
-      setSavingExp(false);
-    }
-  }
-
-  async function handleAddSaving() {
-    const trimmed = savName.trim();
-    const parsed = parseInt(savAmount) || 0;
-    if (!trimmed || parsed <= 0 || savingSav || !userId) return;
-    setSavingSav(true);
-    try {
-      const { error: err } = await addFixedCost(userId, {
-        name: trimmed, amount: parsed,
-        due_day: savDueDay ? parseInt(savDueDay) : null,
-        type: '월정액', kind: '고정저축',
-        linked_account_id: savDebitAccId,
-        linked_target_account_id: savCreditAccId,
-      });
-      if (err) { Alert.alert('추가 실패', err.message); return; }
-      resetSavingForm();
-      await load();
-    } finally {
-      setSavingSav(false);
+      setSaving(false);
     }
   }
 
   function confirmDelete(id: string, itemName: string) {
     Alert.alert('삭제', `'${itemName}' 항목을 삭제할까요?`, [
       { text: '취소', style: 'cancel' },
-      { text: '삭제', style: 'destructive', onPress: async () => { await deleteFixedCost(id); await load(); } },
+      {
+        text: '삭제', style: 'destructive', onPress: async () => {
+          await deleteFixedCost(id);
+          await load();
+        },
+      },
     ]);
   }
 
-  const expenseLinkedItems = [...allAccounts, ...cards];
-
   return (
     <ScrollView style={sharedStyles.panel} contentContainerStyle={sharedStyles.content} keyboardShouldPersistTaps="handled">
-      {/* 헤더 합계 */}
-      <View style={fixedStyles.headerRow}>
-        <Text style={fixedStyles.pageTitle}>고정비</Text>
-        <Text style={fixedStyles.headerSummary}>월 {formatCurrency(expenseTotal + savingTotal)} 지출 ▲</Text>
+      <Text style={fixedStyles.pageSubtitle}>매달 반복되는 지출과 저축을 관리해요</Text>
+
+      {/* 합계 카드 */}
+      <View style={fixedStyles.totalCard}>
+        <View style={fixedStyles.totalRow}>
+          <Text style={fixedStyles.totalLabel}>고정 지출</Text>
+          <Text style={[fixedStyles.totalValue, { color: themeColors.accent }]}>{formatCurrency(expenseTotal)}</Text>
+        </View>
+        <View style={fixedStyles.totalDivider} />
+        <View style={fixedStyles.totalRow}>
+          <Text style={fixedStyles.totalLabel}>고정 저축</Text>
+          <Text style={fixedStyles.totalValueGreen}>{formatCurrency(savingTotal)}</Text>
+        </View>
       </View>
 
-      {/* 고정 지출 섹션 */}
-      <View style={fixedStyles.sectionBlock}>
-        <View style={fixedStyles.sectionHeaderRow}>
-          <Text style={fixedStyles.sectionTitle}>고정 지출</Text>
-          {!showExpenseForm && (
-            <TouchableOpacity
-              style={[fixedStyles.addInlineBtn, { borderColor: themeColors.primary }]}
-              onPress={() => setShowExpenseForm(true)}
-            >
-              <Text style={[fixedStyles.addInlineBtnText, { color: themeColors.primary }]}>+ 추가</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {expenseItems.length === 0 && !showExpenseForm && (
-          <Text style={fixedStyles.emptyText}>고정 지출이 없어요</Text>
-        )}
-        {expenseItems.map((item, i) => (
-          <View key={item.id} style={[fixedStyles.itemRow, i === 0 && { borderTopWidth: 0 }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={fixedStyles.itemName}>{item.name}</Text>
-              {item.due_day ? <Text style={fixedStyles.itemMeta}>매월 {item.due_day}일</Text> : null}
-            </View>
-            <View style={fixedStyles.itemRight}>
-              <Text style={[fixedStyles.itemAmount, { color: themeColors.accent }]}>{formatCurrency(item.amount)}</Text>
-              <TouchableOpacity style={fixedStyles.deleteBtn} onPress={() => confirmDelete(item.id, item.name)}>
-                <Text style={fixedStyles.deleteBtnText}>삭제</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+      {/* KINDS 탭 */}
+      <View style={fixedStyles.tabBar}>
+        {KINDS.map(k => (
+          <TouchableOpacity
+            key={k}
+            style={[fixedStyles.tabBtn, kind === k && { backgroundColor: themeColors.primary }]}
+            onPress={() => setKind(k)}
+          >
+            <Text style={[fixedStyles.tabBtnText, kind === k && fixedStyles.tabBtnTextActive]}>{k}</Text>
+          </TouchableOpacity>
         ))}
-        <Text style={fixedStyles.subtotalText}>소계 {formatCurrency(expenseTotal)}</Text>
+      </View>
 
-        {showExpenseForm && (
-          <View style={fixedStyles.addForm}>
-            <Text style={fixedStyles.fieldLabel}>이름</Text>
-            <TextInput
-              style={fixedStyles.input}
-              placeholder="예) 넷플릭스"
-              placeholderTextColor={COLORS.gray400}
-              value={expName}
-              onChangeText={setExpName}
-            />
-            <Text style={[fixedStyles.fieldLabel, { marginTop: 10 }]}>금액</Text>
-            <TextInput
-              style={fixedStyles.input}
-              placeholder="0"
-              placeholderTextColor={COLORS.gray400}
-              keyboardType="numeric"
-              value={expAmount}
-              onChangeText={v => setExpAmount(v.replace(/[^0-9]/g, ''))}
-            />
-            <Text style={[fixedStyles.fieldLabel, { marginTop: 10 }]}>빠져나가는 날</Text>
-            <TextInput
-              style={fixedStyles.input}
-              placeholder="예) 25"
-              placeholderTextColor={COLORS.gray400}
-              keyboardType="numeric"
-              value={expDueDay}
-              onChangeText={v => setExpDueDay(v.replace(/[^0-9]/g, ''))}
-            />
-            {expenseLinkedItems.length > 0 && (
-              <View style={{ marginTop: 10 }}>
-                <Text style={fixedStyles.fieldLabel}>연결 계좌/카드</Text>
-                <View style={fixedStyles.chipScrollRow}>
-                  <TouchableOpacity
-                    style={[fixedStyles.selectChip, (expAccountId === null && expCardId === null) && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
-                    onPress={() => { setExpAccountId(null); setExpCardId(null); }}
-                  >
-                    <Text style={[fixedStyles.selectChipText, (expAccountId === null && expCardId === null) && { color: '#fff' }]}>선택</Text>
-                  </TouchableOpacity>
-                  {allAccounts.map(acc => (
-                    <TouchableOpacity
-                      key={acc.id}
-                      style={[fixedStyles.selectChip, expAccountId === acc.id && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
-                      onPress={() => { setExpAccountId(acc.id); setExpCardId(null); }}
-                    >
-                      <Text style={[fixedStyles.selectChipText, expAccountId === acc.id && { color: '#fff' }]}>{acc.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                  {cards.map(card => (
-                    <TouchableOpacity
-                      key={card.id}
-                      style={[fixedStyles.selectChip, expCardId === card.id && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
-                      onPress={() => { setExpCardId(card.id); setExpAccountId(null); }}
-                    >
-                      <Text style={[fixedStyles.selectChipText, expCardId === card.id && { color: '#fff' }]}>{card.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+      {/* 항목 리스트 */}
+      <View style={fixedStyles.card}>
+        {items.length === 0 ? (
+          <Text style={fixedStyles.emptyText}>등록된 {kind}이 없어요</Text>
+        ) : (
+          items.map((item, i) => (
+            <View key={item.id} style={[fixedStyles.itemRow, i === 0 && { borderTopWidth: 0 }]}>
+              <View>
+                <Text style={fixedStyles.itemName}>{item.name}</Text>
+                <Text style={fixedStyles.itemMeta}>{item.type} · 매월 {item.due_day}일</Text>
               </View>
-            )}
-            <View style={fixedStyles.formBtnRow}>
-              <TouchableOpacity
-                style={[fixedStyles.confirmBtn, { backgroundColor: themeColors.primary }, (!expName.trim() || !expAmount || savingExp) && { opacity: 0.5 }]}
-                onPress={handleAddExpense}
-                disabled={!expName.trim() || !expAmount || savingExp}
-              >
-                <Text style={fixedStyles.confirmBtnText}>{savingExp ? '저장 중...' : '저장'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={fixedStyles.cancelBtn} onPress={resetExpenseForm}>
-                <Text style={fixedStyles.cancelBtnText}>취소</Text>
-              </TouchableOpacity>
+              <View style={fixedStyles.itemRight}>
+                <Text style={kind === '고정지출' ? [fixedStyles.itemAmount, { color: themeColors.accent }] : fixedStyles.itemAmountGreen}>
+                  {formatCurrency(item.amount)}
+                </Text>
+                <TouchableOpacity style={fixedStyles.deleteBtn} onPress={() => confirmDelete(item.id, item.name)}>
+                  <Text style={fixedStyles.deleteBtnText}>삭제</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          ))
         )}
-      </View>
 
-      {/* 고정 저축 섹션 */}
-      <View style={fixedStyles.sectionBlock}>
-        <View style={fixedStyles.sectionHeaderRow}>
-          <Text style={fixedStyles.sectionTitle}>고정 저축</Text>
-          {!showSavingForm && (
-            <TouchableOpacity
-              style={[fixedStyles.addInlineBtn, { borderColor: COLORS.green }]}
-              onPress={() => setShowSavingForm(true)}
-            >
-              <Text style={[fixedStyles.addInlineBtnText, { color: COLORS.green }]}>+ 추가</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {savingItems.length === 0 && !showSavingForm && (
-          <Text style={fixedStyles.emptyText}>고정 저축이 없어요</Text>
-        )}
-        {savingItems.map((item, i) => (
-          <View key={item.id} style={[fixedStyles.itemRow, i === 0 && { borderTopWidth: 0 }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={fixedStyles.itemName}>{item.name}</Text>
-              {item.due_day ? <Text style={fixedStyles.itemMeta}>매월 {item.due_day}일</Text> : null}
-            </View>
-            <View style={fixedStyles.itemRight}>
-              <Text style={fixedStyles.itemAmountGreen}>{formatCurrency(item.amount)}</Text>
-              <TouchableOpacity style={fixedStyles.deleteBtn} onPress={() => confirmDelete(item.id, item.name)}>
-                <Text style={fixedStyles.deleteBtnText}>삭제</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ))}
-        <Text style={fixedStyles.subtotalTextGreen}>소계 {formatCurrency(savingTotal)}</Text>
-
-        {showSavingForm && (
+        {/* 추가 폼 */}
+        {showAddForm ? (
           <View style={fixedStyles.addForm}>
-            <Text style={fixedStyles.fieldLabel}>이름</Text>
             <TextInput
               style={fixedStyles.input}
-              placeholder="예) 서울 적금"
+              placeholder="항목 이름"
               placeholderTextColor={COLORS.gray400}
-              value={savName}
-              onChangeText={setSavName}
+              value={name}
+              onChangeText={setName}
             />
-            <Text style={[fixedStyles.fieldLabel, { marginTop: 10 }]}>금액</Text>
-            <TextInput
-              style={fixedStyles.input}
-              placeholder="0"
-              placeholderTextColor={COLORS.gray400}
-              keyboardType="numeric"
-              value={savAmount}
-              onChangeText={v => setSavAmount(v.replace(/[^0-9]/g, ''))}
-            />
-            <Text style={[fixedStyles.fieldLabel, { marginTop: 10 }]}>빠져나가는 날</Text>
-            <TextInput
-              style={fixedStyles.input}
-              placeholder="예) 5"
-              placeholderTextColor={COLORS.gray400}
-              keyboardType="numeric"
-              value={savDueDay}
-              onChangeText={v => setSavDueDay(v.replace(/[^0-9]/g, ''))}
-            />
-            {allAccounts.length > 0 && (
-              <>
-                <View style={{ marginTop: 10 }}>
-                  <Text style={fixedStyles.fieldLabel}>출금 계좌 (돈이 나가는 곳)</Text>
-                  <View style={fixedStyles.chipScrollRow}>
-                    <TouchableOpacity
-                      style={[fixedStyles.selectChip, savDebitAccId === null && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
-                      onPress={() => setSavDebitAccId(null)}
-                    >
-                      <Text style={[fixedStyles.selectChipText, savDebitAccId === null && { color: '#fff' }]}>선택</Text>
-                    </TouchableOpacity>
-                    {allAccounts.map(acc => (
-                      <TouchableOpacity
-                        key={acc.id}
-                        style={[fixedStyles.selectChip, savDebitAccId === acc.id && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
-                        onPress={() => setSavDebitAccId(acc.id)}
-                      >
-                        <Text style={[fixedStyles.selectChipText, savDebitAccId === acc.id && { color: '#fff' }]}>{acc.name}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-                <View style={{ marginTop: 10 }}>
-                  <Text style={fixedStyles.fieldLabel}>입금 계좌 (적금 계좌)</Text>
-                  <View style={fixedStyles.chipScrollRow}>
-                    <TouchableOpacity
-                      style={[fixedStyles.selectChip, savCreditAccId === null && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
-                      onPress={() => setSavCreditAccId(null)}
-                    >
-                      <Text style={[fixedStyles.selectChipText, savCreditAccId === null && { color: '#fff' }]}>선택</Text>
-                    </TouchableOpacity>
-                    {allAccounts.map(acc => (
-                      <TouchableOpacity
-                        key={acc.id}
-                        style={[fixedStyles.selectChip, savCreditAccId === acc.id && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
-                        onPress={() => setSavCreditAccId(acc.id)}
-                      >
-                        <Text style={[fixedStyles.selectChipText, savCreditAccId === acc.id && { color: '#fff' }]}>{acc.name}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              </>
-            )}
+            <View style={fixedStyles.inputRow}>
+              <TextInput
+                style={[fixedStyles.input, { flex: 1 }]}
+                placeholder="금액"
+                placeholderTextColor={COLORS.gray400}
+                keyboardType="numeric"
+                value={amount}
+                onChangeText={v => setAmount(v.replace(/[^0-9]/g, ''))}
+              />
+              <TextInput
+                style={[fixedStyles.input, { width: 90 }]}
+                placeholder="납부일"
+                placeholderTextColor={COLORS.gray400}
+                keyboardType="numeric"
+                value={dueDay}
+                onChangeText={v => setDueDay(v.replace(/[^0-9]/g, ''))}
+              />
+            </View>
+            <View style={fixedStyles.typeRow}>
+              {TYPES.map(t => (
+                <TouchableOpacity
+                  key={t}
+                  style={[fixedStyles.typeChip, type === t && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
+                  onPress={() => setType(t)}
+                >
+                  <Text style={[fixedStyles.typeChipText, type === t && fixedStyles.typeChipTextActive]}>{t}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
             <View style={fixedStyles.formBtnRow}>
-              <TouchableOpacity
-                style={[fixedStyles.confirmBtn, { backgroundColor: themeColors.primary }, (!savName.trim() || !savAmount || savingSav) && { opacity: 0.5 }]}
-                onPress={handleAddSaving}
-                disabled={!savName.trim() || !savAmount || savingSav}
-              >
-                <Text style={fixedStyles.confirmBtnText}>{savingSav ? '저장 중...' : '저장'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={fixedStyles.cancelBtn} onPress={resetSavingForm}>
+              <TouchableOpacity style={fixedStyles.cancelBtn} onPress={resetForm}>
                 <Text style={fixedStyles.cancelBtnText}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[fixedStyles.confirmBtn, { backgroundColor: themeColors.primary }, (!name.trim() || !amount || saving) && { opacity: 0.5 }]}
+                onPress={handleAdd}
+                disabled={!name.trim() || !amount || saving}
+              >
+                <Text style={fixedStyles.confirmBtnText}>{saving ? '추가 중...' : '추가'}</Text>
               </TouchableOpacity>
             </View>
           </View>
+        ) : (
+          <TouchableOpacity
+            style={[fixedStyles.addBtn, kind === '고정저축' ? fixedStyles.addBtnGreen : { backgroundColor: themeColors.primaryLight }]}
+            onPress={() => setShowAddForm(true)}
+          >
+            <Text style={[fixedStyles.addBtnText, kind === '고정저축' ? fixedStyles.addBtnTextGreen : { color: themeColors.primary }]}>
+              + {kind} 추가
+            </Text>
+          </TouchableOpacity>
         )}
       </View>
     </ScrollView>
   );
 }
 
+const PRESETS = [
+  { key: '알뜰', label: '💰 알뜰하게', desc: '수입의 40% 저축', savingRate: 0.4, dist: { 생활비: 0.40, 고정비: 0.35, 활동비: 0.25 } as Record<string, number> },
+  { key: '균형', label: '⚖️ 균형있게', desc: '수입의 25% 저축', savingRate: 0.25, dist: { 생활비: 0.40, 고정비: 0.35, 활동비: 0.25 } as Record<string, number> },
+  { key: '여유', label: '🌈 여유있게', desc: '수입의 15% 저축', savingRate: 0.15, dist: { 생활비: 0.40, 고정비: 0.35, 활동비: 0.25 } as Record<string, number> },
+] as const;
+
+function presetAmounts(income: number, categories: string[], preset: typeof PRESETS[number]): Record<string, number> {
+  const targetSave = Math.round(income * preset.savingRate);
+  const spendBudget = income - targetSave;
+  const spendCats = categories.filter(c => c !== '수입');
+  const knownRatio = spendCats.filter(c => c in preset.dist).reduce((s, c) => s + (preset.dist[c] ?? 0), 0);
+  const unknownCats = spendCats.filter(c => !(c in preset.dist));
+  const unknownRatio = unknownCats.length > 0 ? Math.max(0, 1 - knownRatio) / unknownCats.length : 0;
+  return Object.fromEntries(
+    spendCats.map(cat => [cat, Math.round(spendBudget * (cat in preset.dist ? (preset.dist[cat] ?? 0) : unknownRatio))])
+  );
+}
+
+function BudgetPanel({ themeColors }: { themeColors: ReturnType<typeof getThemeColors> }) {
+  const [tab, setTab] = useState<'manual' | 'ai'>('manual');
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  const [data, setData] = useState<BudgetData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [enabledCats, setEnabledCats] = useState<Record<string, boolean>>({});
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiAmounts, setAiAmounts] = useState<Record<string, number> | null>(null);
+  const [aiReason, setAiReason] = useState<string | null>(null);
+  const [savingAiPlan, setSavingAiPlan] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      setError(null);
+      const userId = await getCurrentUserId();
+      if (!userId) {
+        setError('로그인이 필요해요');
+        return;
+      }
+      const result = await getBudgetData(userId);
+      setData(result);
+      const budgetMap: Record<string, number> = {};
+      result.budgets.forEach(b => { budgetMap[b.category] = b.amount; });
+      setEnabledCats(Object.fromEntries(result.customCategories.map(c => [c, true])));
+      setAmounts(Object.fromEntries(result.customCategories.map(c => [c, String(budgetMap[c] ?? '')])));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '데이터를 불러오지 못했어요');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (loading) {
+    return (
+      <View style={[sharedStyles.panel, sharedStyles.center]}>
+        <ActivityIndicator color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <View style={[sharedStyles.panel, sharedStyles.center]}>
+        <Text style={sharedStyles.emptyText}>{error ?? '데이터를 불러오지 못했어요'}</Text>
+      </View>
+    );
+  }
+
+  const categories = data.customCategories;
+  const income = data.income;
+  const expenses = data.expenses;
+
+  function handleChange(cat: string, value: string) {
+    setAmounts(prev => ({ ...prev, [cat]: value.replace(/[^0-9]/g, '') }));
+  }
+
+  async function handleSave() {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const userId = await getCurrentUserId();
+      if (!userId) {
+        Alert.alert('로그인이 필요해요');
+        return;
+      }
+      await saveBudgets(userId, monthString(), categories, enabledCats, amounts);
+      Alert.alert('저장 완료', '예산이 저장됐어요');
+      await load();
+    } catch (e) {
+      Alert.alert('오류', e instanceof Error ? e.message : '저장에 실패했어요');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleSelectPreset(key: string) {
+    setSelectedPreset(key);
+    setAiAmounts(null);
+    setAiReason(null);
+  }
+
+  async function handleAiRecommend() {
+    if (aiLoading || !data) return;
+    setAiLoading(true);
+    try {
+      const result = await recommendBudget({
+        income: data.income,
+        fixedSavings: data.fixedSavings,
+        recentExpenses: data.recentExpenses,
+        currentBudgets: data.budgets.map(b => ({ category: b.category, amount: b.amount })),
+        categories,
+      });
+      setAiAmounts(result.amounts);
+      setAiReason(result.reason ?? null);
+      setSelectedPreset(null);
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  async function handleSavePlan(planAmounts: Record<string, number>) {
+    if (savingAiPlan) return;
+    setSavingAiPlan(true);
+    try {
+      const userId = await getCurrentUserId();
+      if (!userId) {
+        Alert.alert('로그인이 필요해요');
+        return;
+      }
+      const planEnabled = Object.fromEntries(categories.map(c => [c, true]));
+      const planAmountStrings = Object.fromEntries(categories.map(c => [c, String(planAmounts[c] ?? 0)]));
+      await saveBudgets(userId, monthString(), categories, planEnabled, planAmountStrings);
+      Alert.alert('저장 완료', '예산이 저장됐어요');
+      setSelectedPreset(null);
+      setAiAmounts(null);
+      setAiReason(null);
+      setTab('manual');
+      await load();
+    } catch (e) {
+      Alert.alert('오류', e instanceof Error ? e.message : '저장에 실패했어요');
+    } finally {
+      setSavingAiPlan(false);
+    }
+  }
+
+  const totalBudget = categories.filter(c => enabledCats[c]).reduce((s, c) => s + (parseInt(amounts[c] || '0') || 0), 0);
+  const totalSpent = expenses.reduce((s, e) => s + e.amount, 0);
+  const overallPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
+
+  return (
+    <ScrollView style={sharedStyles.panel} contentContainerStyle={sharedStyles.content} keyboardShouldPersistTaps="handled">
+      <Text style={budgetStyles.pageSubtitle}>{monthString().replace('-', '년 ')}월 카테고리별 목표 예산</Text>
+
+      {/* 탭 */}
+      <View style={budgetStyles.tabBar}>
+        {(['manual', 'ai'] as const).map(t => (
+          <TouchableOpacity
+            key={t}
+            style={[budgetStyles.tabBtn, tab === t && { backgroundColor: themeColors.primary }]}
+            onPress={() => setTab(t)}
+          >
+            <Text style={[budgetStyles.tabBtnText, tab === t && budgetStyles.tabBtnTextActive]}>
+              {t === 'manual' ? '직접 설정' : 'AI 추천'}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {tab === 'ai' && (
+        <View style={budgetStyles.card}>
+          <Text style={budgetStyles.aiBasisText}>월 수입 {formatCurrency(income)} 기준으로 추천해요</Text>
+          <View style={budgetStyles.presetRow}>
+            {PRESETS.map(preset => {
+              const selected = selectedPreset === preset.key;
+              const targetSave = Math.round(income * preset.savingRate);
+              const spendBudget = income - targetSave;
+              return (
+                <TouchableOpacity
+                  key={preset.key}
+                  style={[budgetStyles.presetCard, selected && { borderColor: themeColors.primary, backgroundColor: themeColors.primaryLight }]}
+                  onPress={() => handleSelectPreset(preset.key)}
+                >
+                  <Text style={[budgetStyles.presetLabel, { color: themeColors.primary }]}>{preset.label}</Text>
+                  <Text style={budgetStyles.presetDesc}>{preset.desc}</Text>
+                  <Text style={budgetStyles.presetBudget}>{formatCurrency(spendBudget)}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <TouchableOpacity style={budgetStyles.aiRecommendBtn} onPress={handleAiRecommend} disabled={aiLoading}>
+            {aiLoading ? (
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            ) : (
+              <Text style={budgetStyles.aiRecommendBtnText}>✨ 내 소비 패턴으로 AI 추천받기</Text>
+            )}
+          </TouchableOpacity>
+
+          {aiAmounts && (
+            <View style={budgetStyles.aiResultBox}>
+              {aiReason && <Text style={budgetStyles.aiReasonText}>{aiReason}</Text>}
+              {categories.filter(c => c !== '수입').map(cat => (
+                <View key={cat} style={budgetStyles.aiResultRow}>
+                  <Text style={[budgetStyles.aiResultLabel, { color: themeColors.accent }]}>{cat}</Text>
+                  <Text style={budgetStyles.aiResultValue}>{formatCurrency(aiAmounts[cat] ?? 0)}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {aiAmounts ? (
+            <TouchableOpacity style={[budgetStyles.saveBtn, { backgroundColor: themeColors.primary }]} onPress={() => handleSavePlan(aiAmounts)} disabled={savingAiPlan}>
+              <Text style={budgetStyles.saveBtnText}>{savingAiPlan ? '저장 중...' : '이 플랜으로 저장하기'}</Text>
+            </TouchableOpacity>
+          ) : selectedPreset ? (
+            <TouchableOpacity
+              style={[budgetStyles.saveBtn, { backgroundColor: themeColors.primary }]}
+              onPress={() => handleSavePlan(presetAmounts(income, categories, PRESETS.find(p => p.key === selectedPreset)!))}
+              disabled={savingAiPlan}
+            >
+              <Text style={budgetStyles.saveBtnText}>{savingAiPlan ? '저장 중...' : '이 플랜으로 저장하기'}</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      )}
+
+      {tab === 'manual' && (
+        <>
+          {totalBudget > 0 && (
+            <View style={budgetStyles.card}>
+              <View style={budgetStyles.progressHeaderRow}>
+                <Text style={budgetStyles.progressHeaderLabel}>전체 사용률</Text>
+                <Text style={[
+                  budgetStyles.progressHeaderPct,
+                  { color: overallPct > 100 ? COLORS.red : overallPct >= 80 ? COLORS.amber : '#059669' },
+                ]}>{overallPct}%</Text>
+              </View>
+              <View style={budgetStyles.progressBg}>
+                <View style={[
+                  budgetStyles.progressFill,
+                  {
+                    width: `${Math.min(overallPct, 100)}%`,
+                    backgroundColor: overallPct > 100 ? COLORS.red : overallPct >= 80 ? COLORS.amber : themeColors.primary,
+                  },
+                ]} />
+              </View>
+              <View style={budgetStyles.progressFooterRow}>
+                <Text style={budgetStyles.progressFooterText}>지출 {formatCurrency(totalSpent)}</Text>
+                <Text style={budgetStyles.progressFooterText}>예산 {formatCurrency(totalBudget)}</Text>
+              </View>
+            </View>
+          )}
+
+          <View style={{ gap: 12, marginTop: 12 }}>
+            {categories.map(cat => {
+              const spent = expenses.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0);
+              const budget = parseInt(amounts[cat] || '0') || 0;
+              const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0;
+              const over = spent > budget && budget > 0;
+              const enabled = enabledCats[cat];
+
+              return (
+                <View key={cat} style={[budgetStyles.budgetItem, !enabled && { opacity: 0.45 }]}>
+                  <View style={budgetStyles.budgetItemRow}>
+                    <Text style={[budgetStyles.budgetItemLabel, { color: themeColors.accent }]}>{cat}</Text>
+                    <View style={budgetStyles.budgetInputBox}>
+                      <TextInput
+                        style={budgetStyles.budgetInput}
+                        keyboardType="numeric"
+                        editable={enabled}
+                        placeholder="0"
+                        placeholderTextColor={COLORS.gray400}
+                        value={amounts[cat] ? Number(amounts[cat]).toLocaleString() : ''}
+                        onChangeText={v => handleChange(cat, v)}
+                      />
+                      <Text style={budgetStyles.budgetInputUnit}>원</Text>
+                    </View>
+                    <Switch
+                      value={enabled}
+                      onValueChange={() => setEnabledCats(prev => ({ ...prev, [cat]: !prev[cat] }))}
+                      trackColor={{ false: COLORS.gray300, true: themeColors.primary }}
+                      thumbColor="#fff"
+                    />
+                  </View>
+                  {budget > 0 && (
+                    <View style={budgetStyles.budgetProgressWrap}>
+                      <View style={budgetStyles.progressBgSmall}>
+                        <View style={[
+                          budgetStyles.progressFill,
+                          {
+                            width: `${Math.min(pct, 100)}%`,
+                            backgroundColor: over ? COLORS.red : pct >= 80 ? COLORS.amber : themeColors.primary,
+                          },
+                        ]} />
+                      </View>
+                      <View style={budgetStyles.budgetProgressFooter}>
+                        <Text style={[budgetStyles.budgetProgressText, over && { color: COLORS.red, fontWeight: '600' }]}>
+                          {spent > 0 ? `${formatCurrency(spent)} 사용` : '아직 지출 없음'}
+                        </Text>
+                        <Text style={budgetStyles.budgetProgressText}>{pct}%{over ? ' 초과!' : ''}</Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+
+          <TouchableOpacity style={[budgetStyles.saveBtn, { marginTop: 20 }]} onPress={handleSave} disabled={saving}>
+            <Text style={budgetStyles.saveBtnText}>{saving ? '저장 중...' : '저장하기'}</Text>
+          </TouchableOpacity>
+        </>
+      )}
+    </ScrollView>
+  );
+}
+
+const sharedStyles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: COLORS.bg },
+  panel: { flex: 1, backgroundColor: COLORS.bg },
+  center: { alignItems: 'center', justifyContent: 'center' },
+  content: { padding: 16, paddingTop: 12, paddingBottom: 40 },
+  emptyText: { fontSize: 12, color: COLORS.gray400, textAlign: 'center', paddingVertical: 16 },
+
+  headerWrap: { paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12, backgroundColor: COLORS.bg },
+  pageTitle: { fontSize: 18, fontWeight: '600', color: COLORS.accent, marginBottom: 12 },
+  subTabBar: { flexDirection: 'row', backgroundColor: '#F0EAEC', borderRadius: RADIUS.lg, padding: 4, gap: 4 },
+  subTabBtn: { flex: 1, paddingVertical: 8, borderRadius: RADIUS.md, alignItems: 'center' },
+  subTabBtnActive: { backgroundColor: COLORS.primary },
+  subTabBtnText: { fontSize: 13, fontWeight: '600', color: '#B8A8AC' },
+  subTabBtnTextActive: { color: '#fff' },
+});
+
+const assetStyles = StyleSheet.create({
+  emptyText: { fontSize: 12, color: COLORS.gray400, textAlign: 'center', paddingVertical: 16 },
+
+  toast: {
+    backgroundColor: COLORS.greenBg,
+    borderRadius: RADIUS.md,
+    padding: 10,
+    marginBottom: 10,
+  },
+  toastText: { fontSize: 13, color: COLORS.green, fontWeight: '600', textAlign: 'center' },
+  routineDoneText: { fontSize: 13, color: COLORS.green, fontWeight: '600', textAlign: 'center', paddingVertical: 12 },
+  routineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    gap: 10,
+  },
+  overdueBadge: { fontSize: 11, color: COLORS.red, fontWeight: '600' },
+  recordBtn: {
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  recordBtnText: { fontSize: 12, color: '#fff', fontWeight: '600' },
+  cardStatusBadge: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+
+  section: {
+    backgroundColor: '#fff',
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  sectionHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    padding: 16,
+  },
+  sectionTitle: { fontSize: 14, fontWeight: '700', color: COLORS.gray800 },
+  sectionHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sectionSummary: { fontSize: 12, color: COLORS.gray500 },
+  sectionChevron: { fontSize: 14, color: COLORS.gray400 },
+  sectionBody: { paddingHorizontal: 16, paddingBottom: 16 },
+
+  incomeValue: { fontSize: 24, fontWeight: '800', color: COLORS.accent, marginBottom: 8 },
+  incomeSubtext: { fontSize: 12, color: COLORS.gray500 },
+  editLink: { fontSize: 12, color: COLORS.primary },
+
+  linkRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#f3f4f6',
+    borderRadius: RADIUS.lg, paddingVertical: 18, paddingHorizontal: 16,
+    marginBottom: 10,
+  },
+  linkRowTitle: { fontSize: 14, fontWeight: '700', color: COLORS.gray800 },
+  linkRowRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  linkRowValue: { fontSize: 13, color: COLORS.gray400 },
+  chevronRight: { fontSize: 16, color: COLORS.gray400 },
+
+  row: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.gray50,
+  },
+  rowTitle: { fontSize: 13, fontWeight: '600', color: COLORS.gray800 },
+  rowSubtitle: { fontSize: 11, color: COLORS.gray400, marginTop: 2 },
+  rowRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rowAmount: { fontSize: 13, fontWeight: '700', color: COLORS.gray700 },
+  rowAmountAccent: { fontSize: 14, fontWeight: '700', color: COLORS.accent },
+  rowAmountGreen: { fontSize: 13, fontWeight: '700', color: COLORS.green },
+
+  deleteBtn: { backgroundColor: COLORS.redBg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  deleteBtnText: { fontSize: 11, color: COLORS.red },
+
+  addBtnRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  fullAddBtn: {
+    flex: 1, marginTop: 0, paddingVertical: 10, paddingHorizontal: 14,
+    borderRadius: RADIUS.md, backgroundColor: COLORS.primaryLight, alignItems: 'center',
+  },
+  fullAddBtnText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
+  cashAddBtn: { backgroundColor: COLORS.greenBg },
+  cashAddBtnText: { fontSize: 12, fontWeight: '600', color: '#059669' },
+
+  fixedSubHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  fixedSubHeader: { fontSize: 12, fontWeight: '700', color: COLORS.gray700 },
+  fixedRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: COLORS.gray50,
+  },
+  subtotalText: { fontSize: 12, color: COLORS.gray500, marginTop: 6, fontWeight: '600' },
+  subtotalTextGreen: { fontSize: 12, color: '#059669', marginTop: 6, fontWeight: '600' },
+  fixedDivider: { borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 14 },
+
+  // 폼 공통
+  fieldLabel: { fontSize: 11, color: COLORS.gray400, marginBottom: 4 },
+  input: {
+    borderWidth: 1.5, borderColor: COLORS.gray200, borderRadius: RADIUS.md,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: COLORS.gray800,
+    backgroundColor: '#fafafa',
+  },
+  formBtnRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
+  confirmBtn: { flex: 1, paddingVertical: 12, borderRadius: RADIUS.md, backgroundColor: COLORS.primary, alignItems: 'center' },
+  confirmBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: RADIUS.md, backgroundColor: COLORS.gray100, alignItems: 'center' },
+  cancelBtnText: { fontSize: 13, fontWeight: '600', color: COLORS.gray500 },
+
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  typeChip: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
+    borderWidth: 1, borderColor: COLORS.border, backgroundColor: '#fafafa',
+  },
+  typeChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  typeChipText: { fontSize: 12, color: COLORS.gray500 },
+  typeChipTextActive: { color: '#fff', fontWeight: '600' },
+
+  cashForm: { marginTop: 8, padding: 14, borderRadius: RADIUS.lg, backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#bbf7d0' },
+  cashFormTitle: { fontSize: 12, fontWeight: '700', color: '#065f46', marginBottom: 10 },
+  cashAddConfirmBtn: { paddingHorizontal: 14, borderRadius: RADIUS.md, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' },
+  cashAddConfirmBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+
+  modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36 },
+  modalTitle: { fontSize: 16, fontWeight: '700', color: COLORS.gray800, marginBottom: 14 },
+});
+
 const fixedStyles = StyleSheet.create({
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  pageTitle: { fontSize: 16, fontWeight: '700', color: COLORS.gray800 },
-  headerSummary: { fontSize: 12, color: COLORS.gray400 },
+  pageSubtitle: { fontSize: 12, color: COLORS.gray400, marginBottom: 16 },
 
-  sectionBlock: {
-    backgroundColor: '#fff', borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.gray100,
-    padding: 16, marginBottom: 12,
+  totalCard: {
+    backgroundColor: '#fff', borderRadius: RADIUS.lg, borderWidth: 1, borderColor: '#f3f4f6',
+    padding: 18, marginBottom: 16, ...CARD_SHADOW,
   },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: COLORS.gray700 },
-  addInlineBtn: {
-    borderWidth: 1, borderRadius: 6, paddingHorizontal: 12, paddingVertical: 4,
-  },
-  addInlineBtnText: { fontSize: 12, fontWeight: '600' },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
+  totalLabel: { fontSize: 13, fontWeight: '600', color: COLORS.gray500 },
+  totalValue: { fontSize: 18, fontWeight: '800', color: COLORS.accent },
+  totalValueGreen: { fontSize: 18, fontWeight: '800', color: COLORS.green },
+  totalDivider: { height: 1, backgroundColor: COLORS.gray50 },
 
-  emptyText: { fontSize: 12, color: COLORS.gray400, paddingVertical: 8 },
+  tabBar: { flexDirection: 'row', backgroundColor: '#F0EAEC', borderRadius: RADIUS.lg, padding: 4, gap: 4, marginBottom: 12 },
+  tabBtn: { flex: 1, paddingVertical: 8, borderRadius: RADIUS.md, alignItems: 'center' },
+  tabBtnActive: { backgroundColor: COLORS.primary },
+  tabBtnText: { fontSize: 13, fontWeight: '600', color: '#B8A8AC' },
+  tabBtnTextActive: { color: '#fff' },
+
+  card: { backgroundColor: '#fff', borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.gray100, padding: 16 },
+  emptyText: { fontSize: 12, color: COLORS.gray400, textAlign: 'center', paddingVertical: 16 },
 
   itemRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 10, borderTopWidth: 1, borderTopColor: COLORS.gray50,
+    paddingVertical: 12, borderTopWidth: 1, borderTopColor: COLORS.gray50,
   },
   itemName: { fontSize: 14, fontWeight: '600', color: COLORS.gray800 },
   itemMeta: { fontSize: 11, color: COLORS.gray400, marginTop: 2 },
   itemRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  itemAmount: { fontSize: 14, fontWeight: '700' },
+  itemAmount: { fontSize: 14, fontWeight: '700', color: COLORS.accent },
   itemAmountGreen: { fontSize: 14, fontWeight: '700', color: COLORS.green },
   deleteBtn: { backgroundColor: COLORS.redBg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   deleteBtnText: { fontSize: 11, color: COLORS.red },
 
-  subtotalText: { fontSize: 12, color: COLORS.gray400, marginTop: 8, fontWeight: '600' },
-  subtotalTextGreen: { fontSize: 12, color: COLORS.green, marginTop: 8, fontWeight: '600' },
+  addBtn: {
+    marginTop: 12, paddingVertical: 12, borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primaryLight, alignItems: 'center',
+  },
+  addBtnText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
+  addBtnGreen: { backgroundColor: COLORS.greenBg },
+  addBtnTextGreen: { color: '#059669' },
 
-  addForm: { marginTop: 14, borderTopWidth: 1, borderTopColor: COLORS.gray50, paddingTop: 14 },
-  fieldLabel: { fontSize: 11, color: COLORS.gray500, marginBottom: 4 },
+  addForm: { marginTop: 12, gap: 8 },
   input: {
     borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.md,
     paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: COLORS.gray800,
     backgroundColor: '#fafafa',
   },
-  chipScrollRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
-  selectChip: {
+  inputRow: { flexDirection: 'row', gap: 8 },
+  typeRow: { flexDirection: 'row', gap: 6 },
+  typeChip: {
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
     borderWidth: 1, borderColor: COLORS.border, backgroundColor: '#fafafa',
   },
-  selectChipText: { fontSize: 12, color: COLORS.gray500 },
-
-  formBtnRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
-  confirmBtn: { flex: 1, paddingVertical: 11, borderRadius: RADIUS.md, alignItems: 'center' },
-  confirmBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
-  cancelBtn: { flex: 1, paddingVertical: 11, borderRadius: RADIUS.md, backgroundColor: COLORS.gray100, alignItems: 'center' },
+  typeChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  typeChipText: { fontSize: 12, color: COLORS.gray500 },
+  typeChipTextActive: { color: '#fff', fontWeight: '600' },
+  formBtnRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  cancelBtn: { flex: 1, paddingVertical: 10, borderRadius: RADIUS.md, backgroundColor: COLORS.gray100, alignItems: 'center' },
   cancelBtnText: { fontSize: 13, fontWeight: '600', color: COLORS.gray500 },
+  confirmBtn: { flex: 1, paddingVertical: 10, borderRadius: RADIUS.md, backgroundColor: COLORS.primary, alignItems: 'center' },
+  confirmBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
 });
 
 const budgetStyles = StyleSheet.create({
