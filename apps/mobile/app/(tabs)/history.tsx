@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import dayjs from 'dayjs';
-import { COLORS, RADIUS, formatCurrency, useThemeColors, getThemeColors } from '@/constants/theme';
+import { COLORS, RADIUS, formatCurrency, useThemeColors, getThemeColors, useAppTheme } from '@/constants/theme';
 import { DEFAULT_CATEGORIES } from '@/lib/api/categories';
 import { getCurrentUserId } from '@/lib/supabase';
 import { getHistoryData, updateExpense, type HistoryData } from '@/lib/api/history';
@@ -18,6 +18,7 @@ const PAYMENT_OPTIONS = ['카드', '현금', '카카오페이', '네이버페이
 export default function HistoryScreen() {
   const router = useRouter();
   const { themeColors } = useThemeColors();
+  const { colors } = useAppTheme();
   const [data, setData] = useState<HistoryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -128,7 +129,7 @@ export default function HistoryScreen() {
   const selectedItems = selectedDate ? expenses.filter(e => e.date === selectedDate) : [];
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.headerRow}>
         <Text style={[styles.pageTitle, { color: themeColors.accent }]}>내역</Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>

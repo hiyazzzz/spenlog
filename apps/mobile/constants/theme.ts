@@ -1,6 +1,7 @@
 // 웹 앱(apps/web/src/app/globals.css, lib/themes.ts)의 Burgundy 테마를 그대로 이식
 
-import { useEffect, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { getCurrentUserId } from '@/lib/supabase'
 import { getProfile } from '@/lib/api/settings'
 
@@ -86,6 +87,70 @@ export function getThemeColors(theme: string | null | undefined) {
 
 export function getThemeCardPalette(theme: string | null | undefined) {
   return THEME_CARD_PALETTES[theme ?? 'Burgundy'] ?? THEME_CARD_PALETTES.Burgundy
+}
+
+export const DARK_COLORS: typeof COLORS = {
+  primary: '#6B1E2E',
+  primaryMid: '#C4748A',
+  primaryLight: '#3D1520',
+  accent: '#C4748A',
+  bg: '#111111',
+  surface: '#1E1E1E',
+  border: '#2C2C2E',
+  text: '#F2F2F7',
+  textSub: '#8E8E93',
+
+  gray50: '#1C1C1E',
+  gray100: '#2C2C2E',
+  gray200: '#3A3A3C',
+  gray300: '#48484A',
+  gray400: '#636366',
+  gray500: '#8E8E93',
+  gray600: '#AEAEB2',
+  gray700: '#C7C7CC',
+  gray800: '#F2F2F7',
+
+  red: '#ef4444',
+  redBg: '#450a0a',
+  green: '#10b981',
+  greenBg: '#052e16',
+  amber: '#f59e0b',
+  amberBg: '#431407',
+}
+
+interface AppThemeContextType {
+  isDark: boolean
+  colors: typeof COLORS
+  setDarkMode: (v: boolean) => Promise<void>
+}
+
+export const AppThemeContext = createContext<AppThemeContextType>({
+  isDark: false,
+  colors: COLORS,
+  setDarkMode: async () => {},
+})
+
+export function AppThemeProvider({ children }: { children: React.ReactNode }) {
+  const [isDark, setIsDark] = useState(false)
+
+  useEffect(() => {
+    AsyncStorage.getItem('dark_mode').then(v => {
+      if (v === 'true') setIsDark(true)
+    })
+  }, [])
+
+  const setDarkMode = useCallback(async (v: boolean) => {
+    setIsDark(v)
+    await AsyncStorage.setItem('dark_mode', String(v))
+  }, [])
+
+  const colors = isDark ? DARK_COLORS : COLORS
+
+  return React.createElement(AppThemeContext.Provider, { value: { isDark, colors, setDarkMode } }, children)
+}
+
+export function useAppTheme() {
+  return useContext(AppThemeContext)
 }
 
 // profile.theme을 직접 불러오지 않는 화면(내역/리포트/예산/고정비 등)에서 사용

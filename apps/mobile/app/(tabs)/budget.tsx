@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, ActivityIndicator, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { COLORS, RADIUS, formatCurrency, useThemeColors } from '@/constants/theme';
+import { COLORS, RADIUS, formatCurrency, useThemeColors, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
 import { monthString } from '@/lib/date';
 import { getBudgetData, saveBudgets, recommendBudget, type BudgetData } from '@/lib/api/budget';
@@ -26,6 +26,7 @@ function presetAmounts(income: number, categories: string[], preset: typeof PRES
 
 export default function BudgetScreen() {
   const { themeColors } = useThemeColors();
+  const { colors } = useAppTheme();
   const [tab, setTab] = useState<'manual' | 'ai'>('manual');
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [data, setData] = useState<BudgetData | null>(null);
@@ -163,9 +164,9 @@ export default function BudgetScreen() {
   const overallPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={[styles.pageTitle, { color: themeColors.accent }]}>예산 설정</Text>
-      <Text style={styles.pageSubtitle}>2026년 6월 카테고리별 목표 예산</Text>
+      <Text style={[styles.pageSubtitle, { color: colors.gray400 }]}>2026년 6월 카테고리별 목표 예산</Text>
 
       {/* 탭 */}
       <View style={styles.tabBar}>
@@ -183,7 +184,7 @@ export default function BudgetScreen() {
       </View>
 
       {tab === 'ai' && (
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={styles.aiBasisText}>월 수입 {formatCurrency(income)} 기준으로 추천해요</Text>
           <View style={styles.presetRow}>
             {PRESETS.map(preset => {
@@ -242,7 +243,7 @@ export default function BudgetScreen() {
       {tab === 'manual' && (
         <>
           {totalBudget > 0 && (
-            <View style={styles.card}>
+            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <View style={styles.progressHeaderRow}>
                 <Text style={styles.progressHeaderLabel}>전체 사용률</Text>
                 <Text style={[

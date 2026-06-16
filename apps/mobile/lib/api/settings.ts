@@ -37,3 +37,7 @@ export interface PushSettings {
 export async function updatePushSettings(userId: string, settings: PushSettings) {
   return supabase.from('users').update(settings).eq('id', userId)
 }
+
+export async function updateGifAutoplay(userId: string, gifAutoplay: boolean) {
+  return supabase.from('users').update({ gif_autoplay: gifAutoplay }).eq('id', userId)
+}

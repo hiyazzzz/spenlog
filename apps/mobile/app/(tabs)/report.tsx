@@ -2,12 +2,13 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import dayjs from 'dayjs';
-import { COLORS, RADIUS, formatCurrency, getThemeColors } from '@/constants/theme';
+import { COLORS, RADIUS, formatCurrency, getThemeColors, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
 import { getReportData, getAiCoach, type ReportData, type Coach, type CoachErrorCode } from '@/lib/api/report';
 
 export default function ReportScreen() {
   const router = useRouter();
+  const { colors } = useAppTheme();
   const [userId, setUserId] = useState<string | null>(null);
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -96,7 +97,7 @@ export default function ReportScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
         <Text style={[styles.pageTitle, { color: themeColors.accent }]}>리포트</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

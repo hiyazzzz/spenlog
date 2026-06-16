@@ -2,12 +2,13 @@ import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { COLORS } from '@/constants/theme';
+import { COLORS, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
 import { checkOnboardingStatus } from '@/lib/api/settings';
 
 export default function TabLayout() {
   const router = useRouter();
+  const { isDark, colors } = useAppTheme();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -38,7 +39,11 @@ export default function TabLayout() {
   }
 
   return (
-    <Tabs screenOptions={{ tabBarActiveTintColor: '#6366f1' }}>
+    <Tabs screenOptions={{
+      tabBarActiveTintColor: isDark ? '#C4748A' : '#6366f1',
+      tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
+      tabBarInactiveTintColor: colors.gray400,
+    }}>
       <Tabs.Screen
         name="index"
         options={{
