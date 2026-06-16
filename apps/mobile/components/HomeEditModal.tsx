@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, ImageBackground, Alert, ScrollView } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Dimensions, Easing, Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, ImageBackground, Alert, ScrollView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, CARD_PALETTE, CARD_SHADOW, formatCurrency } from '@/constants/theme';
@@ -31,11 +31,32 @@ interface Props {
   recentExpenses: RecentExpense[];
 }
 
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+
 export default function HomeEditModal({
   visible, onClose, onSaved, userId, displayName, totalSpent, savingGoal, actualSaving,
   categories, catMap, budgetMap, currentCoverUrl, currentCategoryUrls, recentExpenses,
 }: Props) {
   const catKeys = categories.slice(0, 4);
+
+  const [internalVisible, setInternalVisible] = useState(false);
+  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+
+  useEffect(() => {
+    if (visible) {
+      slideAnim.setValue(SCREEN_HEIGHT);
+      setInternalVisible(true);
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: SCREEN_HEIGHT,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) setInternalVisible(false);
+      });
+    }
+  }, [visible]);
 
   const [coverPreview, setCoverPreview] = useState<string | null>(currentCoverUrl);
   const [coverChanged, setCoverChanged] = useState<'none' | 'new' | 'removed'>('none');
@@ -164,8 +185,20 @@ export default function HomeEditModal({
   }
 
   return (
-    <Modal visible={visible} animationType="none" onRequestClose={handleClose}>
-      <View style={styles.screen}>
+    <Modal
+      visible={internalVisible}
+      animationType="none"
+      onRequestClose={handleClose}
+      onShow={() => {
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 280,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }).start();
+      }}
+    >
+      <Animated.View style={[styles.screen, { transform: [{ translateY: slideAnim }] }]}>
         {/* 상단 편집 바 */}
         <View style={styles.topBar}>
           <TouchableOpacity onPress={handleClose} disabled={saving}>
@@ -338,7 +371,7 @@ export default function HomeEditModal({
             <View style={styles.dimOverlay} />
           </View>
         </ScrollView>
-      </View>
+      </Animated.View>
     </Modal>
   );
 }

@@ -1,16 +1,18 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert, ImageBackground, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert, ImageBackground } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, getThemeColors, getThemeCardPalette } from '@/constants/theme';
+import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, getThemeColors, getThemeCardPalette, useAppTheme } from '@/constants/theme';
 import { MOCK_CATEGORIES } from '@/constants/mockData';
 import { getCurrentUserId } from '@/lib/supabase';
 import { getHomeData, type HomeData } from '@/lib/api/home';
 import { parseAiInput, addExpenses } from '@/lib/api/expenses';
 import HomeEditModal from '@/components/HomeEditModal';
+import SlideUpModal from '@/components/SlideUpModal';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { colors } = useAppTheme();
   const [aiInput, setAiInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [data, setData] = useState<HomeData | null>(null);
@@ -120,6 +122,7 @@ export default function HomeScreen() {
   const cardPalette = getThemeCardPalette(data.profile?.theme);
 
   const coverUrl = data.profile?.home_cover_url ?? null;
+  const gifAutoplay = data.profile?.gif_autoplay ?? true;
   const categoryImgUrls = [
     data.profile?.category_img_url_1 ?? null,
     data.profile?.category_img_url_2 ?? null,
@@ -158,11 +161,16 @@ export default function HomeScreen() {
   );
 
   return (
-    <View style={styles.screen}>
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <View style={[styles.screen, { backgroundColor: colors.bg }]}>
+    <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content}>
       {/* 커버 배너 */}
       {coverUrl ? (
-        <ImageBackground source={{ uri: coverUrl }} style={styles.cover} imageStyle={{ borderRadius: RADIUS.lg }}>
+        <ImageBackground
+          key={`cover-${gifAutoplay}`}
+          source={{ uri: coverUrl }}
+          style={styles.cover}
+          imageStyle={{ borderRadius: RADIUS.lg }}
+        >
           {coverContent}
         </ImageBackground>
       ) : (
@@ -172,9 +180,9 @@ export default function HomeScreen() {
       )}
 
       {/* 한 줄 기록 */}
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.cardHeaderRow}>
-          <Text style={styles.cardTitle}>한 줄 기록</Text>
+          <Text style={[styles.cardTitle, { color: colors.gray800 }]}>한 줄 기록</Text>
           <TouchableOpacity style={styles.addCircleBtn}>
             <Ionicons name="create-outline" size={16} color={COLORS.text} />
           </TouchableOpacity>
@@ -203,9 +211,9 @@ export default function HomeScreen() {
       </View>
 
       {/* 카테고리 2x2 그리드 */}
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.cardHeaderRow}>
-          <Text style={styles.cardTitle}>카테고리 현황</Text>
+          <Text style={[styles.cardTitle, { color: colors.gray800 }]}>카테고리 현황</Text>
           <TouchableOpacity onPress={() => router.push('/category')}>
             <Text style={styles.linkText}>카테고리 관리 →</Text>
           </TouchableOpacity>
@@ -270,9 +278,9 @@ export default function HomeScreen() {
       </View>
 
       {/* 최근 지출 내역 */}
-      <View style={[styles.card, { marginBottom: 24 }]}>
+      <View style={[styles.card, { marginBottom: 24, backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.cardHeaderRow}>
-          <Text style={styles.cardTitle}>최근 지출 내역</Text>
+          <Text style={[styles.cardTitle, { color: colors.gray800 }]}>최근 지출 내역</Text>
           <TouchableOpacity>
             <Text style={styles.linkText}>전체 보기 →</Text>
           </TouchableOpacity>
@@ -324,8 +332,7 @@ export default function HomeScreen() {
       </TouchableOpacity>
 
       {/* AI 파싱 확인 팝업 */}
-      <Modal visible={showConfirm} transparent animationType="none" onRequestClose={() => setShowConfirm(false)}>
-        <View style={styles.confirmOverlay}>
+      <SlideUpModal visible={showConfirm} onRequestClose={() => setShowConfirm(false)} dismissOnBackdrop={false}>
           <View style={styles.confirmSheet}>
             <Text style={styles.confirmTitle}>{confirmItems.length}건 인식됨 — 확인 후 저장하세요</Text>
 
@@ -434,11 +441,9 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </Modal>
+      </SlideUpModal>
 
-      <Modal visible={fabOpen} transparent animationType="none" onRequestClose={() => setFabOpen(false)}>
-        <TouchableOpacity style={styles.fabOverlay} activeOpacity={1} onPress={() => setFabOpen(false)}>
+      <SlideUpModal visible={fabOpen} onRequestClose={() => setFabOpen(false)}>
           <View style={styles.fabSheet}>
             <View style={styles.fabSheetHandle} />
             <Text style={styles.fabSheetTitle}>기록하기</Text>
@@ -455,8 +460,7 @@ export default function HomeScreen() {
               <Text style={styles.fabSheetBtnText}>💰 수입 기록</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-      </Modal>
+      </SlideUpModal>
     </View>
   );
 }
@@ -584,7 +588,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...CARD_SHADOW,
   },
-  fabOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'flex-end' },
   fabSheet: {
     backgroundColor: '#fff',
     borderTopLeftRadius: RADIUS.lg,
@@ -606,8 +609,7 @@ const styles = StyleSheet.create({
   },
   fabSheetBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.gray800 },
 
-  confirmOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
-  confirmSheet: { backgroundColor: '#fff', borderRadius: RADIUS.lg, padding: 20, gap: 12 },
+  confirmSheet: { backgroundColor: '#fff', borderTopLeftRadius: RADIUS.lg, borderTopRightRadius: RADIUS.lg, padding: 20, gap: 12 },
   confirmTitle: { fontSize: 13, fontWeight: '600', color: COLORS.gray800, marginBottom: 4 },
   confirmCard: { backgroundColor: '#f8f7ff', borderRadius: RADIUS.md, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: '#e8e4ff' },
   confirmCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },

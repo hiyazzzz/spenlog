@@ -1,13 +1,14 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator, TextInput, Alert } from 'react-native';
+import SlideUpModal from '@/components/SlideUpModal';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { File, Paths } from 'expo-file-system';
 // TODO: expo-sharing 패키지 설치 필요 (npm install expo-sharing) — 설치 후 아래 주석 해제
 // import * as Sharing from 'expo-sharing';
-import { COLORS, RADIUS, CARD_SHADOW, getThemeColors } from '@/constants/theme';
+import { COLORS, RADIUS, CARD_SHADOW, getThemeColors, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId, supabase } from '@/lib/supabase';
-import { getProfile, updateTheme, updateName, updatePushSettings, type PushSettings } from '@/lib/api/settings';
+import { getProfile, updateTheme, updateName, updatePushSettings, updateGifAutoplay, type PushSettings } from '@/lib/api/settings';
 import { isPremiumUnlocked } from '@/lib/premium';
 import type { Theme, User } from '@spenlog/types';
 
@@ -33,10 +34,11 @@ function Section({
   title: string; defaultOpen?: boolean; children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const { colors } = useAppTheme();
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <TouchableOpacity style={styles.sectionHeader} onPress={() => setOpen(o => !o)} activeOpacity={0.7}>
-        <Text style={styles.sectionTitle}>{title}</Text>
+        <Text style={[styles.sectionTitle, { color: colors.gray800 }]}>{title}</Text>
         <Text style={[styles.sectionChevron, open && { transform: [{ rotate: '180deg' }] }]}>▼</Text>
       </TouchableOpacity>
       {open && <View style={styles.sectionBody}>{children}</View>}
@@ -50,16 +52,17 @@ function ToggleSwitch({
   label: string; sublabel?: string; value: boolean; onValueChange: (v: boolean) => void;
   themeColors: ReturnType<typeof getThemeColors>;
 }) {
+  const { colors } = useAppTheme();
   return (
-    <View style={styles.toggleRow}>
+    <View style={[styles.toggleRow, { borderBottomColor: colors.gray50 }]}>
       <View style={{ flex: 1 }}>
-        <Text style={styles.toggleLabel}>{label}</Text>
-        {sublabel && <Text style={styles.toggleSublabel}>{sublabel}</Text>}
+        <Text style={[styles.toggleLabel, { color: colors.gray800 }]}>{label}</Text>
+        {sublabel && <Text style={[styles.toggleSublabel, { color: colors.gray400 }]}>{sublabel}</Text>}
       </View>
       <Switch
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: COLORS.gray300, true: themeColors.primary }}
+        trackColor={{ false: colors.gray300, true: themeColors.primary }}
         thumbColor="#fff"
       />
     </View>
@@ -68,10 +71,10 @@ function ToggleSwitch({
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { isDark, setDarkMode: setAppDarkMode, colors } = useAppTheme();
   const [profile, setProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTheme, setSelectedTheme] = useState<Theme>('Burgundy');
-  const [darkMode, setDarkMode] = useState(false);
   const [gifAutoplay, setGifAutoplay] = useState(true);
   const [pushExpense, setPushExpense] = useState(true);
   const [pushDueDate, setPushDueDate] = useState(true);
@@ -97,6 +100,7 @@ export default function SettingsScreen() {
       setProfile(result);
       if (result?.theme) setSelectedTheme(result.theme);
       if (result) {
+        setGifAutoplay(result.gif_autoplay ?? true);
         setPushExpense(result.push_expense_reminder ?? true);
         setPushDueDate(result.push_due_date_reminder ?? true);
         setPushUnprocessed(result.push_due_date_unprocessed ?? true);
@@ -174,6 +178,13 @@ export default function SettingsScreen() {
     await updatePushSettings(userId, { [key]: value });
   }
 
+  async function handleGifAutoplayToggle(value: boolean) {
+    setGifAutoplay(value);
+    const userId = await getCurrentUserId();
+    if (!userId) return;
+    await updateGifAutoplay(userId, value);
+  }
+
   function notReady() {
     Alert.alert('준비 중', '아직 준비 중인 기능이에요');
   }
@@ -224,7 +235,7 @@ export default function SettingsScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.screen, styles.center]}>
+      <View style={[styles.screen, styles.center, { backgroundColor: colors.bg }]}>
         <ActivityIndicator color={COLORS.primary} />
       </View>
     );
@@ -234,11 +245,11 @@ export default function SettingsScreen() {
   const isPremium = isPremiumUnlocked(profile);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content}>
       <Text style={[styles.pageTitle, { color: themeColors.accent }]}>설정</Text>
 
       {/* 프로필 카드 */}
-      <View style={styles.profileCard}>
+      <View style={[styles.profileCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={[styles.avatar, { backgroundColor: themeColors.primaryLight }]}>
           <Text style={[styles.avatarText, { color: themeColors.primary }]}>{(profile?.name || '소비요정').slice(0, 1)}</Text>
         </View>
@@ -268,8 +279,8 @@ export default function SettingsScreen() {
       </Section>
 
       {/* 카테고리 관리 */}
-      <TouchableOpacity style={styles.linkRow} onPress={() => router.push('/category')}>
-        <Text style={styles.linkRowTitle}>카테고리 관리</Text>
+      <TouchableOpacity style={[styles.linkRow, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => router.push('/category')}>
+        <Text style={[styles.linkRowTitle, { color: colors.gray800 }]}>카테고리 관리</Text>
         <Text style={styles.chevron}>›</Text>
       </TouchableOpacity>
 
@@ -323,8 +334,8 @@ export default function SettingsScreen() {
 
       {/* 화면 표시 */}
       <Section title="화면 표시">
-        <ToggleSwitch label="다크 모드" value={darkMode} onValueChange={setDarkMode} themeColors={themeColors} />
-        <ToggleSwitch label="GIF 자동 재생" sublabel="홈 화면 캐릭터 GIF를 자동으로 재생해요" value={gifAutoplay} onValueChange={setGifAutoplay} themeColors={themeColors} />
+        <ToggleSwitch label="다크 모드" value={isDark} onValueChange={setAppDarkMode} themeColors={themeColors} />
+        <ToggleSwitch label="GIF 자동 재생" sublabel="홈 화면 커버 GIF를 자동으로 재생해요" value={gifAutoplay} onValueChange={handleGifAutoplayToggle} themeColors={themeColors} />
       </Section>
 
       {/* 내보내기 */}
@@ -360,9 +371,9 @@ export default function SettingsScreen() {
       </Section>
 
       {/* 계정 관리 */}
-      <View style={[styles.card, { marginTop: 4 }]}>
-        <TouchableOpacity style={styles.itemRow} onPress={handleLogout}>
-          <Text style={styles.itemLabel}>로그아웃</Text>
+      <View style={[styles.card, { marginTop: 4, backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <TouchableOpacity style={[styles.itemRow, { borderBottomColor: colors.gray50 }]} onPress={handleLogout}>
+          <Text style={[styles.itemLabel, { color: colors.gray800 }]}>로그아웃</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.itemRow, { borderBottomWidth: 0 }]} onPress={notReady}>
           <Text style={styles.dangerLabel}>회원 탈퇴</Text>
@@ -370,64 +381,60 @@ export default function SettingsScreen() {
       </View>
 
       {/* 닉네임 변경 모달 */}
-      <Modal visible={nicknameModalOpen} transparent animationType="none" onRequestClose={() => setNicknameModalOpen(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>닉네임 변경</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={nicknameInput}
-              onChangeText={setNicknameInput}
-              placeholder="닉네임"
-              placeholderTextColor={COLORS.gray400}
-              autoFocus
-            />
-            <View style={styles.modalBtnRow}>
-              <TouchableOpacity style={styles.modalConfirmBtn} onPress={handleSaveNickname} disabled={savingNickname || !nicknameInput.trim()}>
-                <Text style={styles.modalConfirmBtnText}>{savingNickname ? '저장 중...' : '저장'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setNicknameModalOpen(false)}>
-                <Text style={styles.modalCancelBtnText}>취소</Text>
-              </TouchableOpacity>
-            </View>
+      <SlideUpModal visible={nicknameModalOpen} onRequestClose={() => setNicknameModalOpen(false)}>
+        <View style={styles.modalSheet}>
+          <Text style={styles.modalTitle}>닉네임 변경</Text>
+          <TextInput
+            style={styles.modalInput}
+            value={nicknameInput}
+            onChangeText={setNicknameInput}
+            placeholder="닉네임"
+            placeholderTextColor={COLORS.gray400}
+            autoFocus
+          />
+          <View style={styles.modalBtnRow}>
+            <TouchableOpacity style={styles.modalConfirmBtn} onPress={handleSaveNickname} disabled={savingNickname || !nicknameInput.trim()}>
+              <Text style={styles.modalConfirmBtnText}>{savingNickname ? '저장 중...' : '저장'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setNicknameModalOpen(false)}>
+              <Text style={styles.modalCancelBtnText}>취소</Text>
+            </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+        </View>
+      </SlideUpModal>
 
       {/* 비밀번호 변경 모달 */}
-      <Modal visible={passwordModalOpen} transparent animationType="none" onRequestClose={() => setPasswordModalOpen(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>비밀번호 변경</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={newPassword}
-              onChangeText={setNewPassword}
-              placeholder="새 비밀번호"
-              placeholderTextColor={COLORS.gray400}
-              secureTextEntry
-              autoFocus
-            />
-            <TextInput
-              style={[styles.modalInput, { marginTop: 8 }]}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              placeholder="비밀번호 확인"
-              placeholderTextColor={COLORS.gray400}
-              secureTextEntry
-            />
-            {!!passwordError && <Text style={styles.modalErrorText}>{passwordError}</Text>}
-            <View style={styles.modalBtnRow}>
-              <TouchableOpacity style={styles.modalConfirmBtn} onPress={handleSavePassword} disabled={savingPassword || !newPassword || !confirmPassword}>
-                <Text style={styles.modalConfirmBtnText}>{savingPassword ? '변경 중...' : '변경'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => { setPasswordModalOpen(false); setPasswordError(''); setNewPassword(''); setConfirmPassword(''); }}>
-                <Text style={styles.modalCancelBtnText}>취소</Text>
-              </TouchableOpacity>
-            </View>
+      <SlideUpModal visible={passwordModalOpen} onRequestClose={() => setPasswordModalOpen(false)}>
+        <View style={styles.modalSheet}>
+          <Text style={styles.modalTitle}>비밀번호 변경</Text>
+          <TextInput
+            style={styles.modalInput}
+            value={newPassword}
+            onChangeText={setNewPassword}
+            placeholder="새 비밀번호"
+            placeholderTextColor={COLORS.gray400}
+            secureTextEntry
+            autoFocus
+          />
+          <TextInput
+            style={[styles.modalInput, { marginTop: 8 }]}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            placeholder="비밀번호 확인"
+            placeholderTextColor={COLORS.gray400}
+            secureTextEntry
+          />
+          {!!passwordError && <Text style={styles.modalErrorText}>{passwordError}</Text>}
+          <View style={styles.modalBtnRow}>
+            <TouchableOpacity style={styles.modalConfirmBtn} onPress={handleSavePassword} disabled={savingPassword || !newPassword || !confirmPassword}>
+              <Text style={styles.modalConfirmBtnText}>{savingPassword ? '변경 중...' : '변경'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => { setPasswordModalOpen(false); setPasswordError(''); setNewPassword(''); setConfirmPassword(''); }}>
+              <Text style={styles.modalCancelBtnText}>취소</Text>
+            </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+        </View>
+      </SlideUpModal>
     </ScrollView>
   );
 }
@@ -505,7 +512,6 @@ const styles = StyleSheet.create({
   },
   exportBtnText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl, padding: 20, paddingBottom: 32 },
   modalTitle: { fontSize: 15, fontWeight: '700', color: COLORS.gray800, marginBottom: 12 },
   modalInput: {

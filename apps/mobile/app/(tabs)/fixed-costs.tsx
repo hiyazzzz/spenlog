@@ -1,7 +1,8 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import SlideUpModal from '@/components/SlideUpModal';
 import { useFocusEffect } from 'expo-router';
-import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, useThemeColors } from '@/constants/theme';
+import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, useThemeColors, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
 import { getFixedCostsData, addFixedCost, deleteFixedCost, type FixedCostsData } from '@/lib/api/fixed-costs';
 
@@ -40,28 +41,27 @@ function SelectModal({
   onSelect: (option: SelectOption | null) => void; onClose: () => void;
 }) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
-        <View style={styles.modalSheet}>
-          <Text style={styles.modalTitle}>{title}</Text>
-          <ScrollView style={{ maxHeight: 280 }}>
-            <TouchableOpacity style={styles.modalOption} onPress={() => onSelect(null)}>
-              <Text style={styles.modalOptionTextMuted}>선택 안 함</Text>
+    <SlideUpModal visible={visible} onRequestClose={onClose}>
+      <View style={styles.modalSheet}>
+        <Text style={styles.modalTitle}>{title}</Text>
+        <ScrollView style={{ maxHeight: 280 }}>
+          <TouchableOpacity style={styles.modalOption} onPress={() => onSelect(null)}>
+            <Text style={styles.modalOptionTextMuted}>선택 안 함</Text>
+          </TouchableOpacity>
+          {options.map(opt => (
+            <TouchableOpacity key={opt.key} style={styles.modalOption} onPress={() => onSelect(opt)}>
+              <Text style={styles.modalOptionText}>{opt.label}</Text>
             </TouchableOpacity>
-            {options.map(opt => (
-              <TouchableOpacity key={opt.key} style={styles.modalOption} onPress={() => onSelect(opt)}>
-                <Text style={styles.modalOptionText}>{opt.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      </TouchableOpacity>
-    </Modal>
+          ))}
+        </ScrollView>
+      </View>
+    </SlideUpModal>
   );
 }
 
 export default function FixedCostsScreen() {
   const { themeColors } = useThemeColors();
+  const { colors } = useAppTheme();
   const [kind, setKind] = useState<typeof KINDS[number]>('고정지출');
   const [showAddForm, setShowAddForm] = useState(false);
   const [name, setName] = useState('');
@@ -200,7 +200,7 @@ export default function FixedCostsScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <View style={{ flex: 1 }}>
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={[styles.pageTitle, { color: themeColors.accent }]}>고정비</Text>
       <Text style={styles.pageSubtitle}>매달 반복되는 지출과 저축을 관리해요</Text>
 
@@ -456,8 +456,7 @@ const styles = StyleSheet.create({
   selectFieldPlaceholder: { fontSize: 13, color: COLORS.gray400 },
   selectFieldChevron: { fontSize: 12, color: COLORS.gray400 },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', padding: 24 },
-  modalSheet: { backgroundColor: '#fff', borderRadius: RADIUS.lg, padding: 16, maxHeight: 360 },
+  modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: RADIUS.lg, borderTopRightRadius: RADIUS.lg, padding: 16 },
   modalTitle: { fontSize: 14, fontWeight: '700', color: COLORS.gray800, marginBottom: 8 },
   modalOption: { paddingVertical: 12, borderTopWidth: 1, borderTopColor: COLORS.gray50 },
   modalOptionText: { fontSize: 13, color: COLORS.gray800 },

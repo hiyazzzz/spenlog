@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert, Switch, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Alert, Switch } from 'react-native';
+import SlideUpModal from '@/components/SlideUpModal';
 import { useFocusEffect } from 'expo-router';
-import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, getThemeColors, useThemeColors } from '@/constants/theme';
+import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, getThemeColors, useThemeColors, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
 import { monthString } from '@/lib/date';
 import { getAssetsData, addAccount, deleteAccount, addCard, deleteCard, updateIncome, type AssetsData } from '@/lib/api/assets';
@@ -25,9 +26,10 @@ function parse(v: string) {
 export default function AssetsScreen() {
   const [subTab, setSubTab] = useState<SubTab>('assets');
   const { themeColors } = useThemeColors();
+  const { colors } = useAppTheme();
 
   return (
-    <View style={sharedStyles.screen}>
+    <View style={[sharedStyles.screen, { backgroundColor: colors.bg }]}>
       <View style={sharedStyles.headerWrap}>
         <Text style={sharedStyles.pageTitle}>자산</Text>
         <View style={sharedStyles.subTabBar}>
@@ -537,123 +539,117 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
       </Section>
 
       {/* 계좌 추가 모달 */}
-      <Modal visible={showAddAccount} transparent animationType="none" onRequestClose={resetAccountForm}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={assetStyles.modalOverlay}>
-          <View style={assetStyles.modalSheet}>
-            <Text style={assetStyles.modalTitle}>계좌 추가</Text>
-            <Text style={assetStyles.fieldLabel}>계좌명</Text>
-            <TextInput style={assetStyles.input} value={accName} onChangeText={setAccName} placeholder="예) 국민 주거래통장" placeholderTextColor={COLORS.gray400} />
-            <Text style={[assetStyles.fieldLabel, { marginTop: 10 }]}>은행</Text>
-            <TextInput style={assetStyles.input} value={accBank} onChangeText={setAccBank} placeholder="예) KB국민" placeholderTextColor={COLORS.gray400} />
-            <Text style={[assetStyles.fieldLabel, { marginTop: 10 }]}>잔액</Text>
-            <TextInput style={assetStyles.input} keyboardType="numeric" value={accBalance} onChangeText={v => setAccBalance(fmt(v))} placeholder="0" placeholderTextColor={COLORS.gray400} />
-            <Text style={[assetStyles.fieldLabel, { marginTop: 10 }]}>유형</Text>
-            <View style={assetStyles.chipRow}>
-              {ACCOUNT_TYPES.map(t => (
-                <TouchableOpacity key={t} style={[assetStyles.typeChip, accType === t && assetStyles.typeChipActive, { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]} onPress={() => setAccType(t)}>
-                  <Text style={[assetStyles.typeChipText, accType === t && assetStyles.typeChipTextActive]}>{t}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <View style={assetStyles.formBtnRow}>
-              <TouchableOpacity style={[assetStyles.confirmBtn, { backgroundColor: themeColors.primary }]} onPress={handleAddAccount} disabled={savingAccount || !accName.trim()}>
-                <Text style={assetStyles.confirmBtnText}>{savingAccount ? '저장 중...' : '저장'}</Text>
+      <SlideUpModal visible={showAddAccount} onRequestClose={resetAccountForm}>
+        <View style={assetStyles.modalSheet}>
+          <Text style={assetStyles.modalTitle}>계좌 추가</Text>
+          <Text style={assetStyles.fieldLabel}>계좌명</Text>
+          <TextInput style={assetStyles.input} value={accName} onChangeText={setAccName} placeholder="예) 국민 주거래통장" placeholderTextColor={COLORS.gray400} />
+          <Text style={[assetStyles.fieldLabel, { marginTop: 10 }]}>은행</Text>
+          <TextInput style={assetStyles.input} value={accBank} onChangeText={setAccBank} placeholder="예) KB국민" placeholderTextColor={COLORS.gray400} />
+          <Text style={[assetStyles.fieldLabel, { marginTop: 10 }]}>잔액</Text>
+          <TextInput style={assetStyles.input} keyboardType="numeric" value={accBalance} onChangeText={v => setAccBalance(fmt(v))} placeholder="0" placeholderTextColor={COLORS.gray400} />
+          <Text style={[assetStyles.fieldLabel, { marginTop: 10 }]}>유형</Text>
+          <View style={assetStyles.chipRow}>
+            {ACCOUNT_TYPES.map(t => (
+              <TouchableOpacity key={t} style={[assetStyles.typeChip, accType === t && assetStyles.typeChipActive, { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]} onPress={() => setAccType(t)}>
+                <Text style={[assetStyles.typeChipText, accType === t && assetStyles.typeChipTextActive]}>{t}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={assetStyles.cancelBtn} onPress={resetAccountForm}>
-                <Text style={assetStyles.cancelBtnText}>취소</Text>
-              </TouchableOpacity>
-            </View>
+            ))}
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+          <View style={assetStyles.formBtnRow}>
+            <TouchableOpacity style={[assetStyles.confirmBtn, { backgroundColor: themeColors.primary }]} onPress={handleAddAccount} disabled={savingAccount || !accName.trim()}>
+              <Text style={assetStyles.confirmBtnText}>{savingAccount ? '저장 중...' : '저장'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={assetStyles.cancelBtn} onPress={resetAccountForm}>
+              <Text style={assetStyles.cancelBtnText}>취소</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SlideUpModal>
 
       {/* 카드 추가 모달 */}
-      <Modal visible={showAddCard} transparent animationType="none" onRequestClose={resetCardForm}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={assetStyles.modalOverlay}>
-          <View style={assetStyles.modalSheet}>
-            <Text style={assetStyles.modalTitle}>카드 추가</Text>
-            <Text style={assetStyles.fieldLabel}>카드명</Text>
-            <TextInput style={assetStyles.input} value={cardName} onChangeText={setCardName} placeholder="예) 신한카드" placeholderTextColor={COLORS.gray400} />
-            <Text style={[assetStyles.fieldLabel, { marginTop: 10 }]}>카드사</Text>
-            <TextInput style={assetStyles.input} value={cardBank} onChangeText={setCardBank} placeholder="예) 신한" placeholderTextColor={COLORS.gray400} />
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={assetStyles.fieldLabel}>대금 출금일</Text>
-                <TextInput style={assetStyles.input} keyboardType="numeric" value={cardDueDay} onChangeText={v => setCardDueDay(v.replace(/[^0-9]/g, ''))} placeholder="예) 15" placeholderTextColor={COLORS.gray400} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={assetStyles.fieldLabel}>청구 시작일</Text>
-                <TextInput style={assetStyles.input} keyboardType="numeric" value={cardBillingStartDay} onChangeText={v => setCardBillingStartDay(v.replace(/[^0-9]/g, ''))} placeholder="없음" placeholderTextColor={COLORS.gray400} />
-              </View>
+      <SlideUpModal visible={showAddCard} onRequestClose={resetCardForm}>
+        <View style={assetStyles.modalSheet}>
+          <Text style={assetStyles.modalTitle}>카드 추가</Text>
+          <Text style={assetStyles.fieldLabel}>카드명</Text>
+          <TextInput style={assetStyles.input} value={cardName} onChangeText={setCardName} placeholder="예) 신한카드" placeholderTextColor={COLORS.gray400} />
+          <Text style={[assetStyles.fieldLabel, { marginTop: 10 }]}>카드사</Text>
+          <TextInput style={assetStyles.input} value={cardBank} onChangeText={setCardBank} placeholder="예) 신한" placeholderTextColor={COLORS.gray400} />
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={assetStyles.fieldLabel}>대금 출금일</Text>
+              <TextInput style={assetStyles.input} keyboardType="numeric" value={cardDueDay} onChangeText={v => setCardDueDay(v.replace(/[^0-9]/g, ''))} placeholder="예) 15" placeholderTextColor={COLORS.gray400} />
             </View>
-            {accounts.length > 0 && (
-              <>
-                <Text style={[assetStyles.fieldLabel, { marginTop: 10 }]}>연결 계좌</Text>
-                <View style={assetStyles.chipRow}>
-                  <TouchableOpacity
-                    style={[assetStyles.typeChip, cardLinkedAccountId === null && assetStyles.typeChipActive, { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
-                    onPress={() => setCardLinkedAccountId(null)}
-                  >
-                    <Text style={[assetStyles.typeChipText, cardLinkedAccountId === null && assetStyles.typeChipTextActive]}>없음</Text>
-                  </TouchableOpacity>
-                  {accounts.map(acc => (
-                    <TouchableOpacity
-                      key={acc.id}
-                      style={[assetStyles.typeChip, cardLinkedAccountId === acc.id && assetStyles.typeChipActive, { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
-                      onPress={() => setCardLinkedAccountId(acc.id)}
-                    >
-                      <Text style={[assetStyles.typeChipText, cardLinkedAccountId === acc.id && assetStyles.typeChipTextActive]}>{acc.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </>
-            )}
-            <View style={assetStyles.formBtnRow}>
-              <TouchableOpacity style={[assetStyles.confirmBtn, { backgroundColor: themeColors.primary }]} onPress={handleAddCard} disabled={savingCard || !cardName.trim()}>
-                <Text style={assetStyles.confirmBtnText}>{savingCard ? '저장 중...' : '저장'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={assetStyles.cancelBtn} onPress={resetCardForm}>
-                <Text style={assetStyles.cancelBtnText}>취소</Text>
-              </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text style={assetStyles.fieldLabel}>청구 시작일</Text>
+              <TextInput style={assetStyles.input} keyboardType="numeric" value={cardBillingStartDay} onChangeText={v => setCardBillingStartDay(v.replace(/[^0-9]/g, ''))} placeholder="없음" placeholderTextColor={COLORS.gray400} />
             </View>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+          {accounts.length > 0 && (
+            <>
+              <Text style={[assetStyles.fieldLabel, { marginTop: 10 }]}>연결 계좌</Text>
+              <View style={assetStyles.chipRow}>
+                <TouchableOpacity
+                  style={[assetStyles.typeChip, cardLinkedAccountId === null && assetStyles.typeChipActive, { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
+                  onPress={() => setCardLinkedAccountId(null)}
+                >
+                  <Text style={[assetStyles.typeChipText, cardLinkedAccountId === null && assetStyles.typeChipTextActive]}>없음</Text>
+                </TouchableOpacity>
+                {accounts.map(acc => (
+                  <TouchableOpacity
+                    key={acc.id}
+                    style={[assetStyles.typeChip, cardLinkedAccountId === acc.id && assetStyles.typeChipActive, { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
+                    onPress={() => setCardLinkedAccountId(acc.id)}
+                  >
+                    <Text style={[assetStyles.typeChipText, cardLinkedAccountId === acc.id && assetStyles.typeChipTextActive]}>{acc.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
+          <View style={assetStyles.formBtnRow}>
+            <TouchableOpacity style={[assetStyles.confirmBtn, { backgroundColor: themeColors.primary }]} onPress={handleAddCard} disabled={savingCard || !cardName.trim()}>
+              <Text style={assetStyles.confirmBtnText}>{savingCard ? '저장 중...' : '저장'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={assetStyles.cancelBtn} onPress={resetCardForm}>
+              <Text style={assetStyles.cancelBtnText}>취소</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SlideUpModal>
 
       {/* 카드 납부 기록 모달 */}
-      <Modal visible={!!cardPaySheet} transparent animationType="none" onRequestClose={() => setCardPaySheet(null)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={assetStyles.modalOverlay}>
-          <View style={assetStyles.modalSheet}>
-            <Text style={assetStyles.modalTitle}>{cardPaySheet?.name} 대금 납부 기록</Text>
-            <Text style={assetStyles.fieldLabel}>납부 금액</Text>
-            <TextInput
-              style={assetStyles.input}
-              keyboardType="numeric"
-              value={cardPayAmount}
-              onChangeText={v => setCardPayAmount(fmt(v))}
-              placeholder="0"
-              placeholderTextColor={COLORS.gray400}
-              autoFocus
-            />
-            <Text style={[assetStyles.fieldLabel, { marginTop: 10 }]}>메모 (선택)</Text>
-            <TextInput
-              style={assetStyles.input}
-              value={cardPayMemo}
-              onChangeText={setCardPayMemo}
-              placeholder="메모"
-              placeholderTextColor={COLORS.gray400}
-            />
-            <View style={assetStyles.formBtnRow}>
-              <TouchableOpacity style={[assetStyles.confirmBtn, { backgroundColor: themeColors.primary }]} onPress={handleSaveCardPayment} disabled={cardPaySaving || !cardPayAmount}>
-                <Text style={assetStyles.confirmBtnText}>{cardPaySaving ? '저장 중...' : '저장'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={assetStyles.cancelBtn} onPress={() => setCardPaySheet(null)}>
-                <Text style={assetStyles.cancelBtnText}>취소</Text>
-              </TouchableOpacity>
-            </View>
+      <SlideUpModal visible={!!cardPaySheet} onRequestClose={() => setCardPaySheet(null)}>
+        <View style={assetStyles.modalSheet}>
+          <Text style={assetStyles.modalTitle}>{cardPaySheet?.name} 대금 납부 기록</Text>
+          <Text style={assetStyles.fieldLabel}>납부 금액</Text>
+          <TextInput
+            style={assetStyles.input}
+            keyboardType="numeric"
+            value={cardPayAmount}
+            onChangeText={v => setCardPayAmount(fmt(v))}
+            placeholder="0"
+            placeholderTextColor={COLORS.gray400}
+            autoFocus
+          />
+          <Text style={[assetStyles.fieldLabel, { marginTop: 10 }]}>메모 (선택)</Text>
+          <TextInput
+            style={assetStyles.input}
+            value={cardPayMemo}
+            onChangeText={setCardPayMemo}
+            placeholder="메모"
+            placeholderTextColor={COLORS.gray400}
+          />
+          <View style={assetStyles.formBtnRow}>
+            <TouchableOpacity style={[assetStyles.confirmBtn, { backgroundColor: themeColors.primary }]} onPress={handleSaveCardPayment} disabled={cardPaySaving || !cardPayAmount}>
+              <Text style={assetStyles.confirmBtnText}>{cardPaySaving ? '저장 중...' : '저장'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={assetStyles.cancelBtn} onPress={() => setCardPaySheet(null)}>
+              <Text style={assetStyles.cancelBtnText}>취소</Text>
+            </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+        </View>
+      </SlideUpModal>
     </ScrollView>
   );
 }
@@ -1342,7 +1338,6 @@ const assetStyles = StyleSheet.create({
   cashAddConfirmBtn: { paddingHorizontal: 14, borderRadius: RADIUS.md, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' },
   cashAddConfirmBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
 
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36 },
   modalTitle: { fontSize: 16, fontWeight: '700', color: COLORS.gray800, marginBottom: 14 },
 });
