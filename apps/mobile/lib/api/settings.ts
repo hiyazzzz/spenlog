@@ -17,7 +17,6 @@ export async function updateName(userId: string, name: string) {
 export async function checkOnboardingStatus(userId: string): Promise<boolean> {
   const { data, error } = await supabase.from('users').select('onboarding_completed').eq('id', userId).single()
   if (error) {
-    console.log('[checkOnboardingStatus] error:', error)
     return false
   }
   return !!data?.onboarding_completed

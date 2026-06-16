@@ -59,7 +59,7 @@ export default function TermsScreen() {
           </Text>
 
           <Text style={styles.placeholderNote}>
-            ※ 본 약관은 추후 정식 내용으로 교체될 예정입니다.
+            ※ 본 약관은 앱 출시 전 최종 확정됩니다.
           </Text>
         </View>
       </ScrollView>

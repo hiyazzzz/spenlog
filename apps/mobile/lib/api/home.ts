@@ -28,13 +28,6 @@ export async function getHomeData(userId: string): Promise<HomeData> {
     supabase.from('fixed_costs').select('amount, kind').eq('user_id', userId),
   ])
 
-  console.log('[getHomeData] userId:', userId)
-  console.log('[getHomeData] profile:', profile, 'error:', profileError)
-  console.log('[getHomeData] expenses:', expenses?.length, 'error:', expensesError)
-  console.log('[getHomeData] budgets:', budgets?.length, 'error:', budgetsError)
-  console.log('[getHomeData] categories:', categories?.length, 'error:', categoriesError)
-  console.log('[getHomeData] fixedCosts:', fixedCosts?.length, 'error:', fixedCostsError)
-
   return {
     profile: (profile as User) ?? null,
     expenses: ((expenses as Expense[]) ?? []).map(e => ({ ...e, type: e.type ?? 'expense' })),

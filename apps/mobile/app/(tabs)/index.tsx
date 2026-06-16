@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Activi
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, getThemeColors, getThemeCardPalette, useAppTheme } from '@/constants/theme';
-import { MOCK_CATEGORIES } from '@/constants/mockData';
 import { getCurrentUserId } from '@/lib/supabase';
 import { getHomeData, type HomeData } from '@/lib/api/home';
 import { parseAiInput, addExpenses } from '@/lib/api/expenses';
@@ -113,7 +112,7 @@ export default function HomeScreen() {
   const actualSaving = fixedSavingsTotal + Math.max(0, income - totalSpent - fixedSavingsTotal);
   const displayName = data.profile?.name || '소비요정';
 
-  const categories = data.categories.length > 0 ? data.categories.map(c => c.name) : MOCK_CATEGORIES;
+  const categories = data.categories.map(c => c.name);
   const budgetMap: Record<string, number> = {};
   data.budgets.forEach(b => { budgetMap[b.category] = b.amount; });
 

@@ -343,7 +343,7 @@ export default function SettingsScreen() {
                 {selectedTheme === t.key && <Ionicons name="checkmark-circle" size={16} color={themeColors.primary} />}
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity key={t.key} style={[styles.themeItem, styles.themeItemLocked]} onPress={notReady}>
+              <TouchableOpacity key={t.key} style={[styles.themeItem, styles.themeItemLocked]} onPress={() => router.push('/premium')}>
                 <View style={[styles.themeSwatch, { backgroundColor: t.color, opacity: 0.5 }]} />
                 <Text style={styles.themeNameLocked}>{t.name}</Text>
                 <Ionicons name="lock-closed" size={13} color={COLORS.gray400} />
