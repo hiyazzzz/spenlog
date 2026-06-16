@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator, TextInput, Alert, Keyboard } from 'react-native';
 import SlideUpModal from '@/components/SlideUpModal';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -327,7 +327,7 @@ export default function SettingsScreen() {
   const isPremium = isPremiumUnlocked(profile);
 
   return (
-    <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" onScrollBeginDrag={Keyboard.dismiss}>
       <Text style={[styles.pageTitle, { color: themeColors.accent }]}>설정</Text>
 
       {/* 프로필 카드 */}
@@ -554,62 +554,4 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff', borderRadius: RADIUS.xl, borderWidth: 1, borderColor: COLORS.border,
     marginBottom: 10, overflow: 'hidden',
   },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: COLORS.gray800 },
-  sectionChevron: { fontSize: 14, color: COLORS.gray400 },
-  sectionBody: { paddingHorizontal: 16, paddingBottom: 14 },
-
-  linkRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.border,
-    borderRadius: RADIUS.lg, paddingVertical: 16, paddingHorizontal: 16, marginBottom: 10,
-  },
-  linkRowTitle: { fontSize: 14, fontWeight: '700', color: COLORS.gray800 },
-  chevron: { fontSize: 16, color: COLORS.gray400 },
-
-  itemRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.gray50,
-  },
-  itemLabel: { fontSize: 13, fontWeight: '600', color: COLORS.gray800 },
-  itemValue: { fontSize: 12, color: COLORS.gray500 },
-  itemValueMuted: { fontSize: 12, color: COLORS.gray400 },
-  dangerLabel: { fontSize: 13, fontWeight: '600', color: COLORS.red },
-
-  subHeader: { fontSize: 11, fontWeight: '700', color: COLORS.gray400, marginBottom: 8 },
-  themeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  themeItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingVertical: 8, paddingHorizontal: 10, borderRadius: RADIUS.md,
-    borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: '#fafafa',
-    width: '47%',
-  },
-  themeItemSelected: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryLight },
-  themeItemLocked: { opacity: 0.7 },
-  themeSwatch: { width: 16, height: 16, borderRadius: 8 },
-  themeName: { fontSize: 12, fontWeight: '600', color: COLORS.gray700, flex: 1 },
-  themeNameLocked: { fontSize: 12, fontWeight: '600', color: COLORS.gray400, flex: 1 },
-
-  toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.gray50 },
-  toggleLabel: { fontSize: 13, fontWeight: '600', color: COLORS.gray800 },
-  toggleSublabel: { fontSize: 11, color: COLORS.gray400, marginTop: 2 },
-
-  exportBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 12, borderRadius: RADIUS.md, backgroundColor: COLORS.primaryLight,
-  },
-  exportBtnText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
-
-  modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl, padding: 20, paddingBottom: 32 },
-  modalTitle: { fontSize: 15, fontWeight: '700', color: COLORS.gray800, marginBottom: 12 },
-  modalInput: {
-    borderWidth: 1, borderColor: COLORS.gray200, borderRadius: RADIUS.md,
-    paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: COLORS.gray800,
-  },
-  modalErrorText: { fontSize: 12, color: COLORS.red, marginTop: 8 },
-  modalBtnRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
-  modalConfirmBtn: { flex: 1, paddingVertical: 12, borderRadius: RADIUS.md, backgroundColor: COLORS.primary, alignItems: 'center' },
-  modalConfirmBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
-  modalCancelBtn: { flex: 1, paddingVertical: 12, borderRadius: RADIUS.md, backgroundColor: COLORS.gray100, alignItems: 'center' },
-  modalCancelBtnText: { fontSize: 13, fontWeight: '700', color: COLORS.gray600 },
-});
+  sectionHeader: { flexDirection: 'row', alignItems:

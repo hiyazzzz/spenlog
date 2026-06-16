@@ -143,9 +143,9 @@ export default function BudgetScreen() {
         Alert.alert('로그인이 필요해요');
         return;
       }
-      // OFF 카테고리는 유지 — enabledCats 그대로 전달
+      const planEnabled = Object.fromEntries(categories.map(c => [c, true]));
       const planAmountStrings = Object.fromEntries(categories.map(c => [c, String(planAmounts[c] ?? 0)]));
-      await saveBudgets(userId, monthString(), categories, enabledCats, planAmountStrings, 'ai');
+      await saveBudgets(userId, monthString(), categories, planEnabled, planAmountStrings, 'ai');
       Alert.alert('저장 완료', '예산이 저장됐어요');
       setSelectedPreset(null);
       setAiAmounts(null);
@@ -387,4 +387,13 @@ const styles = StyleSheet.create({
   budgetItemLabel: { fontSize: 13, fontWeight: '600', color: COLORS.accent, minWidth: 44 },
   budgetInputBox: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#fff', borderRad
+    backgroundColor: '#fff', borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border,
+    paddingHorizontal: 12, paddingVertical: 9,
+  },
+  budgetInput: { flex: 1, fontSize: 13, fontWeight: '600', color: COLORS.gray700, textAlign: 'right' },
+  budgetInputUnit: { fontSize: 12, color: COLORS.gray400 },
+  budgetProgressWrap: { paddingLeft: 52, paddingRight: 48, marginTop: 4 },
+  progressBgSmall: { backgroundColor: COLORS.gray100, borderRadius: 4, height: 4, overflow: 'hidden', marginBottom: 3 },
+  budgetProgressFooter: { flexDirection: 'row', justifyContent: 'space-between' },
+  budgetProgressText: { fontSize: 10, color: COLORS.gray400 },
+});
