@@ -52,10 +52,17 @@ export async function restoreCategory(id: string) {
 }
 
 // 드래그 정렬 후 순서 일괄 반영
-export async function reorderCategories(items: { id: string; sort_order: number }[]) {
-  await Promise.all(items.map(item =>
-    supabase.from('categories').update({ sort_order: item.sort_order }).eq('id', item.id)
-  ))
+export async function reorderCategories(items: { id: string; sort_order: number }[]): Promise<{ error: Error | null }> {
+  try {
+    const results = await Promise.all(items.map(item =>
+      supabase.from('categories').update({ sort_order: item.sort_order }).eq('id', item.id)
+    ))
+    const failed = results.find(r => r.error)
+    if (failed?.error) return { error: new Error(failed.error.message) }
+    return { error: null }
+  } catch (e) {
+    return { error: e instanceof Error ? e : new Error('알 수 없는 오류') }
+  }
 }
 
 // 이번 달 카테고리별 지출 합계

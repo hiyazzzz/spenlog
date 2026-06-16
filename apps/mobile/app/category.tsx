@@ -22,6 +22,7 @@ export default function CategoryScreen() {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [reordering, setReordering] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -100,7 +101,16 @@ export default function CategoryScreen() {
       const hidden = prev.filter(c => c.is_hidden);
       return [...data, ...hidden];
     });
-    await reorderCategories(data.map((c, i) => ({ id: c.id, sort_order: i })));
+    setReordering(true);
+    try {
+      const { error } = await reorderCategories(data.map((c, i) => ({ id: c.id, sort_order: i })));
+      if (error) {
+        Alert.alert('저장 실패', '순서를 저장하지 못했어요. 다시 시도해 주세요.');
+        await load();
+      }
+    } finally {
+      setReordering(false);
+    }
   }
 
   const visible = categories.filter(c => !c.is_hidden);
@@ -162,11 +172,14 @@ export default function CategoryScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.gray800} />
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} disabled={reordering}>
+          <Ionicons name="chevron-back" size={24} color={reordering ? COLORS.gray300 : COLORS.gray800} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>카테고리 관리</Text>
-        <View style={styles.backBtn} />
+        {reordering
+          ? <ActivityIndicator size="small" color={COLORS.primary} style={styles.backBtn} />
+          : <View style={styles.backBtn} />
+        }
       </View>
 
       {loading ? (
