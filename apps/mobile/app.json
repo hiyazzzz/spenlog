@@ -10,6 +10,15 @@
       "ios",
       "android"
     ],
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/TODO_YOUR_PROJECT_ID",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "ios": {
       "supportsTablet": true
     },
@@ -26,7 +35,13 @@
           "photosPermission": "홈 화면을 꾸미기 위해 사진 라이브러리에 접근할 수 있어요."
         }
       ],
-      "expo-web-browser"
-    ]
+      "expo-web-browser",
+      "expo-updates"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "TODO_YOUR_PROJECT_ID"
+      }
+    }
   }
 }
