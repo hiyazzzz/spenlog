@@ -51,7 +51,9 @@ export default function BudgetScreen() {
       setData(result);
       const budgetMap: Record<string, number> = {};
       result.budgets.forEach(b => { budgetMap[b.category] = b.amount; });
-      setEnabledCats(Object.fromEntries(result.customCategories.map(c => [c, true])));
+      // 저장된 예산 행이 있으면 해당 카테고리만 ON, 없으면 전체 ON (최초 설정)
+      const hasSavedBudgets = result.budgets.length > 0;
+      setEnabledCats(Object.fromEntries(result.customCategories.map(c => [c, hasSavedBudgets ? (c in budgetMap) : true])));
       setAmounts(Object.fromEntries(result.customCategories.map(c => [c, String(budgetMap[c] ?? '')])));
     } catch (e) {
       setError(e instanceof Error ? e.message : '데이터를 불러오지 못했어요');
@@ -115,12 +117,13 @@ export default function BudgetScreen() {
     if (aiLoading || !data) return;
     setAiLoading(true);
     try {
+      const activeCats = categories.filter(c => c !== '수입' && enabledCats[c]);
       const result = await recommendBudget({
         income: data.income,
         fixedSavings: data.fixedSavings,
         recentExpenses: data.recentExpenses,
         currentBudgets: data.budgets.map(b => ({ category: b.category, amount: b.amount })),
-        categories,
+        categories: activeCats,
       });
       setAiAmounts(result.amounts);
       setAiReason(result.reason ?? null);

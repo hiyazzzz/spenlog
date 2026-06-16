@@ -417,7 +417,7 @@ export default function HomeScreen() {
                         <Text style={styles.confirmItemMeta}>{item.category} · {item.date ?? new Date().toISOString().slice(0, 10)}</Text>
                       </View>
                       <Text style={[styles.confirmItemAmount, item.type === 'income' && { color: COLORS.green }]}>
-                        {item.type === 'income' ? '+' : ''}{formatCurrency(item.amount)}원
+                        {item.type === 'income' ? '+' : ''}{formatCurrency(item.amount)}
                       </Text>
                     </View>
                   </View>

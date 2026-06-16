@@ -311,7 +311,7 @@ function EditRow({ expense, categories, themeColors, onSave, onDelete, onCancel 
   const [name, setName] = useState(expense.name);
   const [amount, setAmount] = useState(String(expense.amount));
   const [category, setCategory] = useState(expense.category);
-  const [type, setType] = useState<'expense' | 'income'>(expense.type === 'income' ? 'income' : 'expense');
+  const [type, setType] = useState<'expense' | 'income'>((expense.type ?? 'expense') === 'income' ? 'income' : 'expense');
   const [paymentMethod, setPaymentMethod] = useState(expense.payment_method ?? '');
 
   return (
