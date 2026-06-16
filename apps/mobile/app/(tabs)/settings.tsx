@@ -14,6 +14,17 @@ import type { Theme, User } from '@spenlog/types';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://spenlog.vercel.app';
 
+let WebBrowser: any = null;
+let AuthSession: any = null;
+try {
+  WebBrowser = require('expo-web-browser');
+  AuthSession = require('expo-auth-session');
+  WebBrowser?.maybeCompleteAuthSession();
+} catch {
+  // expo-web-browser / expo-auth-session 미설치
+}
+const redirectTo = AuthSession?.makeRedirectUri();
+
 const BASIC_THEMES = [
   { key: 'Burgundy', name: '버건디', color: '#6B1E2E' },
   { key: 'Sage', name: '세이지', color: '#7C9070' },
@@ -93,6 +104,8 @@ export default function SettingsScreen() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [csvLoading, setCsvLoading] = useState(false);
+  const [linkingGoogle, setLinkingGoogle] = useState(false);
+  const [isGoogleLinked, setIsGoogleLinked] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -110,6 +123,10 @@ export default function SettingsScreen() {
         setPushDueDate(result.push_due_date_reminder ?? true);
         setPushUnprocessed(result.push_due_date_unprocessed ?? true);
         setPushReport(result.push_report ?? true);
+      }
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData.user?.identities) {
+        setIsGoogleLinked(userData.user.identities.some((id) => id.provider === 'google'));
       }
     } finally {
       setLoading(false);
@@ -193,6 +210,42 @@ export default function SettingsScreen() {
 
   function notReady() {
     Alert.alert('준비 중', '아직 준비 중인 기능이에요');
+  }
+
+  async function handleLinkGoogle() {
+    if (!WebBrowser || !AuthSession) {
+      Alert.alert('알림', '이 기능을 사용하려면 앱을 업데이트해 주세요');
+      return;
+    }
+    if (isGoogleLinked) {
+      Alert.alert('알림', '이미 구글 계정이 연동되어 있어요');
+      return;
+    }
+    setLinkingGoogle(true);
+    try {
+      const { data, error } = await supabase.auth.linkIdentity({
+        provider: 'google',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+          queryParams: { access_type: 'offline', prompt: 'consent' },
+        },
+      });
+      if (error) throw error;
+      if (!data?.url) throw new Error('연동 URL을 가져오지 못했어요');
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+      if (result.type === 'success') {
+        await supabase.auth.refreshSession();
+        setIsGoogleLinked(true);
+        Alert.alert('연동 완료', '구글 계정이 연동됐어요');
+      }
+      // cancel / dismiss: 사용자가 취소한 것 — 아무것도 안 함
+    } catch (e: any) {
+      Alert.alert('오류', e?.message ?? '구글 계정 연동 중 오류가 발생했어요');
+    } finally {
+      setLinkingGoogle(false);
+    }
   }
 
   function handleDeleteAccount() {
@@ -301,9 +354,15 @@ export default function SettingsScreen() {
           <Text style={styles.itemLabel}>비밀번호 변경</Text>
           <Text style={styles.chevron}>›</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.itemRow} onPress={() => Alert.alert('준비중', '준비중입니다')}>
+        <TouchableOpacity style={styles.itemRow} onPress={handleLinkGoogle} disabled={linkingGoogle}>
           <Text style={styles.itemLabel}>구글 계정 연동</Text>
-          <Text style={styles.itemValueMuted}>연동 안됨 ›</Text>
+          {linkingGoogle ? (
+            <ActivityIndicator size="small" color={COLORS.gray400} />
+          ) : (
+            <Text style={isGoogleLinked ? styles.itemValue : styles.itemValueMuted}>
+              {isGoogleLinked ? '연동됨 ✓' : '연동 안됨 ›'}
+            </Text>
+          )}
         </TouchableOpacity>
       </Section>
 

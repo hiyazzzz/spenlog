@@ -35,6 +35,12 @@
           "photosPermission": "홈 화면을 꾸미기 위해 사진 라이브러리에 접근할 수 있어요."
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "iosDisplayInForeground": true
+        }
+      ],
       "expo-web-browser",
       "expo-updates"
     ],
