@@ -261,7 +261,7 @@ export default function SettingsScreen() {
           <Text style={styles.itemLabel}>비밀번호 변경</Text>
           <Text style={styles.chevron}>›</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.itemRow} onPress={notReady}>
+        <TouchableOpacity style={styles.itemRow} onPress={() => Alert.alert('준비중', '준비중입니다')}>
           <Text style={styles.itemLabel}>구글 계정 연동</Text>
           <Text style={styles.itemValueMuted}>연동 안됨 ›</Text>
         </TouchableOpacity>

@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, useThemeColors } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
@@ -198,6 +198,8 @@ export default function FixedCostsScreen() {
   }
 
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+    <View style={{ flex: 1 }}>
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={[styles.pageTitle, { color: themeColors.accent }]}>고정비</Text>
       <Text style={styles.pageSubtitle}>매달 반복되는 지출과 저축을 관리해요</Text>
@@ -372,6 +374,8 @@ export default function FixedCostsScreen() {
         onClose={() => setActivePicker(null)}
       />
     </ScrollView>
+    </View>
+    </TouchableWithoutFeedback>
   );
 }
 
