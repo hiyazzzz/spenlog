@@ -55,7 +55,7 @@ export default function HomeScreen() {
       if (!uid) { Alert.alert('로그인이 필요해요'); return; }
       const result = await parseAiInput(text);
       if (!result.items || result.items.length === 0) {
-        Alert.alert('인식 실패', result.error ?? '금액을 인식하지 못했어요. 예) 아아 3000원 / 커피 삼천원');
+        Alert.alert('인식 실패', result.error ?? '금액을 인식하지 못했어요.\n예) 스타벅스 육천원 카드');
         return;
       }
       setConfirmItems(result.items);
