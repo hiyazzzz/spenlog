@@ -4,11 +4,10 @@ import SlideUpModal from '@/components/SlideUpModal';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { File, Paths } from 'expo-file-system';
-// TODO: expo-sharing 패키지 설치 필요 (npm install expo-sharing) — 설치 후 아래 주석 해제
-// import * as Sharing from 'expo-sharing';
+import * as Sharing from 'expo-sharing';
 import { COLORS, RADIUS, CARD_SHADOW, getThemeColors, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId, supabase } from '@/lib/supabase';
-import { getProfile, updateTheme, updateName, updatePushSettings, updateGifAutoplay, type PushSettings } from '@/lib/api/settings';
+import { getProfile, updateTheme, updateName, updatePushSettings, updateGifAutoplay, deleteAccount, type PushSettings } from '@/lib/api/settings';
 import { isPremiumUnlocked } from '@/lib/premium';
 import { useThemeStore } from '@/store/themeStore';
 import type { Theme, User } from '@spenlog/types';
@@ -196,6 +195,31 @@ export default function SettingsScreen() {
     Alert.alert('준비 중', '아직 준비 중인 기능이에요');
   }
 
+  function handleDeleteAccount() {
+    Alert.alert(
+      '정말 탈퇴할까요?',
+      '모든 데이터가 삭제되며 복구할 수 없어요.',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '탈퇴',
+          style: 'destructive',
+          onPress: async () => {
+            const userId = await getCurrentUserId();
+            if (!userId) return;
+            const { error } = await deleteAccount(userId);
+            if (error) {
+              Alert.alert('오류', error);
+              return;
+            }
+            await supabase.auth.signOut();
+            router.replace('/login');
+          },
+        },
+      ],
+    );
+  }
+
   async function handleCsvExport() {
     if (!isPremiumUnlocked(profile)) {
       Alert.alert('프리미엄 기능', 'CSV 내보내기는 프리미엄 전용 기능이에요');
@@ -226,13 +250,11 @@ export default function SettingsScreen() {
       file.create();
       file.write(csv);
 
-      // TODO: expo-sharing 설치 후 공유 시트 노출
-      // if (await Sharing.isAvailableAsync()) {
-      //   await Sharing.shareAsync(file.uri, { mimeType: 'text/csv', dialogTitle: 'CSV 내보내기' });
-      // } else {
-      //   Alert.alert('내보내기 완료', `${fileName} 파일이 저장됐어요`);
-      // }
-      Alert.alert('내보내기 완료', `${fileName} 파일이 저장됐어요`);
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(file.uri, { mimeType: 'text/csv', dialogTitle: 'CSV 내보내기' });
+      } else {
+        Alert.alert('내보내기 완료', `${fileName} 파일이 저장됐어요`);
+      }
     } catch {
       Alert.alert('오류', '내보내기 중 문제가 발생했어요');
     } finally {
@@ -382,7 +404,7 @@ export default function SettingsScreen() {
         <TouchableOpacity style={[styles.itemRow, { borderBottomColor: colors.gray50 }]} onPress={handleLogout}>
           <Text style={[styles.itemLabel, { color: colors.gray800 }]}>로그아웃</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.itemRow, { borderBottomWidth: 0 }]} onPress={notReady}>
+        <TouchableOpacity style={[styles.itemRow, { borderBottomWidth: 0 }]} onPress={handleDeleteAccount}>
           <Text style={styles.dangerLabel}>회원 탈퇴</Text>
         </TouchableOpacity>
       </View>

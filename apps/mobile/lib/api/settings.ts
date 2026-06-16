@@ -41,3 +41,27 @@ export async function updatePushSettings(userId: string, settings: PushSettings)
 export async function updateGifAutoplay(userId: string, gifAutoplay: boolean) {
   return supabase.from('users').update({ gif_autoplay: gifAutoplay }).eq('id', userId)
 }
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://spenlog.vercel.app'
+
+export async function deleteAccount(userId: string): Promise<{ error?: string }> {
+  const { data: { session } } = await supabase.auth.getSession()
+  const token = session?.access_token
+  if (!token) return { error: '인증 정보가 없어요' }
+
+  const res = await fetch(`${API_URL}/api/delete-account`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ userId }),
+  })
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    return { error: data.error ?? '탈퇴 처리 중 오류가 발생했어요' }
+  }
+
+  return {}
+}
