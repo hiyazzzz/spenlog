@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ImageBackground, Alert, ScrollView } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, ImageBackground, Alert, ScrollView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, CARD_PALETTE, CARD_SHADOW, formatCurrency } from '@/constants/theme';
 import { uploadHomeImage, updateHomeCustomization, CAT_IMG_FIELDS } from '@/lib/api/home';
 
@@ -16,7 +17,7 @@ interface RecentExpense {
 interface Props {
   visible: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: () => Promise<void>;
   userId: string;
   displayName: string;
   totalSpent: number;
@@ -155,7 +156,7 @@ export default function HomeEditModal({
           return;
         }
       }
-      onSaved();
+      await onSaved();
       onClose();
     } finally {
       setSaving(false);
@@ -216,19 +217,23 @@ export default function HomeEditModal({
             </View>
           </View>
 
-          {/* 2. 한 줄 기록 (딤 처리) */}
+          {/* 2. 한 줄 기록 (딤 처리 - 홈화면과 동일한 UI) */}
           <View style={[styles.card, { position: 'relative', overflow: 'hidden' }]}>
             <View style={styles.cardHeaderRow}>
               <Text style={styles.cardTitle}>한 줄 기록</Text>
+              <View style={styles.addCircleBtn}>
+                <Ionicons name="create-outline" size={16} color={COLORS.text} />
+              </View>
             </View>
-            <View style={styles.aiPreviewBox}>
-              <Text style={styles.aiPreviewText}>
-                오늘 소비 내역을 알려줘!{'\n'}예) 아아 삼천원{'\n'}예) 스벅 6천원 배민 치킨 18000원
-              </Text>
-              <View style={styles.aiPreviewBtnRow}>
-                <View style={styles.aiPreviewBtn}>
-                  <Text style={styles.aiPreviewBtnText}>AI 분류</Text>
-                </View>
+            <View style={styles.aiInputRow}>
+              <TextInput
+                style={styles.aiInput}
+                placeholder="예) 스타벅스 육천원 카드"
+                placeholderTextColor={COLORS.gray400}
+                editable={false}
+              />
+              <View style={[styles.aiSubmitBtn, { backgroundColor: COLORS.gray300 }]}>
+                <Ionicons name="arrow-up" size={18} color="#fff" />
               </View>
             </View>
             <View style={styles.dimOverlay} />
@@ -382,11 +387,27 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 13, fontWeight: '700', color: COLORS.gray800 },
   linkText: { fontSize: 12, color: COLORS.primaryMid },
 
-  aiPreviewBox: { backgroundColor: '#fff', borderRadius: RADIUS.lg, borderWidth: 1, borderColor: '#f3f4f6', padding: 16 },
-  aiPreviewText: { fontSize: 13, color: COLORS.gray300, lineHeight: 22 },
-  aiPreviewBtnRow: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 },
-  aiPreviewBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: RADIUS.md, backgroundColor: COLORS.primary },
-  aiPreviewBtnText: { color: '#fff', fontSize: 13, fontWeight: '500' },
+  addCircleBtn: {
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: COLORS.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  aiInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  aiInput: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: COLORS.gray200,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: COLORS.gray800,
+    backgroundColor: '#fafafa',
+  },
+  aiSubmitBtn: {
+    width: 44, height: 44, borderRadius: RADIUS.md,
+    alignItems: 'center', justifyContent: 'center',
+  },
 
   dimOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(250,247,244,0.60)' },
 
