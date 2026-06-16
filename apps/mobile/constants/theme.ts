@@ -2,8 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { getCurrentUserId } from '@/lib/supabase'
-import { getProfile } from '@/lib/api/settings'
+import { useThemeStore } from '@/store/themeStore'
 
 export const COLORS = {
   primary: '#6B1E2E',
@@ -63,11 +62,17 @@ export const THEMES: Record<string, { primary: string; primaryLight: string; pri
   Sage: { primary: '#4A6741', primaryLight: '#EAF0E8', primaryMid: '#8AAF84', accent: '#2E4A2A', bg: '#F5F7F4' },
   Lavender: { primary: '#5C4B8A', primaryLight: '#EDE8F5', primaryMid: '#9B8EC4', accent: '#3D2E6B', bg: '#F7F5FB' },
   Terracotta: { primary: '#A0522D', primaryLight: '#F5EDE8', primaryMid: '#C48A6A', accent: '#7A3518', bg: '#FAF5F2' },
-  // 프리미엄 테마 (web 쪽 정의가 아직 없어 settings.tsx 프리미엄 스와치 색상을 기준으로 보강)
-  Oatmeal: { primary: '#B5A48C', primaryLight: '#F5F0E9', primaryMid: '#D2C4B2', accent: '#8A7860', bg: '#FAF7F3' },
+  // 프리미엄 테마
+  // 오트밀: 따뜻한 베이지/크림 계열
+  Oatmeal: { primary: '#B09070', primaryLight: '#F7F2EB', primaryMid: '#CDB898', accent: '#8A6C50', bg: '#FBF8F3' },
+  // 웜그레이: 따뜻한 그레이 (기존 유지)
   WarmGray: { primary: '#8C8479', primaryLight: '#F0EDEA', primaryMid: '#B5AEA4', accent: '#635D54', bg: '#FAF9F7' },
-  Midnight: { primary: '#2E3A59', primaryLight: '#E8EAF0', primaryMid: '#6B7A9E', accent: '#1B2438', bg: '#F5F6FA' },
-  Indigo: { primary: '#4B5DA6', primaryLight: '#ECEEF7', primaryMid: '#8A97CC', accent: '#343F75', bg: '#F6F7FC' },
+  // 월그레이: 차가운 슬레이트/쿨그레이 계열
+  WallGray: { primary: '#6B7A8D', primaryLight: '#EDF0F4', primaryMid: '#A0ACBC', accent: '#4A5568', bg: '#F5F7FA' },
+  // 미드나잇: 다크 네이비/딥블루 계열
+  Midnight: { primary: '#2C3E6B', primaryLight: '#E6E9F2', primaryMid: '#6474A0', accent: '#18243E', bg: '#F3F5FA' },
+  // 인디고: 딥 인디고/퍼플 계열
+  Indigo: { primary: '#4B4DA6', primaryLight: '#ECEBF7', primaryMid: '#8A8ACC', accent: '#333576', bg: '#F5F5FC' },
 }
 
 export const THEME_CARD_PALETTES: Record<string, string[]> = {
@@ -75,10 +80,11 @@ export const THEME_CARD_PALETTES: Record<string, string[]> = {
   Sage: ['#4A6741', '#2E4A2A', '#6A8F67', '#3D5E3A'],
   Lavender: ['#5C4B8A', '#3D2E6B', '#7A6AAA', '#4A3A78'],
   Terracotta: ['#A0522D', '#7A3518', '#C4784A', '#854520'],
-  Oatmeal: ['#B5A48C', '#8A7860', '#C9BBA6', '#DCCFBE'],
+  Oatmeal: ['#B09070', '#8A6C50', '#C9A888', '#DEC4AC'],
   WarmGray: ['#8C8479', '#635D54', '#A6A096', '#BFB9B1'],
-  Midnight: ['#2E3A59', '#1B2438', '#4A5878', '#6B7A9E'],
-  Indigo: ['#4B5DA6', '#343F75', '#6B7BC0', '#8A97CC'],
+  WallGray: ['#6B7A8D', '#4A5568', '#8A9BAD', '#A8B8C8'],
+  Midnight: ['#2C3E6B', '#18243E', '#4A5E90', '#6474A0'],
+  Indigo: ['#4B4DA6', '#333576', '#6B6DC0', '#8A8ACC'],
 }
 
 export function getThemeColors(theme: string | null | undefined) {
@@ -154,19 +160,8 @@ export function useAppTheme() {
 }
 
 // profile.theme을 직접 불러오지 않는 화면(내역/리포트/예산/고정비 등)에서 사용
+// Zustand store에서 즉시 읽어 Supabase 네트워크 요청 없이 테마 적용
 export function useThemeColors() {
-  const [theme, setTheme] = useState<string | null | undefined>(undefined)
-
-  useEffect(() => {
-    let active = true
-    ;(async () => {
-      const uid = await getCurrentUserId()
-      if (!uid) return
-      const profile = await getProfile(uid)
-      if (active) setTheme(profile?.theme)
-    })()
-    return () => { active = false }
-  }, [])
-
+  const theme = useThemeStore((s) => s.theme)
   return { themeColors: getThemeColors(theme), cardPalette: getThemeCardPalette(theme) }
 }

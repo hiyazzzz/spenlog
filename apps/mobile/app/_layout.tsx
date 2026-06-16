@@ -3,14 +3,18 @@ import { useEffect } from 'react';
 import { getCurrentUserId } from '@/lib/supabase';
 import { initRevenueCat } from '@/lib/revenuecat';
 import { AppThemeProvider } from '@/constants/theme';
+import { useThemeStore } from '@/store/themeStore';
 
 export default function RootLayout() {
+  const loadTheme = useThemeStore((s) => s.loadTheme);
+
   useEffect(() => {
+    loadTheme();
     (async () => {
       const uid = await getCurrentUserId();
       initRevenueCat(uid ?? undefined);
     })();
-  }, []);
+  }, [loadTheme]);
 
   return (
     <AppThemeProvider>

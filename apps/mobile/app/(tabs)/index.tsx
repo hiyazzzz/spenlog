@@ -9,10 +9,12 @@ import { getHomeData, type HomeData } from '@/lib/api/home';
 import { parseAiInput, addExpenses } from '@/lib/api/expenses';
 import HomeEditModal from '@/components/HomeEditModal';
 import SlideUpModal from '@/components/SlideUpModal';
+import { useThemeStore } from '@/store/themeStore';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { colors } = useAppTheme();
+  const setStoreTheme = useThemeStore((s) => s.setTheme);
   const [aiInput, setAiInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [data, setData] = useState<HomeData | null>(null);
@@ -38,7 +40,9 @@ export default function HomeScreen() {
         return;
       }
       setUserId(uid);
-      setData(await getHomeData(uid));
+      const homeData = await getHomeData(uid);
+      setData(homeData);
+      if (homeData?.profile?.theme) setStoreTheme(homeData.profile.theme);
     } catch (e) {
       setError(e instanceof Error ? e.message : '데이터를 불러오지 못했어요');
     } finally {

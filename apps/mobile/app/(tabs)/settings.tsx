@@ -10,6 +10,7 @@ import { COLORS, RADIUS, CARD_SHADOW, getThemeColors, useAppTheme } from '@/cons
 import { getCurrentUserId, supabase } from '@/lib/supabase';
 import { getProfile, updateTheme, updateName, updatePushSettings, updateGifAutoplay, type PushSettings } from '@/lib/api/settings';
 import { isPremiumUnlocked } from '@/lib/premium';
+import { useThemeStore } from '@/store/themeStore';
 import type { Theme, User } from '@spenlog/types';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://spenlog.vercel.app';
@@ -22,10 +23,11 @@ const BASIC_THEMES = [
 const PREMIUM_THEMES = [
   { key: 'Lavender', name: '라벤더', color: '#8E7CC3' },
   { key: 'Terracotta', name: '테라코타', color: '#C56C4E' },
-  { key: 'Oatmeal', name: '오트밀', color: '#B5A48C' },
+  { key: 'Oatmeal', name: '오트밀', color: '#B09070' },
   { key: 'WarmGray', name: '웜그레이', color: '#8C8479' },
-  { key: 'Midnight', name: '미드나잇', color: '#2E3A59' },
-  { key: 'Indigo', name: '인디고', color: '#4B5DA6' },
+  { key: 'WallGray', name: '월그레이', color: '#6B7A8D' },
+  { key: 'Midnight', name: '미드나잇', color: '#2C3E6B' },
+  { key: 'Indigo', name: '인디고', color: '#4B4DA6' },
 ];
 
 function Section({
@@ -72,6 +74,7 @@ function ToggleSwitch({
 export default function SettingsScreen() {
   const router = useRouter();
   const { isDark, setDarkMode: setAppDarkMode, colors } = useAppTheme();
+  const setStoreTheme = useThemeStore((s) => s.setTheme);
   const [profile, setProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTheme, setSelectedTheme] = useState<Theme>('Burgundy');
@@ -98,7 +101,10 @@ export default function SettingsScreen() {
       if (!userId) return;
       const result = await getProfile(userId);
       setProfile(result);
-      if (result?.theme) setSelectedTheme(result.theme);
+      if (result?.theme) {
+        setSelectedTheme(result.theme);
+        setStoreTheme(result.theme);
+      }
       if (result) {
         setGifAutoplay(result.gif_autoplay ?? true);
         setPushExpense(result.push_expense_reminder ?? true);
@@ -115,6 +121,7 @@ export default function SettingsScreen() {
 
   async function handleSelectTheme(theme: Theme) {
     setSelectedTheme(theme);
+    setStoreTheme(theme);
     const userId = await getCurrentUserId();
     if (!userId) return;
     await updateTheme(userId, theme);
