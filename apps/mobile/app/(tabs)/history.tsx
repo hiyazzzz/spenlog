@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import dayjs from 'dayjs';
 import { COLORS, RADIUS, formatCurrency, useThemeColors, getThemeColors, useAppTheme } from '@/constants/theme';
@@ -129,7 +129,7 @@ export default function HistoryScreen() {
   const selectedItems = selectedDate ? expenses.filter(e => e.date === selectedDate) : [];
 
   return (
-    <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" onScrollBeginDrag={Keyboard.dismiss}>
+    <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.headerRow}>
         <Text style={[styles.pageTitle, { color: themeColors.accent }]}>내역</Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -531,4 +531,7 @@ const styles = StyleSheet.create({
   calCell: { flex: 1, height: 52, alignItems: 'center', justifyContent: 'center', gap: 2 },
   calCellSelected: { backgroundColor: COLORS.primaryLight },
   calDayCircle: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  calDayText: { fontSize: 12, fontWeight: '500', color: 
+  calDayText: { fontSize: 12, fontWeight: '500', color: COLORS.gray700 },
+  calAmount: { fontSize: 9, fontWeight: '700', color: COLORS.red },
+  calIncomeDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: COLORS.green },
+});

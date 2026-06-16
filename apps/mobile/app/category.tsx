@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
@@ -140,27 +140,27 @@ export default function CategoryScreen() {
             ) : (
               <>
                 <Text style={styles.rowName}>{item.name}</Text>
-                {spent > 0 && <Text style={styles.rowSpent}>이번달 {formatCurrency(spent)}</Text>}
+                <Text style={styles.rowSpent}>이번달 {formatCurrency(spent)}</Text>
               </>
             )}
           </View>
 
           {isEditing ? (
             <View style={styles.rowActions}>
-              <TouchableOpacity style={styles.textBtn} onPress={confirmEdit} hitSlop={8}>
-                <Text style={styles.textBtnLabel}>완료</Text>
+              <TouchableOpacity style={styles.actionBtn} onPress={confirmEdit} hitSlop={8}>
+                <Ionicons name="checkmark" size={18} color={COLORS.primary} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.textBtnCancel} onPress={() => setEditingId(null)} hitSlop={8}>
-                <Text style={styles.textBtnCancelLabel}>취소</Text>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => setEditingId(null)} hitSlop={8}>
+                <Ionicons name="close" size={18} color={COLORS.gray400} />
               </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.rowActions}>
-              <TouchableOpacity style={styles.textBtn} onPress={() => startEdit(item)} hitSlop={8}>
-                <Text style={styles.textBtnLabel}>수정</Text>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => startEdit(item)} hitSlop={8}>
+                <Ionicons name="pencil" size={16} color={COLORS.gray400} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.textBtnDelete} onPress={() => handleDelete(item)} hitSlop={8}>
-                <Text style={styles.textBtnDeleteLabel}>삭제</Text>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(item)} hitSlop={8}>
+                <Ionicons name="trash-outline" size={16} color={COLORS.red} />
               </TouchableOpacity>
             </View>
           )}
@@ -170,7 +170,6 @@ export default function CategoryScreen() {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <View style={styles.screen}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} disabled={reordering}>
@@ -199,7 +198,7 @@ export default function CategoryScreen() {
           onDragEnd={handleDragEnd}
           contentContainerStyle={styles.content}
           ListHeaderComponent={
-            <Text style={styles.helperText}>드래그로 순서를 바꾸고, 탭해서 이름을 수정할 수 있어요.{'\n'}기본 카테고리도 수정·삭제 가능해요.</Text>
+            <Text style={styles.helperText}>드래그로 순서를 바꾸고, 연필을 눌러 이름을 수정할 수 있어요.</Text>
           }
           ListFooterComponent={
             <>
@@ -216,4 +215,91 @@ export default function CategoryScreen() {
                     onSubmitEditing={handleAdd}
                   />
                   <TouchableOpacity style={styles.confirmBtn} onPress={handleAdd} disabled={saving || !newName.trim()}>
-                    <Te
+                    <Text style={styles.confirmBtnText}>{saving ? '추가 중...' : '추가'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.cancelBtn} onPress={() => { setAdding(false); setNewName(''); }}>
+                    <Text style={styles.cancelBtnText}>취소</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity style={styles.addBtn} onPress={() => setAdding(true)}>
+                  <Text style={styles.addBtnText}>+ 카테고리 추가</Text>
+                </TouchableOpacity>
+              )}
+
+              {hidden.length > 0 && (
+                <>
+                  <Text style={[styles.sectionLabel, { marginTop: 20 }]}>숨긴 카테고리</Text>
+                  <View style={styles.chipRow}>
+                    {hidden.map(cat => (
+                      <TouchableOpacity key={cat.id} style={styles.hiddenChip} onPress={() => handleRestore(cat.id)}>
+                        <Text style={styles.hiddenChipText}>{cat.name} 복원</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+            </>
+          }
+        />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: COLORS.bg },
+  center: { alignItems: 'center', justifyContent: 'center' },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: 56, paddingHorizontal: 8, paddingBottom: 12,
+  },
+  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 16, fontWeight: '700', color: COLORS.gray800 },
+  content: { padding: 16, paddingBottom: 40 },
+  emptyText: { fontSize: 12, color: COLORS.gray400, textAlign: 'center', paddingVertical: 16 },
+
+  helperText: { fontSize: 11, color: COLORS.gray400, marginBottom: 12 },
+
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#fff', borderRadius: RADIUS.lg, padding: 12,
+    marginBottom: 8, borderWidth: 1, borderColor: COLORS.border,
+  },
+  rowActive: { opacity: 0.6, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+  dragHandle: { padding: 4 },
+  rowBody: { flex: 1 },
+  rowName: { fontSize: 14, fontWeight: '600', color: COLORS.gray800 },
+  rowSpent: { fontSize: 11, color: COLORS.gray400, marginTop: 2 },
+  editInput: {
+    borderWidth: 1.5, borderColor: COLORS.primaryLight, borderRadius: RADIUS.sm,
+    paddingHorizontal: 10, paddingVertical: 6, fontSize: 13, color: COLORS.gray800, backgroundColor: '#fff',
+  },
+  rowActions: { flexDirection: 'row', gap: 6 },
+  actionBtn: {
+    width: 30, height: 30, borderRadius: RADIUS.sm, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: COLORS.gray100,
+  },
+
+  sectionLabel: { fontSize: 11, fontWeight: '600', color: COLORS.gray400, marginBottom: 8 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+
+  hiddenChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: COLORS.gray100 },
+  hiddenChipText: { fontSize: 11, color: COLORS.gray400 },
+
+  addBtn: {
+    marginTop: 4, paddingVertical: 10, borderRadius: 999, alignItems: 'center',
+    borderWidth: 1.5, borderColor: COLORS.primaryLight, borderStyle: 'dashed',
+  },
+  addBtnText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
+
+  addRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 4 },
+  input: {
+    flex: 1, borderWidth: 1.5, borderColor: COLORS.primaryLight, borderRadius: RADIUS.md,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: COLORS.gray800, backgroundColor: '#fff',
+  },
+  confirmBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: RADIUS.md, backgroundColor: COLORS.primary },
+  confirmBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  cancelBtn: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border, backgroundColor: '#fff' },
+  cancelBtnText: { fontSize: 12, color: COLORS.gray500 },
+});
