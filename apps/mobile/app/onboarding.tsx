@@ -42,7 +42,7 @@ const THEME_LIST = [
 
 const DEFAULT_CATS = ['생활비', '고정비', '활동비', '수입'];
 
-const TOTAL_STEPS = 6; // 이름 / 테마 / 수입 / 목표 / 예산 / 카테고리
+const TOTAL_STEPS = 5; // 이름 / 테마 / 수입 / 목표 / 카테고리
 
 function formatNum(val: string) {
   const n = val.replace(/[^0-9]/g, '');
@@ -89,6 +89,8 @@ export default function OnboardingScreen() {
         await AsyncStorage.setItem('guest_nickname', finalName);
         await AsyncStorage.setItem('guest_income', String(incomeNum));
         await AsyncStorage.setItem('guest_saving_goal', String(goalNum));
+        await AsyncStorage.setItem('guest_categories', JSON.stringify(categories));
+        await AsyncStorage.setItem('guest_theme', theme);
         await AsyncStorage.setItem('guest_onboarding_completed', 'true');
         setStoreTheme(theme);
         setStep(TOTAL_STEPS + 1);
@@ -304,29 +306,6 @@ export default function OnboardingScreen() {
         )}
 
         {step === 5 && (
-          <>
-            <Text style={styles.stepTitle}>이번 달 지출 예산은요?</Text>
-            <Text style={styles.stepSubtitle}>전체 지출 한도를 설정해요 (선택)</Text>
-            <View style={styles.amountInputBox}>
-              <TextInput
-                style={styles.amountInput}
-                placeholder={incomeNum > 0 ? String(Math.max(incomeNum - goalNum, 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '0'}
-                placeholderTextColor={COLORS.gray400}
-                keyboardType="numeric"
-                value={formatNum(budget)}
-                onChangeText={v => setBudget(v.replace(/[^0-9]/g, ''))}
-              />
-              <Text style={styles.amountUnit}>원</Text>
-            </View>
-            {incomeNum > 0 && (
-              <Text style={[styles.helperText, { color: tc.primary }]}>
-                추천 예산: {formatCurrency(Math.max(incomeNum - goalNum, 0))}
-              </Text>
-            )}
-          </>
-        )}
-
-        {step === 6 && (
           <>
             <Text style={styles.stepTitle}>주로 어디에 돈을 쓰시나요?</Text>
             <Text style={styles.stepSubtitle}>관리할 카테고리를 선택해주세요</Text>

@@ -21,14 +21,17 @@ export default function TabLayout() {
     (async () => {
       const uid = await getCurrentUserId();
       if (!uid) {
-        // 게스트 모드: 온보딩 완료 여부 확인
-        setStoreTheme('Burgundy');
-        const guestDone = await AsyncStorage.getItem('guest_onboarding_completed');
-        if (!active) return;
-        if (!guestDone) {
-          router.replace('/onboarding');
-          return;
+        const { isGuest: isGuestMode } = useThemeStore.getState();
+        if (isGuestMode) {
+          // 게스트 모드: 온보딩 완료 여부 확인
+          const guestDone = await AsyncStorage.getItem('guest_onboarding_completed');
+          if (!active) return;
+          if (!guestDone) {
+            router.replace('/onboarding');
+            return;
+          }
         }
+        if (!active) return;
         setReady(true);
         return;
       }

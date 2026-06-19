@@ -1,7 +1,8 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import { COLORS, RADIUS, formatCurrency } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
@@ -9,6 +10,18 @@ import {
   ensureDefaultCategories, addCategory, renameCategory, hideCategory, restoreCategory,
   reorderCategories, getCategorySpending, type CategoryItem,
 } from '@/lib/api/categories';
+
+const GUEST_CATS_KEY = 'guest_categories';
+const DEFAULT_GUEST_CATS = ['생활비', '고정비', '활동비', '수입'];
+
+function makeGuestItem(name: string, idx: number): CategoryItem {
+  return { id: `guest_${name}_${idx}`, name, is_hidden: false, sort_order: idx, user_id: 'guest', color: null, is_default: false } as any;
+}
+
+async function saveGuestCats(cats: CategoryItem[]) {
+  const names = cats.filter(c => !c.is_hidden).map(c => c.name);
+  await AsyncStorage.setItem(GUEST_CATS_KEY, JSON.stringify(names));
+}
 
 export default function CategoryScreen() {
   const router = useRouter();
@@ -29,7 +42,11 @@ export default function CategoryScreen() {
       setError(null);
       const uid = await getCurrentUserId();
       if (!uid) {
-        setError('로그인이 필요해요');
+        // 게스트 모드: AsyncStorage에서 로드
+        const stored = await AsyncStorage.getItem(GUEST_CATS_KEY);
+        const names: string[] = stored ? JSON.parse(stored) : DEFAULT_GUEST_CATS;
+        setCategories(names.map(makeGuestItem));
+        setLoading(false);
         return;
       }
       setUserId(uid);
@@ -50,9 +67,18 @@ export default function CategoryScreen() {
 
   async function handleAdd() {
     const name = newName.trim();
-    if (!name || !userId || saving) return;
+    if (!name || saving) return;
     setSaving(true);
     try {
+      if (!userId) {
+        // 게스트 모드
+        const updated = [...categories, makeGuestItem(name, categories.length)];
+        setCategories(updated);
+        await saveGuestCats(updated);
+        setNewName('');
+        setAdding(false);
+        return;
+      }
       const { error: err } = await addCategory(userId, name);
       if (err) {
         Alert.alert('추가 실패', err.message);
@@ -74,6 +100,14 @@ export default function CategoryScreen() {
   async function confirmEdit() {
     const name = editName.trim();
     if (!editingId || !name) return;
+    if (!userId) {
+      // 게스트 모드
+      const updated = categories.map(c => c.id === editingId ? { ...c, name } : c);
+      setCategories(updated);
+      setEditingId(null);
+      await saveGuestCats(updated);
+      return;
+    }
     setEditingId(null);
     await renameCategory(editingId, name);
     await load();
@@ -84,6 +118,13 @@ export default function CategoryScreen() {
       { text: '취소', style: 'cancel' },
       {
         text: '삭제', style: 'destructive', onPress: async () => {
+          if (!userId) {
+            // 게스트 모드
+            const updated = categories.filter(c => c.id !== cat.id);
+            setCategories(updated);
+            await saveGuestCats(updated);
+            return;
+          }
           await hideCategory(cat.id);
           await load();
         },
@@ -92,6 +133,12 @@ export default function CategoryScreen() {
   }
 
   async function handleRestore(id: string) {
+    if (!userId) {
+      const updated = categories.map(c => c.id === id ? { ...c, is_hidden: false } : c);
+      setCategories(updated);
+      await saveGuestCats(updated);
+      return;
+    }
     await restoreCategory(id);
     await load();
   }
@@ -101,6 +148,10 @@ export default function CategoryScreen() {
       const hidden = prev.filter(c => c.is_hidden);
       return [...data, ...hidden];
     });
+    if (!userId) {
+      await saveGuestCats(data);
+      return;
+    }
     setReordering(true);
     try {
       const { error } = await reorderCategories(data.map((c, i) => ({ id: c.id, sort_order: i })));
@@ -140,27 +191,27 @@ export default function CategoryScreen() {
             ) : (
               <>
                 <Text style={styles.rowName}>{item.name}</Text>
-                <Text style={styles.rowSpent}>이번달 {formatCurrency(spent)}</Text>
+                {spent > 0 && <Text style={styles.rowSpent}>이번달 {formatCurrency(spent)}</Text>}
               </>
             )}
           </View>
 
           {isEditing ? (
             <View style={styles.rowActions}>
-              <TouchableOpacity style={styles.actionBtn} onPress={confirmEdit} hitSlop={8}>
-                <Ionicons name="checkmark" size={18} color={COLORS.primary} />
+              <TouchableOpacity style={styles.textBtn} onPress={confirmEdit} hitSlop={8}>
+                <Text style={styles.textBtnLabel}>완료</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => setEditingId(null)} hitSlop={8}>
-                <Ionicons name="close" size={18} color={COLORS.gray400} />
+              <TouchableOpacity style={styles.textBtnCancel} onPress={() => setEditingId(null)} hitSlop={8}>
+                <Text style={styles.textBtnCancelLabel}>취소</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.rowActions}>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => startEdit(item)} hitSlop={8}>
-                <Ionicons name="pencil" size={16} color={COLORS.gray400} />
+              <TouchableOpacity style={styles.textBtn} onPress={() => startEdit(item)} hitSlop={8}>
+                <Text style={styles.textBtnLabel}>수정</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(item)} hitSlop={8}>
-                <Ionicons name="trash-outline" size={16} color={COLORS.red} />
+              <TouchableOpacity style={styles.textBtnDelete} onPress={() => handleDelete(item)} hitSlop={8}>
+                <Text style={styles.textBtnDeleteLabel}>삭제</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -170,6 +221,7 @@ export default function CategoryScreen() {
   };
 
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <View style={styles.screen}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} disabled={reordering}>
@@ -198,7 +250,7 @@ export default function CategoryScreen() {
           onDragEnd={handleDragEnd}
           contentContainerStyle={styles.content}
           ListHeaderComponent={
-            <Text style={styles.helperText}>드래그로 순서를 바꾸고, 연필을 눌러 이름을 수정할 수 있어요.</Text>
+            <Text style={styles.helperText}>드래그로 순서를 바꾸고, 탭해서 이름을 수정할 수 있어요.{'\n'}기본 카테고리도 수정·삭제 가능해요.</Text>
           }
           ListFooterComponent={
             <>
@@ -244,6 +296,7 @@ export default function CategoryScreen() {
         />
       )}
     </View>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -276,10 +329,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 6, fontSize: 13, color: COLORS.gray800, backgroundColor: '#fff',
   },
   rowActions: { flexDirection: 'row', gap: 6 },
-  actionBtn: {
-    width: 30, height: 30, borderRadius: RADIUS.sm, alignItems: 'center', justifyContent: 'center',
+  textBtn: {
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6,
+    backgroundColor: '#EDE9FE',
+  },
+  textBtnLabel: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
+  textBtnDelete: {
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6,
+    backgroundColor: '#FEE2E2',
+  },
+  textBtnDeleteLabel: { fontSize: 12, fontWeight: '600', color: '#DC2626' },
+  textBtnCancel: {
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6,
     backgroundColor: COLORS.gray100,
   },
+  textBtnCancelLabel: { fontSize: 12, fontWeight: '600', color: COLORS.gray500 },
 
   sectionLabel: { fontSize: 11, fontWeight: '600', color: COLORS.gray400, marginBottom: 8 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

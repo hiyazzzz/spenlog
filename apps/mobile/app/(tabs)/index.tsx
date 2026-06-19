@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert, ImageBackground } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert, ImageBackground, Keyboard } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, getThemeColors, getThemeCardPalette, useAppTheme } from '@/constants/theme';
-import { getCurrentUserId } from '@/lib/supabase';
+import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, useAppTheme, useThemeColors } from '@/constants/theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getCurrentUserId, supabase } from '@/lib/supabase';
 import { getHomeData, type HomeData } from '@/lib/api/home';
 import { parseAiInput, addExpenses } from '@/lib/api/expenses';
 import HomeEditModal from '@/components/HomeEditModal';
@@ -14,6 +15,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { colors } = useAppTheme();
   const setStoreTheme = useThemeStore((s) => s.setTheme);
+  const { themeColors, cardPalette } = useThemeColors();
   const [aiInput, setAiInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [data, setData] = useState<HomeData | null>(null);
@@ -35,11 +37,57 @@ export default function HomeScreen() {
       setError(null);
       const uid = await getCurrentUserId();
       if (!uid) {
-        setError('로그인이 필요해요');
+        const { isGuest } = useThemeStore.getState();
+        if (isGuest) {
+          // 게스트 모드: AsyncStorage에서 프로필 로드
+          const [nickname, incomeStr, goalStr, catsJson, savedTheme] = await Promise.all([
+            AsyncStorage.getItem('guest_nickname'),
+            AsyncStorage.getItem('guest_income'),
+            AsyncStorage.getItem('guest_saving_goal'),
+            AsyncStorage.getItem('guest_categories'),
+            AsyncStorage.getItem('guest_theme'),
+          ]);
+          const catNames: string[] = catsJson
+            ? JSON.parse(catsJson)
+            : ['생활비', '고정비', '활동비', '수입'];
+          if (savedTheme) setStoreTheme(savedTheme);
+          setUserId(null);
+          setData({
+            profile: {
+              name: nickname ?? '소비요정',
+              income: parseInt(incomeStr ?? '0') || 0,
+              saving_goal: parseInt(goalStr ?? '0') || 0,
+              home_cover_url: null,
+              gif_autoplay: true,
+              category_img_url_1: null,
+              category_img_url_2: null,
+              category_img_url_3: null,
+              category_img_url_4: null,
+            },
+            expenses: [],
+            budgets: [],
+            categories: catNames.filter(n => n !== '수입').map(n => ({ name: n, color: null })),
+            fixedCosts: [],
+          } as unknown as HomeData);
+        } else {
+          // 비로그인 (게스트 아님): 환영 화면
+          setUserId(null);
+        }
         return;
       }
       setUserId(uid);
       const homeData = await getHomeData(uid);
+
+      // 탈퇴 처리된 계정 감지: 재가입 유도
+      if ((homeData?.profile as any)?.is_deleted) {
+        Alert.alert(
+          '탈퇴된 계정',
+          '이전에 탈퇴 처리된 계정이에요.\n새 계정으로 시작하려면 고객센터에 문의해 주세요.',
+          [{ text: '로그아웃', onPress: async () => { await supabase.auth.signOut(); router.replace('/login'); } }],
+        );
+        return;
+      }
+
       setData(homeData);
       if (homeData?.profile?.theme) setStoreTheme(homeData.profile.theme);
     } catch (e) {
@@ -95,10 +143,31 @@ export default function HomeScreen() {
     );
   }
 
-  if (error || !data) {
+  if (error) {
     return (
       <View style={[styles.screen, styles.center]}>
-        <Text style={styles.emptyText}>{error ?? '데이터를 불러오지 못했어요'}</Text>
+        <Text style={styles.emptyText}>{error}</Text>
+      </View>
+    );
+  }
+
+  // 게스트 모드: 로그인 유도 화면
+  if (!data) {
+    return (
+      <View style={[styles.screen, styles.center, { backgroundColor: colors.bg, gap: 20 }]}>
+        <Text style={{ fontSize: 48 }}>👋</Text>
+        <View style={{ alignItems: 'center', gap: 8 }}>
+          <Text style={{ fontSize: 20, fontWeight: '800', color: themeColors.primary }}>Spenlog에 오신 걸 환영해요</Text>
+          <Text style={{ fontSize: 13, color: COLORS.gray400, textAlign: 'center', lineHeight: 20 }}>
+            {'로그인하면 AI 가계부의\n모든 기능을 사용할 수 있어요'}
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={{ backgroundColor: themeColors.primary, paddingHorizontal: 36, paddingVertical: 14, borderRadius: RADIUS.lg }}
+          onPress={() => router.replace('/login')}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>로그인 / 회원가입</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -120,9 +189,6 @@ export default function HomeScreen() {
   allExpenses.filter(e => e.type !== 'income').forEach(e => {
     catMap[e.category] = (catMap[e.category] ?? 0) - e.amount;
   });
-
-  const themeColors = getThemeColors(data.profile?.theme);
-  const cardPalette = getThemeCardPalette(data.profile?.theme);
 
   const coverUrl = data.profile?.home_cover_url ?? null;
   const gifAutoplay = data.profile?.gif_autoplay ?? true;
@@ -165,7 +231,7 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>
-    <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" onScrollBeginDrag={Keyboard.dismiss}>
       {/* 커버 배너 */}
       {coverUrl ? (
         <ImageBackground
@@ -284,7 +350,7 @@ export default function HomeScreen() {
       <View style={[styles.card, { marginBottom: 24, backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.cardHeaderRow}>
           <Text style={[styles.cardTitle, { color: colors.gray800 }]}>최근 지출 내역</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
             <Text style={styles.linkText}>전체 보기 →</Text>
           </TouchableOpacity>
         </View>
