@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { COLORS, RADIUS, THEMES, formatCurrency, getThemeColors } from '@/constants/theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useThemeStore } from '@/store/themeStore';
 import { supabase } from '@/lib/supabase';
 import { completeOnboarding } from '@/lib/api/settings';
@@ -73,27 +74,39 @@ export default function OnboardingScreen() {
   const incomeNum = parseInt(income || '0') || 0;
   const goalNum = parseInt(goal || '0') || 0;
 
-  // ── 완료 처리: DB 저장 ──────────────────────
+  // ── 완료 처리 ──────────────────────────────
   async function finish() {
     setSaving(true);
     setSaveError('');
     try {
-      // auth.getUser() 직접 호출 → id + email 동시 획득 (email NOT NULL 제약 대응)
+      const finalName = name.trim() || '소비요정';
+      const month = new Date().toISOString().slice(0, 7);
+      const budgetNum = parseInt(budget || '0') || Math.max(incomeNum - goalNum, 0);
+
+      // 게스트 모드: AsyncStorage에만 저장, DB 스킵
+      const { isGuest } = useThemeStore.getState();
+      if (isGuest) {
+        await AsyncStorage.setItem('guest_nickname', finalName);
+        await AsyncStorage.setItem('guest_income', String(incomeNum));
+        await AsyncStorage.setItem('guest_saving_goal', String(goalNum));
+        await AsyncStorage.setItem('guest_onboarding_completed', 'true');
+        setStoreTheme(theme);
+        setStep(TOTAL_STEPS + 1);
+        return;
+      }
+
+      // 로그인 유저: auth.getUser() 직접 호출 → id + email 동시 획득
       const { data: { user }, error: authErr } = await supabase.auth.getUser();
       if (authErr || !user) throw new Error('로그인 필요');
       const uid = user.id;
       const email = user.email ?? '';
-
-      const finalName = name.trim() || '소비요정';
-      const month = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
-      const budgetNum = parseInt(budget || '0') || Math.max(incomeNum - goalNum, 0);
 
       // 1. users 테이블 upsert + Zustand store 동기화 (email 포함)
       await supabase.from('users').upsert(
         { id: uid, email, name: finalName, income: incomeNum, saving_goal: goalNum, theme, onboarding_completed: true },
         { onConflict: 'id' },
       );
-      setStoreTheme(theme); // 앱 전체에 즉시 반영
+      setStoreTheme(theme);
 
       // 2. 카테고리별 예산 (지출 카테고리만)
       const spendCats = categories.filter(c => c !== '수입');

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } fr
 import { useRouter } from 'expo-router';
 import { COLORS, RADIUS } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+import { useThemeStore } from '@/store/themeStore';
 
 let WebBrowser: any = null;
 let AuthSession: any = null;
@@ -17,7 +18,10 @@ try {
   // expo-web-browser / expo-auth-session 미설치 - 구글 로그인 비활성화
 }
 
-const redirectTo = AuthSession?.makeRedirectUri();
+// Expo Go: exp://IP:port/--/ 반환 (spenlog:// 아님)
+// 개발 빌드(expo run:ios/android): spenlog:// 반환
+const redirectTo = AuthSession?.makeRedirectUri({ scheme: 'spenlog' });
+console.log('[Google OAuth] redirectTo:', redirectTo);
 
 async function createSessionFromUrl(url: string) {
   if (!QueryParams) return null;
@@ -38,6 +42,8 @@ async function createSessionFromUrl(url: string) {
 
 export default function LoginScreen() {
   const router = useRouter();
+  const setStoreTheme = useThemeStore(s => s.setTheme);
+  const setIsGuest = useThemeStore(s => s.setIsGuest);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -119,7 +125,13 @@ export default function LoginScreen() {
 
         <TouchableOpacity
           style={styles.guestBtn}
-          onPress={() => router.replace('/(tabs)')}
+          onPress={async () => {
+            // 이전 세션 완전 초기화 후 게스트로 진입
+            await supabase.auth.signOut();
+            setStoreTheme('Burgundy');
+            setIsGuest(true);
+            router.replace('/onboarding');
+          }}
           activeOpacity={0.8}
         >
           <Text style={styles.guestBtnText}>게스트로 둘러보기</Text>
