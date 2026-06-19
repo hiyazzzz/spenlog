@@ -40,7 +40,7 @@ const THEME_LIST = [
   { key: 'Sage', name: '세이지', color: '#7C9070' },
 ];
 
-const DEFAULT_CATS = ['생활비', '고정비', '활동비', '수입'];
+const DEFAULT_CATS = ['생활비', '고정비', '활동비', '친목비', '수입'];
 
 const TOTAL_STEPS = 5; // 이름 / 테마 / 수입 / 목표 / 카테고리
 

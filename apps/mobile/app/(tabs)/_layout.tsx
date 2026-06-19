@@ -30,6 +30,9 @@ export default function TabLayout() {
             router.replace('/onboarding');
             return;
           }
+          // 테마 복원 (앱 재시작 시에도 guest_theme 우선 적용)
+          const guestTheme = await AsyncStorage.getItem('guest_theme');
+          if (guestTheme && active) setStoreTheme(guestTheme);
         }
         if (!active) return;
         setReady(true);

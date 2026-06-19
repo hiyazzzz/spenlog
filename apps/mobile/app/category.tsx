@@ -12,7 +12,7 @@ import {
 } from '@/lib/api/categories';
 
 const GUEST_CATS_KEY = 'guest_categories';
-const DEFAULT_GUEST_CATS = ['생활비', '고정비', '활동비', '수입'];
+const DEFAULT_GUEST_CATS = ['생활비', '고정비', '활동비', '친목비', '수입'];
 
 function makeGuestItem(name: string, idx: number): CategoryItem {
   return { id: `guest_${name}_${idx}`, name, is_hidden: false, sort_order: idx, user_id: 'guest', color: null, is_default: false } as any;

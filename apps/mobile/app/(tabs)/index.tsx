@@ -49,7 +49,7 @@ export default function HomeScreen() {
           ]);
           const catNames: string[] = catsJson
             ? JSON.parse(catsJson)
-            : ['생활비', '고정비', '활동비', '수입'];
+            : ['생활비', '고정비', '활동비', '친목비', '수입'];
           if (savedTheme) setStoreTheme(savedTheme);
           setUserId(null);
           setData({
