@@ -15,12 +15,22 @@ const PRESETS = [
 function presetAmounts(income: number, categories: string[], preset: typeof PRESETS[number]): Record<string, number> {
   const targetSave = Math.round(income * preset.savingRate);
   const spendBudget = income - targetSave;
+  // 수입 제외 (호출 시 이미 필터됐을 수 있으나 이중 방어)
   const spendCats = categories.filter(c => c !== '수입');
+  if (spendCats.length === 0) return {};
+
+  // 각 카테고리에 raw 비율 부여
   const knownRatio = spendCats.filter(c => c in preset.dist).reduce((s, c) => s + (preset.dist[c] ?? 0), 0);
   const unknownCats = spendCats.filter(c => !(c in preset.dist));
   const unknownRatio = unknownCats.length > 0 ? Math.max(0, 1 - knownRatio) / unknownCats.length : 0;
+  const rawRatios: Record<string, number> = Object.fromEntries(
+    spendCats.map(cat => [cat, cat in preset.dist ? (preset.dist[cat] ?? 0) : unknownRatio])
+  );
+
+  // 합계로 정규화 → ON 카테고리만 전달받으면 자동으로 100% 채움
+  const totalRatio = Object.values(rawRatios).reduce((s, r) => s + r, 0);
   return Object.fromEntries(
-    spendCats.map(cat => [cat, Math.round(spendBudget * (cat in preset.dist ? (preset.dist[cat] ?? 0) : unknownRatio))])
+    spendCats.map(cat => [cat, totalRatio > 0 ? Math.round(spendBudget * rawRatios[cat] / totalRatio) : 0])
   );
 }
 
@@ -143,9 +153,9 @@ export default function BudgetScreen() {
         Alert.alert('로그인이 필요해요');
         return;
       }
-      const planEnabled = Object.fromEntries(categories.map(c => [c, true]));
+      // OFF 카테고리는 유지 — enabledCats 그대로 전달
       const planAmountStrings = Object.fromEntries(categories.map(c => [c, String(planAmounts[c] ?? 0)]));
-      await saveBudgets(userId, monthString(), categories, planEnabled, planAmountStrings, 'ai');
+      await saveBudgets(userId, monthString(), categories, enabledCats, planAmountStrings, 'ai');
       Alert.alert('저장 완료', '예산이 저장됐어요');
       setSelectedPreset(null);
       setAiAmounts(null);
@@ -212,6 +222,33 @@ export default function BudgetScreen() {
             )}
           </TouchableOpacity>
 
+          {/* 저축 분석 — 프리셋 선택 시 */}
+          {selectedPreset && income > 0 && !aiAmounts && (() => {
+            const preset = PRESETS.find(p => p.key === selectedPreset);
+            if (!preset) return null;
+            const targetSave = Math.round(income * preset.savingRate);
+            const addSave = Math.max(0, targetSave - (data?.fixedSavings ?? 0));
+            return (
+              <View style={styles.savingAnalysisBox}>
+                <Text style={styles.savingAnalysisTitle}>💰 저축 플랜</Text>
+                <View style={styles.savingAnalysisRow}>
+                  <Text style={styles.savingAnalysisLabel}>목표 저축</Text>
+                  <Text style={[styles.savingAnalysisValue, { color: COLORS.green }]}>{formatCurrency(targetSave)}</Text>
+                </View>
+                {(data?.fixedSavings ?? 0) > 0 && (
+                  <View style={styles.savingAnalysisRow}>
+                    <Text style={styles.savingAnalysisLabel}>고정저축 (확보됨)</Text>
+                    <Text style={styles.savingAnalysisMuted}>{formatCurrency(data!.fixedSavings)}</Text>
+                  </View>
+                )}
+                <View style={[styles.savingAnalysisRow, styles.savingAnalysisDivider]}>
+                  <Text style={styles.savingAnalysisLabel}>추가 저축 필요</Text>
+                  <Text style={[styles.savingAnalysisValue, { color: COLORS.green, fontWeight: '800' }]}>{formatCurrency(addSave)}</Text>
+                </View>
+              </View>
+            );
+          })()}
+
           {aiAmounts && (
             <View style={styles.aiResultBox}>
               {aiReason && <Text style={styles.aiReasonText}>{aiReason}</Text>}
@@ -231,7 +268,11 @@ export default function BudgetScreen() {
           ) : selectedPreset ? (
             <TouchableOpacity
               style={[styles.saveBtn, { backgroundColor: themeColors.primary }]}
-              onPress={() => handleSavePlan(presetAmounts(income, categories, PRESETS.find(p => p.key === selectedPreset)!))}
+              onPress={() => {
+                // OFF 카테고리 제외하고 정규화된 비율로 배분
+                const activeCats = categories.filter(c => c !== '수입' && enabledCats[c]);
+                handleSavePlan(presetAmounts(income, activeCats, PRESETS.find(p => p.key === selectedPreset)!));
+              }}
               disabled={savingAiPlan}
             >
               <Text style={styles.saveBtnText}>{savingAiPlan ? '저장 중...' : '이 플랜으로 저장하기'}</Text>
@@ -268,22 +309,21 @@ export default function BudgetScreen() {
           )}
 
           <View style={{ gap: 12, marginTop: 12 }}>
-            {categories.map(cat => {
+            {/* ON 카테고리만 표시 */}
+            {categories.filter(cat => enabledCats[cat]).map(cat => {
               const spent = expenses.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0);
               const budget = parseInt(amounts[cat] || '0') || 0;
               const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0;
               const over = spent > budget && budget > 0;
-              const enabled = enabledCats[cat];
 
               return (
-                <View key={cat} style={[styles.budgetItem, !enabled && { opacity: 0.45 }]}>
+                <View key={cat} style={styles.budgetItem}>
                   <View style={styles.budgetItemRow}>
                     <Text style={[styles.budgetItemLabel, { color: themeColors.accent }]}>{cat}</Text>
                     <View style={styles.budgetInputBox}>
                       <TextInput
                         style={styles.budgetInput}
                         keyboardType="numeric"
-                        editable={enabled}
                         placeholder="0"
                         placeholderTextColor={COLORS.gray400}
                         value={amounts[cat] ? Number(amounts[cat]).toLocaleString() : ''}
@@ -292,8 +332,8 @@ export default function BudgetScreen() {
                       <Text style={styles.budgetInputUnit}>원</Text>
                     </View>
                     <Switch
-                      value={enabled}
-                      onValueChange={() => setEnabledCats(prev => ({ ...prev, [cat]: !prev[cat] }))}
+                      value={true}
+                      onValueChange={() => setEnabledCats(prev => ({ ...prev, [cat]: false }))}
                       trackColor={{ false: COLORS.gray300, true: themeColors.primary }}
                       thumbColor="#fff"
                     />
@@ -320,6 +360,24 @@ export default function BudgetScreen() {
                 </View>
               );
             })}
+
+            {/* OFF 카테고리 — 추가 버튼으로 표시 */}
+            {categories.filter(cat => !enabledCats[cat]).length > 0 && (
+              <View style={styles.offCatsSection}>
+                <Text style={[styles.offCatsSectionLabel, { color: colors.gray400 }]}>비활성 카테고리</Text>
+                <View style={styles.offCatsRow}>
+                  {categories.filter(cat => !enabledCats[cat]).map(cat => (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[styles.offCatChip, { borderColor: colors.border }]}
+                      onPress={() => setEnabledCats(prev => ({ ...prev, [cat]: true }))}
+                    >
+                      <Text style={[styles.offCatChipText, { color: colors.gray400 }]}>+ {cat}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
           </View>
 
           <TouchableOpacity style={[styles.saveBtn, { marginTop: 20 }]} onPress={handleSave} disabled={saving}>
@@ -396,4 +454,24 @@ const styles = StyleSheet.create({
   progressBgSmall: { backgroundColor: COLORS.gray100, borderRadius: 4, height: 4, overflow: 'hidden', marginBottom: 3 },
   budgetProgressFooter: { flexDirection: 'row', justifyContent: 'space-between' },
   budgetProgressText: { fontSize: 10, color: COLORS.gray400 },
+
+  offCatsSection: { marginTop: 8 },
+  offCatsSectionLabel: { fontSize: 11, marginBottom: 8 },
+  offCatsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  offCatChip: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
+    borderWidth: 1, borderStyle: 'dashed' as const,
+  },
+  offCatChipText: { fontSize: 12, fontWeight: '600' },
+
+  savingAnalysisBox: {
+    backgroundColor: 'rgba(16,185,129,0.08)', borderRadius: RADIUS.md,
+    padding: 12, marginBottom: 12,
+  },
+  savingAnalysisTitle: { fontSize: 12, fontWeight: '700', color: '#059669', marginBottom: 8 },
+  savingAnalysisRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
+  savingAnalysisLabel: { fontSize: 12, color: COLORS.gray500 },
+  savingAnalysisValue: { fontSize: 12, fontWeight: '700', color: COLORS.green },
+  savingAnalysisMuted: { fontSize: 12, color: COLORS.gray600 },
+  savingAnalysisDivider: { borderTopWidth: 1, borderTopColor: 'rgba(16,185,129,0.2)', marginTop: 4, paddingTop: 6 },
 });
