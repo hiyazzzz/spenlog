@@ -4,9 +4,7 @@ import SlideUpModal from '@/components/SlideUpModal';
 import { useFocusEffect } from 'expo-router';
 import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, useThemeColors, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
-import { getFixedCostsData, addFixedCost, editFixedCost, deleteFixedCost, type FixedCostsData } from '@/lib/api/fixed-costs';
-import { getPaidIds, recordFixedCostPayment } from '@/lib/api/routine';
-import { monthString } from '@/lib/date';
+import { getFixedCostsData, addFixedCost, deleteFixedCost, type FixedCostsData } from '@/lib/api/fixed-costs';
 
 const KINDS = ['고정지출', '고정저축'] as const;
 const TYPES = ['월정액', '연정액', '기타'] as const;
@@ -83,18 +81,6 @@ export default function FixedCostsScreen() {
   const [creditAccountId, setCreditAccountId] = useState<string | null>(null);
   const [activePicker, setActivePicker] = useState<'linked' | 'debit' | 'credit' | null>(null);
 
-  // 루틴 기록 상태
-  const [paidIds, setPaidIds] = useState<Set<string>>(new Set());
-  const [processing, setProcessing] = useState<string | null>(null);
-  const [routineToast, setRoutineToast] = useState('');
-
-  // 수정 상태
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editAmount, setEditAmount] = useState('');
-  const [editDueDay, setEditDueDay] = useState('');
-  const [editSaving, setEditSaving] = useState(false);
-
   const load = useCallback(async () => {
     try {
       setError(null);
@@ -103,12 +89,7 @@ export default function FixedCostsScreen() {
         setError('로그인이 필요해요');
         return;
       }
-      const [fcData, { fixedCostIds }] = await Promise.all([
-        getFixedCostsData(userId),
-        getPaidIds(userId, monthString()),
-      ]);
-      setData(fcData);
-      setPaidIds(fixedCostIds);
+      setData(await getFixedCostsData(userId));
     } catch (e) {
       setError(e instanceof Error ? e.message : '데이터를 불러오지 못했어요');
     } finally {
@@ -216,56 +197,9 @@ export default function FixedCostsScreen() {
     ]);
   }
 
-  async function handleRecord(item: FixedCostsData['fixedCosts'][number]) {
-    const userId = await getCurrentUserId();
-    if (!userId || processing) return;
-    setProcessing(item.id);
-    try {
-      await recordFixedCostPayment(userId, item, monthString());
-      setPaidIds(prev => new Set(prev).add(item.id));
-      setRoutineToast(`${item.name} 기록 완료 ✓`);
-      setTimeout(() => setRoutineToast(''), 2000);
-    } finally {
-      setProcessing(null);
-    }
-  }
-
-  function startEdit(item: FixedCostsData['fixedCosts'][number]) {
-    setEditingId(item.id);
-    setEditName(item.name);
-    setEditAmount(String(item.amount));
-    setEditDueDay(item.due_day != null ? String(item.due_day) : '');
-  }
-
-  async function handleSaveEdit() {
-    if (!editingId || editSaving) return;
-    const parsedAmt = parseInt(editAmount) || 0;
-    if (!editName.trim() || parsedAmt <= 0) return;
-    setEditSaving(true);
-    try {
-      await editFixedCost(editingId, {
-        name: editName.trim(),
-        amount: parsedAmt,
-        due_day: editDueDay ? parseInt(editDueDay) : null,
-      });
-      setEditingId(null);
-      await load();
-    } finally {
-      setEditSaving(false);
-    }
-  }
-
-  const today = new Date().getDate();
-
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <View style={{ flex: 1 }}>
-      {/* 토스트 (ScrollView 바깥, 화면 상단에 고정) */}
-      {!!routineToast && (
-        <View style={styles.toast}>
-          <Text style={styles.toastText}>{routineToast}</Text>
-        </View>
-      )}
     <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={[styles.pageTitle, { color: themeColors.accent }]}>고정비</Text>
       <Text style={styles.pageSubtitle}>매달 반복되는 지출과 저축을 관리해요</Text>
@@ -282,22 +216,6 @@ export default function FixedCostsScreen() {
           <Text style={styles.totalValueGreen}>{formatCurrency(savingTotal)}</Text>
         </View>
       </View>
-
-      {/* 이번 달 미처리 배너 */}
-      {fixedCosts.length > 0 && (() => {
-        const pending = fixedCosts.filter(f => !paidIds.has(f.id));
-        if (pending.length === 0) return (
-          <View style={[styles.routineBanner, styles.routineBannerDone]}>
-            <Text style={styles.routineBannerDoneText}>🎉 이번 달 모두 기록 완료!</Text>
-          </View>
-        );
-        return (
-          <View style={styles.routineBanner}>
-            <Text style={styles.routineBannerText}>📋 이번 달 미처리 {pending.length}건 · {formatCurrency(pending.reduce((s, f) => s + f.amount, 0))}</Text>
-            <Text style={styles.routineBannerSub}>각 항목에서 '기록' 버튼을 눌러 이달 지출을 기록하세요</Text>
-          </View>
-        );
-      })()}
 
       {/* KINDS 탭 */}
       <View style={styles.tabBar}>
@@ -323,14 +241,224 @@ export default function FixedCostsScreen() {
         {items.length === 0 ? (
           <Text style={styles.emptyText}>등록된 {kind}이 없어요</Text>
         ) : (
-          items.map((item, i) => {
-            const paid = paidIds.has(item.id);
-            const overdue = item.due_day != null && today > item.due_day && !paid;
-            if (editingId === item.id) {
-              return (
-                <View key={item.id} style={[styles.itemRow, i === 0 && { borderTopWidth: 0 }, { flexDirection: 'column', alignItems: 'stretch', gap: 8 }]}>
-                  <TextInput
-                    style={styles.input}
-                    value={editName}
-                    onChangeText={setEditName}
-            
+          items.map((item, i) => (
+            <View key={item.id} style={[styles.itemRow, i === 0 && { borderTopWidth: 0 }]}>
+              <View>
+                <Text style={styles.itemName}>{item.name}</Text>
+                <Text style={styles.itemMeta}>{item.type} · 매월 {item.due_day}일</Text>
+              </View>
+              <View style={styles.itemRight}>
+                <Text style={kind === '고정지출' ? [styles.itemAmount, { color: themeColors.accent }] : styles.itemAmountGreen}>
+                  {formatCurrency(item.amount)}
+                </Text>
+                <TouchableOpacity style={styles.deleteBtn} onPress={() => confirmDelete(item.id, item.name)}>
+                  <Text style={styles.deleteBtnText}>삭제</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))
+        )}
+
+        {/* 추가 폼 */}
+        {showAddForm ? (
+          <View style={styles.addForm}>
+            <TextInput
+              style={styles.input}
+              placeholder="항목 이름"
+              placeholderTextColor={COLORS.gray400}
+              value={name}
+              onChangeText={setName}
+            />
+            <View style={styles.inputRow}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                placeholder="금액"
+                placeholderTextColor={COLORS.gray400}
+                keyboardType="numeric"
+                value={amount}
+                onChangeText={v => setAmount(v.replace(/[^0-9]/g, ''))}
+              />
+              <TextInput
+                style={[styles.input, { width: 90 }]}
+                placeholder="납부일"
+                placeholderTextColor={COLORS.gray400}
+                keyboardType="numeric"
+                value={dueDay}
+                onChangeText={v => setDueDay(v.replace(/[^0-9]/g, ''))}
+              />
+            </View>
+            <View style={styles.typeRow}>
+              {TYPES.map(t => (
+                <TouchableOpacity
+                  key={t}
+                  style={[styles.typeChip, type === t && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
+                  onPress={() => setType(t)}
+                >
+                  <Text style={[styles.typeChipText, type === t && styles.typeChipTextActive]}>{t}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {kind === '고정지출' ? (
+              <SelectField
+                label="연결 계좌/카드"
+                placeholder="선택 안 함"
+                value={linkedAccountId ? selectedLabel(accountOptions, linkedAccountId)
+                  : linkedCardId ? selectedLabel(linkedOptions, linkedCardId) : null}
+                onPress={() => setActivePicker('linked')}
+                color={themeColors.accent}
+              />
+            ) : (
+              <>
+                <SelectField
+                  label="출금 계좌"
+                  placeholder="선택 안 함"
+                  value={selectedLabel(accountOptions, debitAccountId)}
+                  onPress={() => setActivePicker('debit')}
+                  color={themeColors.accent}
+                />
+                <SelectField
+                  label="입금 계좌 (적금 계좌)"
+                  placeholder="선택 안 함"
+                  value={selectedLabel(accountOptions, creditAccountId)}
+                  onPress={() => setActivePicker('credit')}
+                  color={themeColors.accent}
+                />
+              </>
+            )}
+
+            <View style={styles.formBtnRow}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={resetForm}>
+                <Text style={styles.cancelBtnText}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmBtn, { backgroundColor: themeColors.primary }, (!name.trim() || !amount || saving) && { opacity: 0.5 }]}
+                onPress={handleAdd}
+                disabled={!name.trim() || !amount || saving}
+              >
+                <Text style={styles.confirmBtnText}>{saving ? '추가 중...' : '추가'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={[styles.addBtn, kind === '고정저축' ? styles.addBtnGreen : { backgroundColor: themeColors.primaryLight }]}
+            onPress={() => setShowAddForm(true)}
+          >
+            <Text style={[styles.addBtnText, kind === '고정저축' ? styles.addBtnTextGreen : { color: themeColors.primary }]}>
+              + {kind} 추가
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <SelectModal
+        visible={activePicker === 'linked'}
+        title="연결 계좌/카드"
+        options={linkedOptions}
+        onSelect={handleLinkedSelect}
+        onClose={() => setActivePicker(null)}
+      />
+      <SelectModal
+        visible={activePicker === 'debit'}
+        title="출금 계좌"
+        options={accountOptions}
+        onSelect={opt => { setDebitAccountId(opt?.id ?? null); setActivePicker(null); }}
+        onClose={() => setActivePicker(null)}
+      />
+      <SelectModal
+        visible={activePicker === 'credit'}
+        title="입금 계좌 (적금 계좌)"
+        options={accountOptions}
+        onSelect={opt => { setCreditAccountId(opt?.id ?? null); setActivePicker(null); }}
+        onClose={() => setActivePicker(null)}
+      />
+    </ScrollView>
+    </View>
+    </TouchableWithoutFeedback>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: COLORS.bg },
+  center: { alignItems: 'center', justifyContent: 'center' },
+  content: { padding: 16, paddingTop: 56, paddingBottom: 40 },
+  pageTitle: { fontSize: 18, fontWeight: '600', color: COLORS.accent, marginBottom: 4 },
+  pageSubtitle: { fontSize: 12, color: COLORS.gray400, marginBottom: 16 },
+
+  totalCard: {
+    backgroundColor: '#fff', borderRadius: RADIUS.lg, borderWidth: 1, borderColor: '#f3f4f6',
+    padding: 18, marginBottom: 16, ...CARD_SHADOW,
+  },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
+  totalLabel: { fontSize: 13, fontWeight: '600', color: COLORS.gray500 },
+  totalValue: { fontSize: 18, fontWeight: '800', color: COLORS.accent },
+  totalValueGreen: { fontSize: 18, fontWeight: '800', color: COLORS.green },
+  totalDivider: { height: 1, backgroundColor: COLORS.gray50 },
+
+  tabBar: { flexDirection: 'row', backgroundColor: '#F0EAEC', borderRadius: RADIUS.lg, padding: 4, gap: 4, marginBottom: 12 },
+  tabBtn: { flex: 1, paddingVertical: 8, borderRadius: RADIUS.md, alignItems: 'center' },
+  tabBtnActive: { backgroundColor: COLORS.primary },
+  tabBtnText: { fontSize: 13, fontWeight: '600', color: '#B8A8AC' },
+  tabBtnTextActive: { color: '#fff' },
+
+  card: { backgroundColor: '#fff', borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.gray100, padding: 16 },
+  emptyText: { fontSize: 12, color: COLORS.gray400, textAlign: 'center', paddingVertical: 16 },
+
+  itemRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 12, borderTopWidth: 1, borderTopColor: COLORS.gray50,
+  },
+  itemName: { fontSize: 14, fontWeight: '600', color: COLORS.gray800 },
+  itemMeta: { fontSize: 11, color: COLORS.gray400, marginTop: 2 },
+  itemRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  itemAmount: { fontSize: 14, fontWeight: '700', color: COLORS.accent },
+  itemAmountGreen: { fontSize: 14, fontWeight: '700', color: COLORS.green },
+  deleteBtn: { backgroundColor: COLORS.redBg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  deleteBtnText: { fontSize: 11, color: COLORS.red },
+
+  addBtn: {
+    marginTop: 12, paddingVertical: 12, borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primaryLight, alignItems: 'center',
+  },
+  addBtnText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
+  addBtnGreen: { backgroundColor: COLORS.greenBg },
+  addBtnTextGreen: { color: '#059669' },
+
+  addForm: { marginTop: 12, gap: 8 },
+  input: {
+    borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.md,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: COLORS.gray800,
+    backgroundColor: '#fafafa',
+  },
+  inputRow: { flexDirection: 'row', gap: 8 },
+  typeRow: { flexDirection: 'row', gap: 6 },
+  typeChip: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
+    borderWidth: 1, borderColor: COLORS.border, backgroundColor: '#fafafa',
+  },
+  typeChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  typeChipText: { fontSize: 12, color: COLORS.gray500 },
+  typeChipTextActive: { color: '#fff', fontWeight: '600' },
+  formBtnRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  cancelBtn: { flex: 1, paddingVertical: 10, borderRadius: RADIUS.md, backgroundColor: COLORS.gray100, alignItems: 'center' },
+  cancelBtnText: { fontSize: 13, fontWeight: '600', color: COLORS.gray500 },
+  confirmBtn: { flex: 1, paddingVertical: 10, borderRadius: RADIUS.md, backgroundColor: COLORS.primary, alignItems: 'center' },
+  confirmBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+  fieldLabel: { fontSize: 11, fontWeight: '600', color: COLORS.gray500, marginBottom: 4 },
+  selectField: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.md,
+    paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#fafafa',
+  },
+  selectFieldText: { fontSize: 13, fontWeight: '600' },
+  selectFieldPlaceholder: { fontSize: 13, color: COLORS.gray400 },
+  selectFieldChevron: { fontSize: 12, color: COLORS.gray400 },
+
+  modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: RADIUS.lg, borderTopRightRadius: RADIUS.lg, padding: 16 },
+  modalTitle: { fontSize: 14, fontWeight: '700', color: COLORS.gray800, marginBottom: 8 },
+  modalOption: { paddingVertical: 12, borderTopWidth: 1, borderTopColor: COLORS.gray50 },
+  modalOptionText: { fontSize: 13, color: COLORS.gray800 },
+  modalOptionTextMuted: { fontSize: 13, color: COLORS.gray400 },
+});

@@ -1,0 +1,22 @@
+{
+  "name": "Spenlog",
+  "short_name": "Spenlog",
+  "description": "AI가 분류해주는 핀터레스트 감성 가계부",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF7F4",
+  "theme_color": "#6B1E2E",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
