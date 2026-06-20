@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import dayjs from 'dayjs';
 import { COLORS, RADIUS, formatCurrency, useThemeColors, getThemeColors, useAppTheme } from '@/constants/theme';
@@ -129,15 +129,26 @@ export default function HistoryScreen() {
   const selectedItems = selectedDate ? expenses.filter(e => e.date === selectedDate) : [];
 
   return (
-    <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" onScrollBeginDrag={Keyboard.dismiss}>
       <View style={styles.headerRow}>
         <Text style={[styles.pageTitle, { color: themeColors.accent }]}>내역</Text>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <View style={styles.viewSegment}>
+            <TouchableOpacity
+              style={[styles.viewSegmentBtn, view === 'list' && { backgroundColor: themeColors.primary }]}
+              onPress={() => setView('list')}
+            >
+              <Text style={[styles.viewSegmentText, view === 'list' && styles.viewSegmentTextActive]}>≡ 리스트</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewSegmentBtn, view === 'calendar' && { backgroundColor: themeColors.primary }]}
+              onPress={() => setView('calendar')}
+            >
+              <Text style={[styles.viewSegmentText, view === 'calendar' && styles.viewSegmentTextActive]}>🗓 캘린더</Text>
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity style={[styles.addCircleBtn, { backgroundColor: themeColors.primary }]} onPress={() => router.push('/add')}>
             <Text style={styles.addCircleBtnText}>+</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.viewToggleBtn} onPress={() => setView(v => v === 'list' ? 'calendar' : 'list')}>
-            <Text style={{ fontSize: 14 }}>{view === 'list' ? '🗓' : '≡'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -457,6 +468,10 @@ const styles = StyleSheet.create({
   addCircleBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
   addCircleBtnText: { color: '#fff', fontSize: 18, fontWeight: '700', lineHeight: 20 },
   viewToggleBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.gray200, alignItems: 'center', justifyContent: 'center' },
+  viewSegment: { flexDirection: 'row', backgroundColor: '#F0EAEC', borderRadius: 20, padding: 3, gap: 2 },
+  viewSegmentBtn: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  viewSegmentText: { fontSize: 12, fontWeight: '600', color: '#B8A8AC' },
+  viewSegmentTextActive: { color: '#fff' },
 
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8,

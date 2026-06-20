@@ -537,7 +537,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.bg },
   center: { alignItems: 'center', justifyContent: 'center' },
-  content: { padding: 16, paddingTop: 56, gap: 12 },
+  content: { padding: 16, paddingTop: 0, gap: 12 },
 
   cover: {
     height: 200,
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.12)',
   },
   coverEditBtn: {
-    position: 'absolute', top: 14, right: 14, zIndex: 10,
+    position: 'absolute', top: 48, right: 14, zIndex: 10,
     backgroundColor: 'rgba(255,255,255,0.18)',
     borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.40)',
     borderRadius: 20, paddingHorizontal: 14, paddingVertical: 5,

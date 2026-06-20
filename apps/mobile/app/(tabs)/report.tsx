@@ -1,10 +1,13 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import dayjs from 'dayjs';
 import { COLORS, RADIUS, formatCurrency, getThemeColors, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
 import { getReportData, getAiCoach, type ReportData, type Coach, type CoachErrorCode } from '@/lib/api/report';
+import { getAnalyticsData, type AnalyticsData } from '@/lib/api/analytics';
+
+const CAT_COLORS = ['#6B1E2E', '#C4748A', '#E8A4B0', '#A85C6E', '#D4848E', '#7E3A4C', '#F0B0BC'];
 
 export default function ReportScreen() {
   const router = useRouter();
@@ -18,6 +21,7 @@ export default function ReportScreen() {
   const [coach, setCoach] = useState<Coach | null>(null);
   const [coachLoading, setCoachLoading] = useState(false);
   const [coachErrorCode, setCoachErrorCode] = useState<CoachErrorCode | ''>('');
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
 
   const load = useCallback(async (m?: string) => {
     try {
@@ -29,8 +33,12 @@ export default function ReportScreen() {
         return;
       }
       setUserId(uid);
-      const data = await getReportData(uid, m);
+      const [data, aData] = await Promise.all([
+        getReportData(uid, m),
+        getAnalyticsData(uid, m),
+      ]);
       setReport(data);
+      setAnalyticsData(aData);
       setMonth(data.currentMonth);
       setCoach(null);
       setCoachErrorCode('');
@@ -42,6 +50,20 @@ export default function ReportScreen() {
   }, []);
 
   useFocusEffect(useCallback(() => { load(month); }, []));
+
+  // ⚠️ useMemo는 early return 이전에 선언 (React hooks 순서 규칙)
+  const _month = report?.currentMonth ?? month ?? dayjs().format('YYYY-MM');
+  const daysInMonth = dayjs(_month).daysInMonth();
+  const todayDay = dayjs().month() === dayjs(_month).month() ? dayjs().date() : daysInMonth;
+  const cumulativeData = useMemo(() => {
+    if (!analyticsData) return [];
+    let cum = 0;
+    return Array.from({ length: daysInMonth }, (_, i) => {
+      const d = analyticsData.dailyData.find(x => x.day === i + 1);
+      cum += d?.amount ?? 0;
+      return { day: i + 1, cum, daily: d?.amount ?? 0 };
+    });
+  }, [analyticsData, daysInMonth]);
 
   async function loadCoach() {
     if (!report || !userId || coach) return;
@@ -90,6 +112,10 @@ export default function ReportScreen() {
         ? `목표까지 ${formatCurrency(savingGoal - savedAmount)}`
         : `${formatCurrency(totalSpent)} 지출`;
 
+  // 분석 데이터 (daysInMonth, todayDay, cumulativeData는 early return 이전에 선언됨)
+  const maxDaily = Math.max(...cumulativeData.map(d => d.daily), 1);
+  const donutData = analyticsData ? analyticsData.categoryData.filter(c => c.thisAmt > 0) : [];
+
   function goMonth(delta: number) {
     const m = dayjs(currentMonth).add(delta, 'month').format('YYYY-MM');
     if (delta > 0 && !canGoNext) return;
@@ -100,15 +126,15 @@ export default function ReportScreen() {
     <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
         <Text style={[styles.pageTitle, { color: themeColors.accent }]}>리포트</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <TouchableOpacity style={styles.navBtn} onPress={() => goMonth(-1)}>
-            <Text style={styles.navBtnText}>‹</Text>
-          </TouchableOpacity>
-          <Text style={styles.monthLabel}>{monthLabel}</Text>
-          <TouchableOpacity style={[styles.navBtn, !canGoNext && styles.navBtnDisabled]} onPress={() => goMonth(1)} disabled={!canGoNext}>
-            <Text style={[styles.navBtnText, !canGoNext && styles.navBtnTextDisabled]}>›</Text>
-          </TouchableOpacity>
-        </View>
+      </View>
+      <View style={styles.monthNavRow}>
+        <TouchableOpacity style={styles.navBtn} onPress={() => goMonth(-1)}>
+          <Text style={styles.navBtnText}>‹</Text>
+        </TouchableOpacity>
+        <Text style={styles.monthLabel}>{monthLabel}</Text>
+        <TouchableOpacity style={[styles.navBtn, !canGoNext && styles.navBtnDisabled]} onPress={() => goMonth(1)} disabled={!canGoNext}>
+          <Text style={[styles.navBtnText, !canGoNext && styles.navBtnTextDisabled]}>›</Text>
+        </TouchableOpacity>
       </View>
 
       {totalSpent === 0 ? (
@@ -333,6 +359,76 @@ export default function ReportScreen() {
               </View>
             )}
           </View>
+          {/* 일별 지출 바 차트 */}
+          {analyticsData && analyticsData.dailyData.length > 0 && (
+            <View style={styles.card}>
+              <Text style={styles.cardLabel}>📅 일별 지출</Text>
+              <View style={styles.barChartWrap}>
+                {cumulativeData.map(d => {
+                  const pct = maxDaily > 0 ? d.daily / maxDaily : 0;
+                  const isToday = d.day === todayDay && dayjs().format('YYYY-MM') === currentMonth;
+                  return (
+                    <View key={d.day} style={styles.barCol}>
+                      <View style={styles.barTrack}>
+                        <View style={[
+                          styles.barFill,
+                          {
+                            height: `${Math.max(pct * 100, d.daily > 0 ? 4 : 0)}%`,
+                            backgroundColor: isToday ? themeColors.primary : themeColors.primaryMid,
+                          },
+                        ]} />
+                      </View>
+                      {(d.day === 1 || d.day === Math.ceil(daysInMonth / 2) || d.day === daysInMonth) && (
+                        <Text style={styles.barLabel}>{d.day}</Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+              <View style={styles.cumWrap}>
+                <Text style={styles.cumLabel}>누적 지출</Text>
+                <Text style={[styles.cumValue, { color: themeColors.primary }]}>
+                  {formatCurrency(cumulativeData[todayDay - 1]?.cum ?? analyticsData.thisTotal)}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* 카테고리 비율 */}
+          {donutData.length > 0 && (
+            <View style={styles.card}>
+              <Text style={styles.cardLabel}>🥧 카테고리 비율</Text>
+              <View style={styles.donutBarRow}>
+                {donutData.map((item, i) => (
+                  <View
+                    key={item.cat}
+                    style={[
+                      styles.donutBarSegment,
+                      {
+                        flex: item.thisAmt,
+                        backgroundColor: CAT_COLORS[i % CAT_COLORS.length],
+                        borderRadius: i === 0 ? 4 : i === donutData.length - 1 ? 4 : 0,
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+              <View style={{ gap: 8, marginTop: 12 }}>
+                {donutData.map((item, i) => (
+                  <View key={item.cat} style={styles.legendRow}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                      <View style={[styles.legendDot, { backgroundColor: CAT_COLORS[i % CAT_COLORS.length] }]} />
+                      <Text style={styles.legendLabel}>{item.cat}</Text>
+                    </View>
+                    <Text style={styles.legendPct}>
+                      {Math.round((item.thisAmt / analyticsData!.thisTotal) * 100)}%
+                    </Text>
+                    <Text style={styles.legendAmt}>{formatCurrency(item.thisAmt)}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
         </>
       )}
     </ScrollView>
@@ -345,8 +441,9 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingTop: 56, paddingBottom: 40 },
   emptyText: { fontSize: 12, color: COLORS.gray400, textAlign: 'center' },
 
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   pageTitle: { fontSize: 18, fontWeight: '700', color: COLORS.accent },
+  monthNavRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 12, backgroundColor: '#F0EAEC', borderRadius: RADIUS.lg, paddingVertical: 8 },
   navBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.gray200, alignItems: 'center', justifyContent: 'center' },
   navBtnDisabled: { borderColor: COLORS.gray100 },
   navBtnText: { fontSize: 13, color: COLORS.gray600 },
@@ -405,4 +502,23 @@ const styles = StyleSheet.create({
   coachFooter: { paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.gray50 },
   coachCta: { backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, paddingVertical: 12, alignItems: 'center' },
   coachCtaText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+  // 일별 바 차트
+  barChartWrap: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, height: 80, marginBottom: 8 },
+  barCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
+  barTrack: { width: '100%', height: 72, justifyContent: 'flex-end' },
+  barFill: { width: '100%', borderRadius: 2 },
+  barLabel: { fontSize: 8, color: COLORS.gray400, marginTop: 2 },
+  cumWrap: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: COLORS.gray50 },
+  cumLabel: { fontSize: 11, color: COLORS.gray400 },
+  cumValue: { fontSize: 13, fontWeight: '700' },
+
+  // 카테고리 비율
+  donutBarRow: { flexDirection: 'row', height: 16, borderRadius: 4, overflow: 'hidden', gap: 1 },
+  donutBarSegment: { height: '100%' },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendLabel: { fontSize: 12, color: COLORS.gray600 },
+  legendPct: { fontSize: 12, fontWeight: '700', color: COLORS.gray800, minWidth: 32, textAlign: 'right' },
+  legendAmt: { fontSize: 11, color: COLORS.gray500, minWidth: 64, textAlign: 'right' },
 });
