@@ -1,3 +1,3 @@
 # Expo CNG / Prebuild - generated native directories
-/android
+# /android — committed with AGP 8.11.0 fix in settings.gradle
 /ios
