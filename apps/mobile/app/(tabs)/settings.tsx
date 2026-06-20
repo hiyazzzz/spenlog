@@ -116,6 +116,8 @@ export default function SettingsScreen() {
   const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
   const [deleting, setDeleting] = useState(false);
 
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+
   const load = useCallback(async () => {
     try {
       const userId = await getCurrentUserId();
@@ -218,18 +220,7 @@ export default function SettingsScreen() {
       );
       return;
     }
-    Alert.alert('로그아웃', '로그아웃 하시겠어요?', [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '로그아웃',
-        style: 'destructive',
-        onPress: async () => {
-          await clearSession();
-          await supabase.auth.signOut();
-          router.replace('/login');
-        },
-      },
-    ]);
+    setLogoutModalOpen(true);
   }
 
   async function handlePushToggle(key: keyof PushSettings, value: boolean, setter: (v: boolean) => void) {
@@ -567,16 +558,16 @@ export default function SettingsScreen() {
       <CenterModal visible={deleteModalOpen} onRequestClose={() => setDeleteModalOpen(false)}>
         <Text style={[styles.modalTitle, { textAlign: 'center', marginBottom: 8 }]}>잠깐, 정말 떠나실 건가요? 🥺</Text>
         <Text style={[styles.modalDesc, { textAlign: 'center', marginBottom: 20 }]}>
-          {`지금까지 쌓아온 기록이 모두 사라져요.\n정말 탈퇴하려면 닉네임을 입력해주세요.`}
+          {`지금까지 쌓아온 기록이 모두 사라져요.`}
         </Text>
-        <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.gray500, marginBottom: 6 }}>
-          {profile?.name ?? '닉네임'}
+        <Text style={{ fontSize: 13, color: COLORS.gray600, marginBottom: 8 }}>
+          <Text style={{ fontWeight: '800', color: COLORS.gray800 }}>'{profile?.name ?? '닉네임'}'</Text>을 그대로 입력해주세요
         </Text>
         <TextInput
           style={styles.modalInput}
           value={deleteConfirmInput}
           onChangeText={setDeleteConfirmInput}
-          placeholder={profile?.name ?? '닉네임 입력'}
+          placeholder="닉네임 입력"
           placeholderTextColor={COLORS.gray300}
           autoFocus
         />
@@ -593,6 +584,28 @@ export default function SettingsScreen() {
             disabled={deleting || deleteConfirmInput.trim() !== (profile?.name ?? '').trim()}
           >
             <Text style={styles.modalConfirmBtnText}>{deleting ? '탈퇴 중...' : '탈퇴하기'}</Text>
+          </TouchableOpacity>
+        </View>
+      </CenterModal>
+
+      {/* 로그아웃 확인 모달 */}
+      <CenterModal visible={logoutModalOpen} onRequestClose={() => setLogoutModalOpen(false)}>
+        <Text style={[styles.modalTitle, { textAlign: 'center', marginBottom: 8 }]}>로그아웃</Text>
+        <Text style={[styles.modalDesc, { textAlign: 'center', marginBottom: 24 }]}>로그아웃 하시겠어요?</Text>
+        <View style={styles.modalBtnRow}>
+          <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setLogoutModalOpen(false)}>
+            <Text style={styles.modalCancelBtnText}>취소</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modalConfirmBtn, { backgroundColor: COLORS.red }]}
+            onPress={async () => {
+              setLogoutModalOpen(false);
+              await clearSession();
+              await supabase.auth.signOut();
+              router.replace('/login');
+            }}
+          >
+            <Text style={styles.modalConfirmBtnText}>로그아웃</Text>
           </TouchableOpacity>
         </View>
       </CenterModal>

@@ -1013,7 +1013,9 @@ function BudgetPanel({ themeColors }: { themeColors: ReturnType<typeof getThemeC
       setData(result);
       const budgetMap: Record<string, number> = {};
       result.budgets.forEach(b => { budgetMap[b.category] = b.amount; });
-      setEnabledCats(Object.fromEntries(result.customCategories.map(c => [c, true])));
+      const budgetCats = new Set(result.budgets.map(b => b.category));
+      const hasBudgets = result.budgets.length > 0;
+      setEnabledCats(Object.fromEntries(result.customCategories.map(c => [c, hasBudgets ? budgetCats.has(c) : true])));
       setAmounts(Object.fromEntries(result.customCategories.map(c => [c, String(budgetMap[c] ?? '')])));
     } catch (e) {
       setError(e instanceof Error ? e.message : '데이터를 불러오지 못했어요');
@@ -1279,7 +1281,7 @@ function BudgetPanel({ themeColors }: { themeColors: ReturnType<typeof getThemeC
             })}
           </View>
 
-          <TouchableOpacity style={[budgetStyles.saveBtn, { marginTop: 20 }]} onPress={handleSave} disabled={saving}>
+          <TouchableOpacity style={[budgetStyles.saveBtn, { marginTop: 20, backgroundColor: themeColors.primary }]} onPress={handleSave} disabled={saving}>
             <Text style={budgetStyles.saveBtnText}>{saving ? '저장 중...' : '저장하기'}</Text>
           </TouchableOpacity>
         </>

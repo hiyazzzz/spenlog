@@ -144,7 +144,7 @@ export default function HistoryScreen() {
               style={[styles.viewSegmentBtn, view === 'calendar' && { backgroundColor: themeColors.primary }]}
               onPress={() => setView('calendar')}
             >
-              <Text style={[styles.viewSegmentText, view === 'calendar' && styles.viewSegmentTextActive]}>🗓 캘린더</Text>
+              <Text style={[styles.viewSegmentText, view === 'calendar' && styles.viewSegmentTextActive]}>캘린더</Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity style={[styles.addCircleBtn, { backgroundColor: themeColors.primary }]} onPress={() => router.push('/add')}>
