@@ -537,7 +537,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.bg },
   center: { alignItems: 'center', justifyContent: 'center' },
-  content: { padding: 16, paddingTop: 0, gap: 12 },
+  content: { padding: 16, paddingTop: 56, gap: 12 },
 
   cover: {
     height: 200,
