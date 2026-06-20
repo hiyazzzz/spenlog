@@ -17,7 +17,7 @@ const PAYMENT_OPTIONS = ['카드', '현금', '카카오페이', '네이버페이
 
 export default function HistoryScreen() {
   const router = useRouter();
-  const { themeColors } = useThemeColors();
+  const { themeColors, tabBg } = useThemeColors();
   const { colors } = useAppTheme();
   const [data, setData] = useState<HistoryData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -133,7 +133,7 @@ export default function HistoryScreen() {
       <View style={styles.headerRow}>
         <Text style={[styles.pageTitle, { color: themeColors.accent }]}>내역</Text>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-          <View style={styles.viewSegment}>
+          <View style={[styles.viewSegment, { backgroundColor: tabBg }]}>
             <TouchableOpacity
               style={[styles.viewSegmentBtn, view === 'list' && { backgroundColor: themeColors.primary }]}
               onPress={() => setView('list')}
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
   addCircleBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
   addCircleBtnText: { color: '#fff', fontSize: 18, fontWeight: '700', lineHeight: 20 },
   viewToggleBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.gray200, alignItems: 'center', justifyContent: 'center' },
-  viewSegment: { flexDirection: 'row', backgroundColor: '#F0EAEC', borderRadius: 20, padding: 3, gap: 2 },
+  viewSegment: { flexDirection: 'row', borderRadius: 20, padding: 3, gap: 2 },
   viewSegmentBtn: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   viewSegmentText: { fontSize: 12, fontWeight: '600', color: '#B8A8AC' },
   viewSegmentTextActive: { color: '#fff' },

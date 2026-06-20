@@ -57,22 +57,18 @@ export function formatCurrency(amount: number): string {
 }
 
 // apps/web/src/lib/themes.ts 와 동일 (홈화면 테마 적용용)
-export const THEMES: Record<string, { primary: string; primaryLight: string; primaryMid: string; accent: string; bg: string }> = {
-  Burgundy: { primary: '#6B1E2E', primaryLight: '#F5E8EA', primaryMid: '#C4748A', accent: '#4A1220', bg: '#FAF7F4' },
-  Sage: { primary: '#4A6741', primaryLight: '#EAF0E8', primaryMid: '#8AAF84', accent: '#2E4A2A', bg: '#F5F7F4' },
-  Lavender: { primary: '#5C4B8A', primaryLight: '#EDE8F5', primaryMid: '#9B8EC4', accent: '#3D2E6B', bg: '#F7F5FB' },
-  Terracotta: { primary: '#A0522D', primaryLight: '#F5EDE8', primaryMid: '#C48A6A', accent: '#7A3518', bg: '#FAF5F2' },
+// tabBg: 세그먼트 컨트롤/서브탭바 배경색 (primary에서 파생된 연한 톤)
+export const THEMES: Record<string, { primary: string; primaryLight: string; primaryMid: string; accent: string; bg: string; tabBg: string }> = {
+  Burgundy: { primary: '#6B1E2E', primaryLight: '#F5E8EA', primaryMid: '#C4748A', accent: '#4A1220', bg: '#FAF7F4', tabBg: '#F0EAEC' },
+  Sage: { primary: '#4A6741', primaryLight: '#EAF0E8', primaryMid: '#8AAF84', accent: '#2E4A2A', bg: '#F5F7F4', tabBg: '#E5EBE4' },
+  Lavender: { primary: '#5C4B8A', primaryLight: '#EDE8F5', primaryMid: '#9B8EC4', accent: '#3D2E6B', bg: '#F7F5FB', tabBg: '#EAE6F4' },
+  Terracotta: { primary: '#A0522D', primaryLight: '#F5EDE8', primaryMid: '#C48A6A', accent: '#7A3518', bg: '#FAF5F2', tabBg: '#EFE5DE' },
   // 프리미엄 테마
-  // 오트밀: 따뜻한 베이지/크림 계열
-  Oatmeal: { primary: '#B09070', primaryLight: '#F7F2EB', primaryMid: '#CDB898', accent: '#8A6C50', bg: '#FBF8F3' },
-  // 웜그레이: 따뜻한 그레이 (기존 유지)
-  WarmGray: { primary: '#8C8479', primaryLight: '#F0EDEA', primaryMid: '#B5AEA4', accent: '#635D54', bg: '#FAF9F7' },
-  // 월그레이: 차가운 슬레이트/쿨그레이 계열
-  WallGray: { primary: '#6B7A8D', primaryLight: '#EDF0F4', primaryMid: '#A0ACBC', accent: '#4A5568', bg: '#F5F7FA' },
-  // 미드나잇: 다크 네이비/딥블루 계열
-  Midnight: { primary: '#2C3E6B', primaryLight: '#E6E9F2', primaryMid: '#6474A0', accent: '#18243E', bg: '#F3F5FA' },
-  // 인디고: 딥 인디고/퍼플 계열
-  Indigo: { primary: '#4B4DA6', primaryLight: '#ECEBF7', primaryMid: '#8A8ACC', accent: '#333576', bg: '#F5F5FC' },
+  Oatmeal: { primary: '#B09070', primaryLight: '#F7F2EB', primaryMid: '#CDB898', accent: '#8A6C50', bg: '#FBF8F3', tabBg: '#EDE7DC' },
+  WarmGray: { primary: '#8C8479', primaryLight: '#F0EDEA', primaryMid: '#B5AEA4', accent: '#635D54', bg: '#FAF9F7', tabBg: '#E8E4E0' },
+  WallGray: { primary: '#6B7A8D', primaryLight: '#EDF0F4', primaryMid: '#A0ACBC', accent: '#4A5568', bg: '#F5F7FA', tabBg: '#E3E8EF' },
+  Midnight: { primary: '#2C3E6B', primaryLight: '#E6E9F2', primaryMid: '#6474A0', accent: '#18243E', bg: '#F3F5FA', tabBg: '#DDE2EF' },
+  Indigo: { primary: '#4B4DA6', primaryLight: '#ECEBF7', primaryMid: '#8A8ACC', accent: '#333576', bg: '#F5F5FC', tabBg: '#E5E5F5' },
 }
 
 export const THEME_CARD_PALETTES: Record<string, string[]> = {
@@ -155,13 +151,21 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
   return React.createElement(AppThemeContext.Provider, { value: { isDark, colors, setDarkMode } }, children)
 }
 
+// 라이트 모드에서는 현재 테마의 bg/accent를 COLORS에 merge해서 반환
+// → colors.bg, colors.accent가 테마별로 달라짐
 export function useAppTheme() {
-  return useContext(AppThemeContext)
+  const ctx = useContext(AppThemeContext)
+  const theme = useThemeStore((s) => s.theme)
+  if (ctx.isDark) return ctx
+  const t = THEMES[theme ?? 'Burgundy'] ?? THEMES.Burgundy
+  const colors = { ...ctx.colors, bg: t.bg, accent: t.accent }
+  return { ...ctx, colors }
 }
 
 // profile.theme을 직접 불러오지 않는 화면(내역/리포트/예산/고정비 등)에서 사용
 // Zustand store에서 즉시 읽어 Supabase 네트워크 요청 없이 테마 적용
 export function useThemeColors() {
   const theme = useThemeStore((s) => s.theme)
-  return { themeColors: getThemeColors(theme), cardPalette: getThemeCardPalette(theme) }
+  const t = getThemeColors(theme)
+  return { themeColors: t, cardPalette: getThemeCardPalette(theme), tabBg: t.tabBg }
 }

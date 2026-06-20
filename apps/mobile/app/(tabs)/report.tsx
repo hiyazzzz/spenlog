@@ -127,7 +127,7 @@ export default function ReportScreen() {
       <View style={styles.headerRow}>
         <Text style={[styles.pageTitle, { color: themeColors.accent }]}>리포트</Text>
       </View>
-      <View style={styles.monthNavRow}>
+      <View style={[styles.monthNavRow, { backgroundColor: themeColors.tabBg }]}>
         <TouchableOpacity style={styles.navBtn} onPress={() => goMonth(-1)}>
           <Text style={styles.navBtnText}>‹</Text>
         </TouchableOpacity>
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
 
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   pageTitle: { fontSize: 18, fontWeight: '700', color: COLORS.accent },
-  monthNavRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 12, backgroundColor: '#F0EAEC', borderRadius: RADIUS.lg, paddingVertical: 8 },
+  monthNavRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 12, borderRadius: RADIUS.lg, paddingVertical: 8 },
   navBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.gray200, alignItems: 'center', justifyContent: 'center' },
   navBtnDisabled: { borderColor: COLORS.gray100 },
   navBtnText: { fontSize: 13, color: COLORS.gray600 },

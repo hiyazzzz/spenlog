@@ -25,14 +25,14 @@ function parse(v: string) {
 
 export default function AssetsScreen() {
   const [subTab, setSubTab] = useState<SubTab>('assets');
-  const { themeColors } = useThemeColors();
+  const { themeColors, tabBg } = useThemeColors();
   const { colors } = useAppTheme();
 
   return (
     <View style={[sharedStyles.screen, { backgroundColor: colors.bg }]}>
-      <View style={sharedStyles.headerWrap}>
-        <Text style={sharedStyles.pageTitle}>자산</Text>
-        <View style={sharedStyles.subTabBar}>
+      <View style={[sharedStyles.headerWrap, { backgroundColor: colors.bg }]}>
+        <Text style={[sharedStyles.pageTitle, { color: themeColors.accent }]}>자산</Text>
+        <View style={[sharedStyles.subTabBar, { backgroundColor: tabBg }]}>
           {([
             { key: 'assets', label: '자산현황' },
             { key: 'budget', label: '예산' },
