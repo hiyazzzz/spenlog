@@ -322,8 +322,28 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
   const routineDone = fixedCosts.filter(fc => paidFixedCostIds.has(fc.id)).length
     + cards.filter(c => paidCardIds.has(c.id)).length;
 
+  // 자산/카드/고정비 중 하나도 없으면 초기 설정 가이드 배너 표시
+  const showSetupBanner = accounts.length === 0 && cards.length === 0 && fixedCosts.length === 0;
+
   return (
     <ScrollView style={sharedStyles.panel} contentContainerStyle={sharedStyles.content} keyboardShouldPersistTaps="handled">
+      {/* 초기 설정 가이드 배너 */}
+      {showSetupBanner && (
+        <View style={[assetStyles.setupBanner, { backgroundColor: themeColors.primaryLight, borderColor: themeColors.primary + '33' }]}>
+          <Text style={assetStyles.setupBannerEmoji}>📌</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[assetStyles.setupBannerTitle, { color: themeColors.accent }]}>아직 설정 전이에요</Text>
+            <Text style={assetStyles.setupBannerDesc}>고정비·통장·카드를 등록하면{'\n'}루틴 관리까지 자동으로 돼요</Text>
+          </View>
+          <TouchableOpacity
+            style={[assetStyles.setupBannerBtn, { backgroundColor: themeColors.primary }]}
+            onPress={() => onNavigate('fixed')}
+          >
+            <Text style={assetStyles.setupBannerBtnText}>시작 →</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* 0. 이번 달 처리 현황 */}
       <View style={assetStyles.section}>
         <TouchableOpacity style={assetStyles.sectionHeader} onPress={() => setRoutineExpanded(o => !o)} activeOpacity={0.7}>
@@ -1307,6 +1327,27 @@ const sharedStyles = StyleSheet.create({
 });
 
 const assetStyles = StyleSheet.create({
+  // 초기 설정 가이드 배너
+  setupBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 12,
+  },
+  setupBannerEmoji: { fontSize: 20 },
+  setupBannerTitle: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
+  setupBannerDesc: { fontSize: 11, color: COLORS.gray500, lineHeight: 16 },
+  setupBannerBtn: {
+    borderRadius: RADIUS.md,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexShrink: 0,
+  },
+  setupBannerBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+
   emptyText: { fontSize: 12, color: COLORS.gray400, textAlign: 'center', paddingVertical: 16 },
 
   toast: {
