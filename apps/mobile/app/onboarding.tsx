@@ -5,14 +5,14 @@ import {
   ScrollView, ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { COLORS, RADIUS, THEMES, formatCurrency, getThemeColors } from '@/constants/theme';
+import { COLORS, RADIUS, getThemeColors } from '@/constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useThemeStore } from '@/store/themeStore';
 import { supabase } from '@/lib/supabase';
 import { completeOnboarding } from '@/lib/api/settings';
 
 // ──────────────────────────────────────────────
-// 인트로 슬라이드 (웹과 동일)
+// 인트로 슬라이드
 // ──────────────────────────────────────────────
 const INTRO_SLIDES = [
   {
@@ -41,38 +41,83 @@ const THEME_LIST = [
 ];
 
 const DEFAULT_CATS = ['생활비', '고정비', '활동비', '친목비', '수입'];
+const SUGGESTED_CATS = ['생활비', '고정비', '활동비', '친목비', '외식비', '교통비', '의류비', '건강', '문화', '수입'];
 
 const TOTAL_STEPS = 5; // 이름 / 테마 / 수입 / 목표 / 카테고리
-
-function formatNum(val: string) {
-  const n = val.replace(/[^0-9]/g, '');
-  return n ? Number(n).toLocaleString() : '';
-}
 
 export default function OnboardingScreen() {
   const router = useRouter();
   const setStoreTheme = useThemeStore(s => s.setTheme);
 
-  // 인트로 슬라이드
   const [introSlide, setIntroSlide] = useState(0);
   const [step, setStep] = useState(0); // 0 = 인트로, 1~TOTAL_STEPS = 진행 단계, TOTAL_STEPS+1 = 완료
 
-  // 입력값
   const [name, setName] = useState('');
   const [theme, setTheme] = useState('Burgundy');
-
-  // 선택된 테마의 컬러 팔레트 (즉시 반영)
   const tc = getThemeColors(theme);
+
+  // 수입/목표: 만 원 단위 입력 (내부 저장은 만원 문자열, 실제 원 = ×10000)
   const [income, setIncome] = useState('');
   const [goal, setGoal] = useState('');
-  const [budget, setBudget] = useState('');
+  const incomeNum = (parseInt(income.replace(/,/g, '') || '0') || 0) * 10000;
+  const goalNum = (parseInt(goal.replace(/,/g, '') || '0') || 0) * 10000;
+
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATS);
+  const [newCatName, setNewCatName] = useState('');
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
 
-  const incomeNum = parseInt(income || '0') || 0;
-  const goalNum = parseInt(goal || '0') || 0;
+  function fmtManWon(v: string) {
+    const n = v.replace(/[^0-9]/g, '');
+    return n ? Number(n).toLocaleString() : '';
+  }
+
+  function addCat() {
+    const n = newCatName.trim();
+    if (!n || categories.includes(n)) return;
+    setCategories(prev => [...prev, n]);
+    setNewCatName('');
+  }
+
+  function removeCat(cat: string) {
+    setCategories(prev => prev.filter(c => c !== cat));
+  }
+
+  // ── 건너뛰기: 현재까지 입력된 값으로 저장 후 홈 ──
+  async function skip() {
+    setSaving(true);
+    try {
+      const finalName = name.trim() || '소비요정';
+      const { isGuest } = useThemeStore.getState();
+      if (isGuest) {
+        await AsyncStorage.setItem('guest_nickname', finalName);
+        await AsyncStorage.setItem('guest_income', String(incomeNum));
+        await AsyncStorage.setItem('guest_saving_goal', String(goalNum));
+        const cats = categories.length ? categories : DEFAULT_CATS;
+        await AsyncStorage.setItem('guest_categories', JSON.stringify(cats));
+        await AsyncStorage.setItem('guest_theme', theme);
+        await AsyncStorage.setItem('guest_onboarding_completed', 'true');
+        setStoreTheme(theme);
+        router.replace('/(tabs)');
+        return;
+      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('users').upsert(
+          { id: user.id, email: user.email ?? '', name: finalName, income: incomeNum, saving_goal: goalNum, theme, onboarding_completed: true },
+          { onConflict: 'id' },
+        );
+        setStoreTheme(theme);
+        await completeOnboarding(user.id);
+      }
+      router.replace('/(tabs)');
+    } catch {
+      router.replace('/(tabs)');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   // ── 완료 처리 ──────────────────────────────
   async function finish() {
@@ -81,9 +126,8 @@ export default function OnboardingScreen() {
     try {
       const finalName = name.trim() || '소비요정';
       const month = new Date().toISOString().slice(0, 7);
-      const budgetNum = parseInt(budget || '0') || Math.max(incomeNum - goalNum, 0);
+      const budgetNum = Math.max(incomeNum - goalNum, 0);
 
-      // 게스트 모드: AsyncStorage에만 저장, DB 스킵
       const { isGuest } = useThemeStore.getState();
       if (isGuest) {
         await AsyncStorage.setItem('guest_nickname', finalName);
@@ -97,20 +141,17 @@ export default function OnboardingScreen() {
         return;
       }
 
-      // 로그인 유저: auth.getUser() 직접 호출 → id + email 동시 획득
       const { data: { user }, error: authErr } = await supabase.auth.getUser();
       if (authErr || !user) throw new Error('로그인 필요');
       const uid = user.id;
       const email = user.email ?? '';
 
-      // 1. users 테이블 upsert + Zustand store 동기화 (email 포함)
       await supabase.from('users').upsert(
         { id: uid, email, name: finalName, income: incomeNum, saving_goal: goalNum, theme, onboarding_completed: true },
         { onConflict: 'id' },
       );
       setStoreTheme(theme);
 
-      // 2. 카테고리별 예산 (지출 카테고리만)
       const spendCats = categories.filter(c => c !== '수입');
       if (spendCats.length > 0 && budgetNum > 0) {
         const dist: Record<string, number> = { '생활비': 0.40, '고정비': 0.35, '활동비': 0.25 };
@@ -124,7 +165,6 @@ export default function OnboardingScreen() {
         await supabase.from('budgets').upsert(rows, { onConflict: 'user_id,category,month' });
       }
 
-      // 3. 카테고리 초기 등록 (이미 있으면 스킵)
       const { data: existingCats } = await supabase.from('categories').select('id').eq('user_id', uid).limit(1);
       if (!existingCats?.length && categories.length > 0) {
         await supabase.from('categories').insert(
@@ -132,9 +172,7 @@ export default function OnboardingScreen() {
         );
       }
 
-      // 4. 온보딩 완료 플래그 (AsyncStorage + DB)
       await completeOnboarding(uid);
-
       setStep(TOTAL_STEPS + 1);
     } catch (e: any) {
       setSaveError(e.message ?? '저장 중 오류가 발생했어요');
@@ -144,50 +182,31 @@ export default function OnboardingScreen() {
   }
 
   async function next() {
-    if (step === TOTAL_STEPS) {
-      await finish();
-      return;
-    }
+    if (step === TOTAL_STEPS) { await finish(); return; }
     setStep(s => s + 1);
   }
 
-  function prev() {
-    setStep(s => Math.max(s - 1, 0));
-  }
-
-  function toggleCategory(cat: string) {
-    setCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]);
-  }
+  function prev() { setStep(s => Math.max(s - 1, 0)); }
 
   // ── 인트로 슬라이드 ──────────────────────────
   if (step === 0) {
     const slide = INTRO_SLIDES[introSlide];
     return (
       <View style={styles.screen}>
-        {/* 건너뛰기 */}
         <TouchableOpacity style={styles.skipBtn} onPress={() => setStep(1)}>
           <Text style={styles.skipText}>건너뛰기</Text>
         </TouchableOpacity>
-
-        {/* 슬라이드 본문 */}
         <View style={[styles.slideHero, { backgroundColor: slide.bg[0] }]}>
           <Text style={styles.slideEmoji}>{slide.emoji}</Text>
           <Text style={styles.slideTitle}>{slide.title}</Text>
           <Text style={styles.slideDesc}>{slide.desc}</Text>
         </View>
-
-        {/* 하단 */}
         <View style={styles.slideBottom}>
-          {/* 도트 인디케이터 */}
           <View style={styles.dotRow}>
             {INTRO_SLIDES.map((_, i) => (
-              <View
-                key={i}
-                style={[styles.dot, i === introSlide ? styles.dotActive : styles.dotInactive]}
-              />
+              <View key={i} style={[styles.dot, i === introSlide ? styles.dotActive : styles.dotInactive]} />
             ))}
           </View>
-
           {introSlide < INTRO_SLIDES.length - 1 ? (
             <TouchableOpacity style={styles.primaryBtn} onPress={() => setIntroSlide(s => s + 1)}>
               <Text style={styles.primaryBtnText}>다음</Text>
@@ -225,9 +244,17 @@ export default function OnboardingScreen() {
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
     <View style={{ flex: 1 }}>
-      {/* 진행률 바 */}
-      <View style={styles.progressBarBg}>
-        <View style={[styles.progressBarFill, { width: `${(step / TOTAL_STEPS) * 100}%` as any, backgroundColor: tc.primary }]} />
+
+      {/* 진행률 바 + 건너뛰기 */}
+      <View style={styles.headerRow}>
+        <View style={{ flex: 1 }}>
+          <View style={styles.progressBarBg}>
+            <View style={[styles.progressBarFill, { width: `${(step / TOTAL_STEPS) * 100}%` as any, backgroundColor: tc.primary }]} />
+          </View>
+        </View>
+        <TouchableOpacity style={styles.stepSkipBtn} onPress={skip} disabled={saving}>
+          <Text style={[styles.stepSkipText, { color: tc.primary }]}>건너뛰기</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
@@ -274,10 +301,10 @@ export default function OnboardingScreen() {
                 placeholder="0"
                 placeholderTextColor={COLORS.gray400}
                 keyboardType="numeric"
-                value={formatNum(income)}
+                value={fmtManWon(income)}
                 onChangeText={v => setIncome(v.replace(/[^0-9]/g, ''))}
               />
-              <Text style={styles.amountUnit}>원</Text>
+              <Text style={styles.amountUnit}>만 원</Text>
             </View>
           </>
         )}
@@ -292,12 +319,12 @@ export default function OnboardingScreen() {
                 placeholder="0"
                 placeholderTextColor={COLORS.gray400}
                 keyboardType="numeric"
-                value={formatNum(goal)}
+                value={fmtManWon(goal)}
                 onChangeText={v => setGoal(v.replace(/[^0-9]/g, ''))}
               />
-              <Text style={styles.amountUnit}>원</Text>
+              <Text style={styles.amountUnit}>만 원</Text>
             </View>
-            {incomeNum > 0 && goalNum > 0 && (
+            {incomeNum > 0 && goalNum > 0 && goalNum < incomeNum && (
               <Text style={[styles.helperText, { color: tc.primary }]}>
                 수입의 {Math.round((goalNum / incomeNum) * 100)}%를 저축할 거예요
               </Text>
@@ -307,22 +334,59 @@ export default function OnboardingScreen() {
 
         {step === 5 && (
           <>
-            <Text style={styles.stepTitle}>주로 어디에 돈을 쓰시나요?</Text>
-            <Text style={styles.stepSubtitle}>관리할 카테고리를 선택해주세요</Text>
-            <View style={styles.catGrid}>
-              {DEFAULT_CATS.map(cat => {
-                const selected = categories.includes(cat);
-                return (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[styles.catChip, selected && { borderColor: tc.primary, backgroundColor: tc.primary }]}
-                    onPress={() => toggleCategory(cat)}
-                  >
-                    <Text style={[styles.catChipText, selected && styles.catChipTextSelected]}>{cat}</Text>
+            <Text style={styles.stepTitle}>카테고리를 설정해볼까요?</Text>
+            <Text style={styles.stepSubtitle}>추가·삭제해서 원하는 대로 구성하세요</Text>
+
+            {/* 현재 카테고리 */}
+            <View style={styles.catChipRow}>
+              {categories.map((cat, idx) => (
+                <View key={`${cat}_${idx}`} style={[styles.catChip, { backgroundColor: tc.primary, borderColor: tc.primary }]}>
+                  <Text style={styles.catChipTextSelected}>{cat}</Text>
+                  <TouchableOpacity onPress={() => removeCat(cat)} hitSlop={8}>
+                    <Text style={styles.catChipX}>✕</Text>
                   </TouchableOpacity>
-                );
-              })}
+                </View>
+              ))}
             </View>
+
+            {/* 카테고리 추가 입력 */}
+            <View style={styles.catAddRow}>
+              <TextInput
+                style={styles.catAddInput}
+                placeholder="새 카테고리 이름"
+                placeholderTextColor={COLORS.gray400}
+                value={newCatName}
+                onChangeText={setNewCatName}
+                maxLength={10}
+                onSubmitEditing={addCat}
+              />
+              <TouchableOpacity
+                style={[styles.catAddBtn, { backgroundColor: newCatName.trim() ? tc.primary : COLORS.gray300 }]}
+                onPress={addCat}
+                disabled={!newCatName.trim()}
+              >
+                <Text style={styles.catAddBtnText}>추가</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* 추천 카테고리 */}
+            {SUGGESTED_CATS.filter(c => !categories.includes(c)).length > 0 && (
+              <>
+                <Text style={styles.catSuggestLabel}>추천 카테고리 (탭해서 추가)</Text>
+                <View style={styles.catChipRow}>
+                  {SUGGESTED_CATS.filter(c => !categories.includes(c)).map(cat => (
+                    <TouchableOpacity
+                      key={cat}
+                      style={styles.catChip}
+                      onPress={() => setCategories(prev => [...prev, cat])}
+                    >
+                      <Text style={styles.catChipText}>+ {cat}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
+
             {saveError ? <Text style={styles.errorText}>{saveError}</Text> : null}
           </>
         )}
@@ -344,6 +408,7 @@ export default function OnboardingScreen() {
           )}
         </TouchableOpacity>
       </View>
+
     </View>
     </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
@@ -378,10 +443,14 @@ const styles = StyleSheet.create({
   secondaryBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.gray500 },
   btnDisabled: { opacity: 0.6 },
 
-  progressBarBg: { height: 4, backgroundColor: COLORS.gray100, marginTop: 56 },
-  progressBarFill: { height: '100%', backgroundColor: COLORS.primary },
+  // 단계별 헤더 (진행률 바 + 건너뛰기)
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 56 },
+  progressBarBg: { height: 4, backgroundColor: COLORS.gray100 },
+  progressBarFill: { height: '100%' as any },
+  stepSkipBtn: { paddingHorizontal: 14, paddingVertical: 10 },
+  stepSkipText: { fontSize: 12, fontWeight: '600' },
 
-  body: { padding: 24, paddingTop: 40, paddingBottom: 20 },
+  body: { padding: 24, paddingTop: 40, paddingBottom: 20, flexGrow: 1, justifyContent: 'center' },
   stepTitle: { fontSize: 19, fontWeight: '800', color: COLORS.accent, marginBottom: 6 },
   stepSubtitle: { fontSize: 13, color: COLORS.gray400, marginBottom: 24 },
 
@@ -390,7 +459,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: COLORS.gray800,
     backgroundColor: '#fff',
   },
-
   amountInputBox: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     borderWidth: 1.5, borderColor: COLORS.gray200, borderRadius: RADIUS.md,
@@ -398,25 +466,35 @@ const styles = StyleSheet.create({
   },
   amountInput: { flex: 1, fontSize: 20, fontWeight: '700', color: COLORS.accent, textAlign: 'right' },
   amountUnit: { fontSize: 15, color: COLORS.gray500 },
-  helperText: { fontSize: 12, color: COLORS.primary, marginTop: 10, fontWeight: '600' },
+  helperText: { fontSize: 12, marginTop: 10, fontWeight: '600' },
 
   themeRow: { flexDirection: 'row', gap: 12 },
   themeCard: {
     flex: 1, alignItems: 'center', gap: 8, paddingVertical: 20,
     borderRadius: RADIUS.lg, borderWidth: 2, borderColor: COLORS.border, backgroundColor: '#fff',
   },
-  themeCardSelected: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryLight },
   themeSwatch: { width: 36, height: 36, borderRadius: 18 },
   themeName: { fontSize: 13, fontWeight: '700', color: COLORS.gray700 },
 
-  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  // 카테고리 step
+  catChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   catChip: {
-    paddingHorizontal: 18, paddingVertical: 12, borderRadius: 999,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
     borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: '#fff',
   },
-  catChipSelected: { borderColor: COLORS.primary, backgroundColor: COLORS.primary },
   catChipText: { fontSize: 13, fontWeight: '600', color: COLORS.gray600 },
-  catChipTextSelected: { color: '#fff' },
+  catChipTextSelected: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  catChipX: { color: 'rgba(255,255,255,0.85)', fontSize: 11, marginLeft: 6, fontWeight: '700' },
+
+  catAddRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  catAddInput: {
+    flex: 1, borderWidth: 1.5, borderColor: COLORS.gray200, borderRadius: RADIUS.md,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: COLORS.gray800, backgroundColor: '#fff',
+  },
+  catAddBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: RADIUS.md, justifyContent: 'center' },
+  catAddBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  catSuggestLabel: { fontSize: 11, fontWeight: '600', color: COLORS.gray400, marginBottom: 8 },
 
   errorText: { fontSize: 12, color: '#ef4444', marginTop: 16, textAlign: 'center' },
 });

@@ -1,11 +1,13 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator, TextInput, Alert, Keyboard } from 'react-native';
 import SlideUpModal from '@/components/SlideUpModal';
+import CenterModal from '@/components/CenterModal';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { COLORS, RADIUS, CARD_SHADOW, getThemeColors, useAppTheme } from '@/constants/theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { COLORS, RADIUS, CARD_SHADOW, getThemeColors, useAppTheme, useThemeColors } from '@/constants/theme';
 import { getCurrentUserId, supabase } from '@/lib/supabase';
 import { getProfile, updateTheme, updateName, updatePushSettings, updateGifAutoplay, deleteAccount, type PushSettings } from '@/lib/api/settings';
 import { isPremiumUnlocked } from '@/lib/premium';
@@ -23,7 +25,7 @@ try {
 } catch {
   // expo-web-browser / expo-auth-session 미설치
 }
-const redirectTo = AuthSession?.makeRedirectUri();
+const redirectTo = AuthSession?.makeRedirectUri({ native: 'spenlog://', scheme: 'spenlog' });
 
 const BASIC_THEMES = [
   { key: 'Burgundy', name: '버건디', color: '#6B1E2E' },
@@ -85,6 +87,9 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { isDark, setDarkMode: setAppDarkMode, colors } = useAppTheme();
   const setStoreTheme = useThemeStore((s) => s.setTheme);
+  const isGuest = useThemeStore((s) => s.isGuest);
+  const setIsGuest = useThemeStore((s) => s.setIsGuest);
+  const { themeColors } = useThemeColors();
   const [profile, setProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTheme, setSelectedTheme] = useState<Theme>('Burgundy');
@@ -106,6 +111,10 @@ export default function SettingsScreen() {
   const [csvLoading, setCsvLoading] = useState(false);
   const [linkingGoogle, setLinkingGoogle] = useState(false);
   const [isGoogleLinked, setIsGoogleLinked] = useState(false);
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -180,13 +189,42 @@ export default function SettingsScreen() {
     }
   }
 
+  async function clearSession() {
+    await AsyncStorage.multiRemove(['@spenlog/theme', 'dark_mode']);
+    setStoreTheme('Burgundy');
+    setIsGuest(false);
+  }
+
   async function handleLogout() {
+    if (isGuest) {
+      Alert.alert(
+        '게스트 로그아웃',
+        '로그아웃하면 기록한 내용이 모두 사라져요.\n구글 계정으로 연동하면 데이터를 유지할 수 있어요.',
+        [
+          { text: '취소', style: 'cancel' },
+          {
+            text: '구글로 연동하기',
+            onPress: handleLinkGoogle,
+          },
+          {
+            text: '그냥 로그아웃',
+            style: 'destructive',
+            onPress: async () => {
+              await clearSession();
+              router.replace('/login');
+            },
+          },
+        ],
+      );
+      return;
+    }
     Alert.alert('로그아웃', '로그아웃 하시겠어요?', [
       { text: '취소', style: 'cancel' },
       {
         text: '로그아웃',
         style: 'destructive',
         onPress: async () => {
+          await clearSession();
           await supabase.auth.signOut();
           router.replace('/login');
         },
@@ -218,7 +256,38 @@ export default function SettingsScreen() {
       return;
     }
     if (isGoogleLinked) {
-      Alert.alert('알림', '이미 구글 계정이 연동되어 있어요');
+      // 연동 해제 확인
+      Alert.alert(
+        '구글 연동 해제',
+        '구글 계정 연동을 해제하시겠습니까?',
+        [
+          { text: '취소', style: 'cancel' },
+          {
+            text: '해제',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if ((user?.identities?.length ?? 0) <= 1) {
+                  Alert.alert('알림', '비밀번호 로그인을 먼저 설정해주세요');
+                  return;
+                }
+                const googleIdentity = user?.identities?.find((id: any) => id.provider === 'google');
+                if (!googleIdentity) {
+                  Alert.alert('알림', '연동된 구글 계정을 찾을 수 없어요');
+                  return;
+                }
+                const { error } = await supabase.auth.unlinkIdentity(googleIdentity);
+                if (error) throw error;
+                setIsGoogleLinked(false);
+                Alert.alert('완료', '구글 연동이 해제됐어요');
+              } catch (e: any) {
+                Alert.alert('오류', e?.message ?? '연동 해제 중 오류가 발생했어요');
+              }
+            },
+          },
+        ],
+      );
       return;
     }
     setLinkingGoogle(true);
@@ -249,28 +318,32 @@ export default function SettingsScreen() {
   }
 
   function handleDeleteAccount() {
-    Alert.alert(
-      '정말 탈퇴할까요?',
-      '모든 데이터가 삭제되며 복구할 수 없어요.',
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '탈퇴',
-          style: 'destructive',
-          onPress: async () => {
-            const userId = await getCurrentUserId();
-            if (!userId) return;
-            const { error } = await deleteAccount(userId);
-            if (error) {
-              Alert.alert('오류', error);
-              return;
-            }
-            await supabase.auth.signOut();
-            router.replace('/login');
-          },
-        },
-      ],
-    );
+    setDeleteConfirmInput('');
+    setDeleteModalOpen(true);
+  }
+
+  async function confirmDeleteAccount() {
+    const userName = profile?.name ?? '';
+    if (deleteConfirmInput.trim() !== userName.trim()) return;
+    setDeleting(true);
+    try {
+      const userId = await getCurrentUserId();
+      if (!userId) {
+        Alert.alert('오류', '인증 정보가 없어요');
+        return;
+      }
+      const { error } = await deleteAccount(userId);
+      if (error) {
+        Alert.alert('오류', error);
+        return;
+      }
+      await clearSession();
+      await supabase.auth.signOut();
+      setDeleteModalOpen(false);
+      router.replace('/login');
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function handleCsvExport() {
@@ -323,11 +396,10 @@ export default function SettingsScreen() {
     );
   }
 
-  const themeColors = getThemeColors(profile?.theme);
   const isPremium = isPremiumUnlocked(profile);
 
   return (
-    <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" onScrollBeginDrag={Keyboard.dismiss}>
       <Text style={[styles.pageTitle, { color: themeColors.accent }]}>설정</Text>
 
       {/* 프로필 카드 */}
@@ -491,6 +563,40 @@ export default function SettingsScreen() {
         </View>
       </SlideUpModal>
 
+      {/* 회원 탈퇴 확인 모달 — 중앙 팝업 */}
+      <CenterModal visible={deleteModalOpen} onRequestClose={() => setDeleteModalOpen(false)}>
+        <Text style={[styles.modalTitle, { textAlign: 'center', marginBottom: 8 }]}>잠깐, 정말 떠나실 건가요? 🥺</Text>
+        <Text style={[styles.modalDesc, { textAlign: 'center', marginBottom: 20 }]}>
+          {`지금까지 쌓아온 기록이 모두 사라져요.\n정말 탈퇴하려면 닉네임을 입력해주세요.`}
+        </Text>
+        <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.gray500, marginBottom: 6 }}>
+          {profile?.name ?? '닉네임'}
+        </Text>
+        <TextInput
+          style={styles.modalInput}
+          value={deleteConfirmInput}
+          onChangeText={setDeleteConfirmInput}
+          placeholder={profile?.name ?? '닉네임 입력'}
+          placeholderTextColor={COLORS.gray300}
+          autoFocus
+        />
+        <View style={[styles.modalBtnRow, { marginTop: 8 }]}>
+          <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setDeleteModalOpen(false)}>
+            <Text style={styles.modalCancelBtnText}>계속 쓸게요</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modalConfirmBtn, {
+              backgroundColor: COLORS.red,
+              opacity: deleteConfirmInput.trim() === (profile?.name ?? '').trim() ? 1 : 0.35,
+            }]}
+            onPress={confirmDeleteAccount}
+            disabled={deleting || deleteConfirmInput.trim() !== (profile?.name ?? '').trim()}
+          >
+            <Text style={styles.modalConfirmBtnText}>{deleting ? '탈퇴 중...' : '탈퇴하기'}</Text>
+          </TouchableOpacity>
+        </View>
+      </CenterModal>
+
       {/* 비밀번호 변경 모달 */}
       <SlideUpModal visible={passwordModalOpen} onRequestClose={() => setPasswordModalOpen(false)}>
         <View style={styles.modalSheet}>
@@ -601,7 +707,8 @@ const styles = StyleSheet.create({
   exportBtnText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
 
   modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl, padding: 20, paddingBottom: 32 },
-  modalTitle: { fontSize: 15, fontWeight: '700', color: COLORS.gray800, marginBottom: 12 },
+  modalTitle: { fontSize: 15, fontWeight: '700', color: COLORS.gray800, marginBottom: 8 },
+  modalDesc: { fontSize: 13, color: COLORS.gray500, lineHeight: 20, marginBottom: 12 },
   modalInput: {
     borderWidth: 1, borderColor: COLORS.gray200, borderRadius: RADIUS.md,
     paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: COLORS.gray800,

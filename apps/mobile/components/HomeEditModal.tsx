@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Easing, Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, ImageBackground, Alert, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, ImageBackground, Alert, ScrollView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, RADIUS, CARD_PALETTE, CARD_SHADOW, formatCurrency } from '@/constants/theme';
+import { COLORS, RADIUS, CARD_PALETTE, CARD_SHADOW, formatCurrency, useThemeColors } from '@/constants/theme';
 import { uploadHomeImage, updateHomeCustomization, CAT_IMG_FIELDS } from '@/lib/api/home';
 
 interface RecentExpense {
@@ -31,32 +31,15 @@ interface Props {
   recentExpenses: RecentExpense[];
 }
 
-const SCREEN_HEIGHT = Dimensions.get('window').height;
+
 
 export default function HomeEditModal({
   visible, onClose, onSaved, userId, displayName, totalSpent, savingGoal, actualSaving,
   categories, catMap, budgetMap, currentCoverUrl, currentCategoryUrls, recentExpenses,
 }: Props) {
   const catKeys = categories.slice(0, 4);
+  const { themeColors } = useThemeColors();
 
-  const [internalVisible, setInternalVisible] = useState(false);
-  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-
-  useEffect(() => {
-    if (visible) {
-      slideAnim.setValue(SCREEN_HEIGHT);
-      setInternalVisible(true);
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: SCREEN_HEIGHT,
-        duration: 220,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) setInternalVisible(false);
-      });
-    }
-  }, [visible]);
 
   const [coverPreview, setCoverPreview] = useState<string | null>(currentCoverUrl);
   const [coverChanged, setCoverChanged] = useState<'none' | 'new' | 'removed'>('none');
@@ -186,19 +169,11 @@ export default function HomeEditModal({
 
   return (
     <Modal
-      visible={internalVisible}
+      visible={visible}
       animationType="none"
       onRequestClose={handleClose}
-      onShow={() => {
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 280,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }).start();
-      }}
     >
-      <Animated.View style={[styles.screen, { transform: [{ translateY: slideAnim }] }]}>
+      <View style={styles.screen}>
         {/* 상단 편집 바 */}
         <View style={styles.topBar}>
           <TouchableOpacity onPress={handleClose} disabled={saving}>
@@ -220,7 +195,7 @@ export default function HomeEditModal({
                 <View style={styles.coverDim} />
               </ImageBackground>
             ) : (
-              <View style={[styles.cover, { backgroundColor: COLORS.primary }]} />
+              <View style={[styles.cover, { backgroundColor: themeColors.primary }]} />
             )}
             <View style={styles.coverGreeting}>
               <Text style={styles.coverHello}>안녕하세요 👋</Text>
@@ -285,7 +260,7 @@ export default function HomeEditModal({
                 const budget = budgetMap[cat] ?? 0;
                 const pct = budget > 0 ? Math.min(Math.round((spent / budget) * 100), 100) : 0;
                 const over = budget > 0 && spent > budget;
-                const barColor = over ? COLORS.red : pct >= 70 ? COLORS.amber : COLORS.primary;
+                const barColor = over ? COLORS.red : pct >= 70 ? COLORS.amber : themeColors.primary;
                 const cardBg = CARD_PALETTE[idx] ?? CARD_PALETTE[0];
                 const imgUrl = catPreviews[idx];
 
@@ -328,7 +303,7 @@ export default function HomeEditModal({
                       </View>
                     )}
                     <View style={styles.gridItemBottom}>
-                      <Text style={[styles.gridItemAmount, { color: net < 0 ? COLORS.primary : COLORS.gray300 }]}>
+                      <Text style={[styles.gridItemAmount, { color: net < 0 ? themeColors.primary : COLORS.gray300 }]}>
                         {net < 0 ? '-' : ''}{formatCurrency(spent)}
                       </Text>
                       {budget > 0 && (
@@ -371,7 +346,7 @@ export default function HomeEditModal({
             <View style={styles.dimOverlay} />
           </View>
         </ScrollView>
-      </Animated.View>
+      </View>
     </Modal>
   );
 }
