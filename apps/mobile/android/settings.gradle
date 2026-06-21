@@ -37,3 +37,21 @@ expoAutolinking.useExpoVersionCatalog()
 
 include ':app'
 includeBuild(expoAutolinking.reactNativeGradlePlugin)
+
+// Force AGP 8.11.0 for ALL sub-project buildscript classpaths BEFORE they are evaluated.
+// Community packages (gesture-handler, async-storage, reanimated, etc.) declare older AGP
+// versions in their own buildscripts, creating variants with a different AgpVersionAttr
+// than :app's '8.11.0', causing "No variants exist" errors.
+// settings.gradle fires BEFORE any project's build.gradle is evaluated, so the
+// resolutionStrategy is in place when sub-project buildscript classpaths are resolved.
+gradle.allprojects { proj ->
+  proj.buildscript.configurations.all { cfg ->
+    cfg.resolutionStrategy.eachDependency { details ->
+      if (details.requested.group == 'com.android.tools.build'
+          && details.requested.name == 'gradle') {
+        details.useVersion('8.11.0')
+        details.because('Pin AGP 8.11.0 across all sub-projects to match :app AgpVersionAttr')
+      }
+    }
+  }
+}
