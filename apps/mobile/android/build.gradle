@@ -6,8 +6,28 @@ buildscript {
     mavenCentral()
   }
   dependencies {
+    // Explicitly pin AGP 8.11.0 so all sub-projects inherit the same version.
+    // Community RN packages declare older AGP (8.2.1, 8.10.1, etc.) in their own
+    // buildscripts. When the root pins 8.11.0, sub-project classloaders see 8.11.0
+    // first, avoiding AgpVersionAttr mismatch ("No variants exist" error).
+    classpath('com.android.tools.build:gradle:8.11.0')
     classpath('com.facebook.react:react-native-gradle-plugin')
     classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+  }
+}
+
+// Force AGP 8.11.0 for ALL sub-project buildscript classpaths.
+// Without this, community packages (gesture-handler, screens, etc.) that declare
+// older AGP versions produce variants with a different AgpVersionAttr, causing
+// :app to fail resolving them.
+subprojects {
+  buildscript {
+    configurations.classpath.resolutionStrategy.eachDependency { details ->
+      if (details.requested.group == 'com.android.tools.build' && details.requested.name == 'gradle') {
+        details.useVersion('8.11.0')
+        details.because('Pin all sub-projects to AGP 8.11.0 to match :app AgpVersionAttr')
+      }
+    }
   }
 }
 
