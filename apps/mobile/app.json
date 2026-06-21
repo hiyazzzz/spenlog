@@ -34,6 +34,7 @@
       ]
     },
     "plugins": [
+      "./plugins/withAndroidGradleFix",
       "expo-router",
       [
         "expo-image-picker",

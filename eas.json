@@ -10,6 +10,9 @@
       "developmentClient": true,
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PROJECT_ROOT": "/home/expo/workingdir/build/apps/mobile"
       }
     },
     "preview": {
