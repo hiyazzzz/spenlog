@@ -12,8 +12,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PROJECT_ROOT": "/home/expo/workingdir/build/apps/mobile",
-        "EXPO_USE_COMMUNITY_AUTOLINKING": "1"
+        "EXPO_PROJECT_ROOT": "/home/expo/workingdir/build/apps/mobile"
       }
     },
     "preview": {
