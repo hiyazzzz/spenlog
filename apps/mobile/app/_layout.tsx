@@ -6,6 +6,7 @@ import { initRevenueCat } from '@/lib/revenuecat';
 import { AppThemeProvider } from '@/constants/theme';
 import { useThemeStore } from '@/store/themeStore';
 import { registerForPushNotifications, savePushToken } from '@/lib/notifications';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -49,6 +50,7 @@ export default function RootLayout() {
   }, [loadTheme]);
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <AppThemeProvider>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -62,5 +64,6 @@ export default function RootLayout() {
         <Stack.Screen name="add" options={{ headerShown: false, presentation: 'modal' }} />
       </Stack>
     </AppThemeProvider>
+    </GestureHandlerRootView>
   );
 }

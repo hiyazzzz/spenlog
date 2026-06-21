@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createClient } from '@spenlog/supabase'
 import type { SupabaseClient } from '@spenlog/supabase'
+import { useThemeStore } from '@/store/themeStore'
 
 const supabaseUrl: string = process.env.EXPO_PUBLIC_SUPABASE_URL ?? ''
 const supabaseAnonKey: string = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? ''
@@ -25,6 +26,9 @@ export async function getCurrentUserId(): Promise<string | null> {
   const { data, error } = await supabase.auth.getUser()
   console.log('[getCurrentUserId] supabase auth user:', data.user, 'error:', error)
   if (data.user) return data.user.id
+  // 게스트 모드이면 TEST_USER_ID 폴백 금지 — 빈 상태로 표시
+  const { isGuest } = useThemeStore.getState()
+  if (isGuest) return null
   console.log('[getCurrentUserId] no auth session, falling back to TEST_USER_ID:', TEST_USER_ID)
   return TEST_USER_ID ?? null
 }

@@ -11,11 +11,29 @@ import { NextRequest, NextResponse } from 'next/server'
  */
 export async function POST(req: NextRequest) {
   try {
-    // 1. Bearer 토큰으로 요청자 인증
-    const anonClient = await createClientFromCookies()
-    const { data: { user: currentUser } } = await anonClient.auth.getUser()
+    // 1. 요청자 인증: Bearer 토큰(모바일) 또는 쿠키 세션(웹) 지원
+    let currentUser: { id: string } | null = null
+
+    const authHeader = req.headers.get('Authorization')
+    if (authHeader?.startsWith('Bearer ')) {
+      // 모바일 앱: Authorization: Bearer <access_token>
+      const token = authHeader.slice(7)
+      const anonClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { auth: { autoRefreshToken: false, persistSession: false } },
+      )
+      const { data: { user } } = await anonClient.auth.getUser(token)
+      currentUser = user
+    } else {
+      // 웹: 쿠키 세션
+      const cookieClient = await createClientFromCookies()
+      const { data: { user } } = await cookieClient.auth.getUser()
+      currentUser = user
+    }
+
     if (!currentUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: '인증 정보가 없어요' }, { status: 401 })
     }
 
     const { userId } = await req.json()
@@ -38,11 +56,18 @@ export async function POST(req: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } },
     )
 
-    // 4. Auth 유저 삭제 (users 테이블은 ON DELETE CASCADE로 자동 삭제)
-    const { error } = await admin.auth.admin.deleteUser(userId)
-    if (error) {
-      console.error('[delete-account] deleteUser error:', error.message)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    // 4. Soft delete: users 테이블 숨김 처리 (Auth 유저는 유지 — 재로그인 시 새 프로필 생성)
+    const { error: softDeleteError } = await admin
+      .from('users')
+      .update({
+        is_deleted: true,
+        deleted_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+
+    if (softDeleteError) {
+      console.error('[delete-account] soft delete error:', softDeleteError.message)
+      return NextResponse.json({ error: softDeleteError.message }, { status: 500 })
     }
 
     return NextResponse.json({ ok: true })

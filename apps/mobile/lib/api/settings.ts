@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from '@/lib/supabase'
 import type { Theme, User } from '@spenlog/types'
 
@@ -14,15 +15,26 @@ export async function updateName(userId: string, name: string) {
   return supabase.from('users').update({ name }).eq('id', userId)
 }
 
+const ONBOARDING_KEY = (uid: string) => `onboarding_completed_${uid}`
+
 export async function checkOnboardingStatus(userId: string): Promise<boolean> {
+  // AsyncStorage 로컬 플래그 먼저 확인 (DB 컬럼 미적용 시 폴백)
+  try {
+    const local = await AsyncStorage.getItem(ONBOARDING_KEY(userId))
+    if (local === 'true') return true
+  } catch {}
+
   const { data, error } = await supabase.from('users').select('onboarding_completed').eq('id', userId).single()
   if (error) {
+    // DB 컬럼 없음 등 에러 시 로컬 플래그 없으면 온보딩 필요로 판단
     return false
   }
   return !!data?.onboarding_completed
 }
 
 export async function completeOnboarding(userId: string) {
+  // 로컬 플래그 저장 (DB 업데이트 실패 시에도 반복 진입 방지)
+  try { await AsyncStorage.setItem(ONBOARDING_KEY(userId), 'true') } catch {}
   return supabase.from('users').update({ onboarding_completed: true }).eq('id', userId)
 }
 
