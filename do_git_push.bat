@@ -1,30 +1,31 @@
 @echo off
-chcp 65001 > nul
-cd /d "C:\Users\curio\Desktop\spenlog"
+cd /d C:\Users\curio\Desktop\spenlog
+del .git\index.lock 2>nul
+del .git\HEAD.lock 2>nul
 
-echo [1/5] index.lock 삭제 중...
-if exist ".git\index.lock" (
-    del /f /q ".git\index.lock"
-    echo     삭제 완료
-) else (
-    echo     lock 파일 없음
-)
+REM === android/ios 폴더 git 추적 해제 (파일은 디스크에 유지) ===
+git rm -r --cached apps/mobile/android 2>nul
+git rm -r --cached apps/mobile/ios 2>nul
 
-echo [2/5] git config 설정...
-git config user.email "curious9733@gmail.com"
-git config user.name "spenlog"
-
-echo [3/5] git add -A...
-git add -A
-
-echo [4/5] git commit...
-git commit -m "feat: 카테고리 드래그 리오더 + 한줄기록 확인팝업 + 고정비 폼 연결계좌 + 버그수정 다수"
-
-echo [5/5] git push origin main...
+REM === 변경 파일 추가 ===
+git add ".npmrc"
+git add "eas.json"
+git add "apps/mobile/.gitignore"
+git add "apps/mobile/app/(tabs)/_layout.tsx"
+git add "apps/mobile/app/(tabs)/index.tsx"
+git add "apps/mobile/app/(tabs)/assets.tsx"
+git add "apps/mobile/app/(tabs)/history.tsx"
+git add "apps/mobile/app/(tabs)/report.tsx"
+git add "apps/mobile/app/(tabs)/settings.tsx"
+git add "apps/mobile/app/onboarding.tsx"
+git add "apps/mobile/app/category.tsx"
+git add "apps/mobile/components/HomeEditModal.tsx"
+git add "apps/mobile/components/CenterModal.tsx"
+git add "apps/mobile/constants/theme.ts"
+git add "apps/web/src/components/onboarding/OnboardingForm.tsx"
+git status
+git commit -m "fix: remove android/ios from git (CNG mode), add shamefully-hoist"
 git push origin main
-
 echo.
-echo =============================
-echo 완료! 아무 키나 누르면 닫힙니다.
-echo =============================
+echo === Done. EAS will now run expo prebuild automatically ===
 pause

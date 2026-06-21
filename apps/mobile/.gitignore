@@ -1,3 +1,7 @@
 # Expo CNG / Prebuild - generated native directories
-# /android — committed with AGP 8.11.0 fix in settings.gradle
+/android
 /ios
+
+# 로컬 환경변수 (머신별 경로 포함, git에 올리지 않음)
+.env.local
+.env.*.local
