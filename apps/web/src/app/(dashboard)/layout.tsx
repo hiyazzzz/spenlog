@@ -18,11 +18,19 @@ export default async function DashboardLayout({
   let userId = ''
 
   if (user) {
-    const { data: profile } = await supabase
-      .from('users').select('theme, guide_completed').eq('id', user.id).single()
-    theme = profile?.theme ?? 'Burgundy'
-    guideCompleted = profile?.guide_completed ?? false
     userId = user.id
+    const { data: profile } = await supabase
+      .from('users').select('theme, guide_completed').eq('id', user.id).maybeSingle()
+    if (profile) {
+      theme = profile.theme ?? 'Burgundy'
+      guideCompleted = profile.guide_completed ?? false
+    } else {
+      // 게스트(익명) 등 public.users 행이 없으면 생성한다.
+      // 행이 없으면 expenses/accounts/cards/fixed_costs 등 모든 insert가
+      // 외래키 위반(23503, *_user_id_fkey)으로 저장에 실패하기 때문.
+      await supabase.from('users').upsert({ id: user.id }, { onConflict: 'id' })
+      guideCompleted = false
+    }
   }
 
   return (
