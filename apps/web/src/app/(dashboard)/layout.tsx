@@ -28,7 +28,11 @@ export default async function DashboardLayout({
       // 게스트(익명) 등 public.users 행이 없으면 생성한다.
       // 행이 없으면 expenses/accounts/cards/fixed_costs 등 모든 insert가
       // 외래키 위반(23503, *_user_id_fkey)으로 저장에 실패하기 때문.
-      await supabase.from('users').upsert({ id: user.id }, { onConflict: 'id' })
+      // 익명 유저는 email이 없으므로(users.email NOT NULL) placeholder를 넣는다.
+      await supabase.from('users').upsert(
+        { id: user.id, email: user.email ?? `${user.id}@guest.spenlog.app` },
+        { onConflict: 'id' }
+      )
       guideCompleted = false
     }
   }
