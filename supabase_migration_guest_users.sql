@@ -16,9 +16,10 @@ security definer
 set search_path = public
 as $$
 begin
-  -- 익명 게스트는 email이 없으므로(users.email NOT NULL) placeholder를 넣는다.
+  -- 익명 게스트는 email이 빈 문자열('')이며 users.email은 NOT NULL + UNIQUE라
+  -- nullif로 ''도 NULL 취급해 고유 placeholder를 넣는다.
   insert into public.users (id, email)
-  values (new.id, coalesce(new.email, new.id || '@guest.spenlog.app'))
+  values (new.id, coalesce(nullif(new.email, ''), new.id || '@guest.spenlog.app'))
   on conflict (id) do nothing;
   return new;
 end;
@@ -31,7 +32,7 @@ create trigger on_auth_user_created
 
 -- 2) 백필: public.users 행이 없는 기존 auth 유저(게스트 포함) 채우기
 insert into public.users (id, email)
-select u.id, coalesce(u.email, u.id || '@guest.spenlog.app')
+select u.id, coalesce(nullif(u.email, ''), u.id || '@guest.spenlog.app')
 from auth.users u
 left join public.users p on p.id = u.id
 where p.id is null

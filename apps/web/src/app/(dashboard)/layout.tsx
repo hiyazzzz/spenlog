@@ -31,7 +31,7 @@ export default async function DashboardLayout({
       // 외래키 위반(23503, *_user_id_fkey)으로 저장에 실패하기 때문.
       // 익명 유저는 email이 없으므로(users.email NOT NULL) placeholder를 넣는다.
       await supabase.from('users').upsert(
-        { id: user.id, email: user.email ?? `${user.id}@guest.spenlog.app` },
+        { id: user.id, email: user.email || `${user.id}@guest.spenlog.app` },
         { onConflict: 'id' }
       )
       guideCompleted = false

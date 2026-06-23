@@ -19,8 +19,10 @@ export default function EnsureUserRow() {
         const { data: existing } = await supabase
           .from('users').select('id').eq('id', user.id).maybeSingle()
         if (!existing) {
+          // 익명 유저는 email 이 빈 문자열('')이며 users.email 은 UNIQUE 라
+          // ?? 가 아닌 || 로 빈 문자열도 고유 placeholder 로 대체한다.
           await supabase.from('users').upsert(
-            { id: user.id, email: user.email ?? `${user.id}@guest.spenlog.app` },
+            { id: user.id, email: user.email || `${user.id}@guest.spenlog.app` },
             { onConflict: 'id' }
           )
         }
