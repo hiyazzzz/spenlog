@@ -12,7 +12,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PROJECT_ROOT": "/home/expo/workingdir/build/apps/mobile"
+        "EXPO_PROJECT_ROOT": "/home/expo/workingdir/build/apps/mobile",
+        "NODE_ENV": "development"
       }
     },
     "preview": {
@@ -23,11 +24,17 @@
       },
       "ios": {
         "simulator": true
+      },
+      "env": {
+        "EXPO_PROJECT_ROOT": "/home/expo/workingdir/build/apps/mobile"
       }
     },
     "production": {
       "channel": "production",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PROJECT_ROOT": "/home/expo/workingdir/build/apps/mobile"
+      }
     }
   },
   "submit": {
