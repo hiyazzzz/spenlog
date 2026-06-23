@@ -61,7 +61,10 @@ export async function addFixedCost(userId: string, vals: {
   return result
 }
 
-export async function editFixedCost(id: string, updates: Partial<{ name: string; amount: number; due_day: number | null }>) {
+export async function editFixedCost(id: string, updates: Partial<{
+  name: string; amount: number; due_day: number | null;
+  linked_account_id: string | null; linked_target_account_id: string | null; linked_card_id: string | null;
+}>) {
   return supabase.from('fixed_costs').update(updates).eq('id', id)
 }
 

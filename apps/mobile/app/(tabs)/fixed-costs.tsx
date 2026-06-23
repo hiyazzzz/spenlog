@@ -89,7 +89,7 @@ export default function FixedCostsScreen() {
   const [savingSaving, setSavingSaving] = useState(false);
 
   // 계좌/카드 선택 모달
-  const [activePicker, setActivePicker] = useState<'linked' | 'debit' | 'credit' | null>(null);
+  const [activePicker, setActivePicker] = useState<'linked' | 'debit' | 'credit' | 'edit-linked' | 'edit-debit' | 'edit-credit' | null>(null);
 
   // 루틴 기록 상태
   const [paidIds, setPaidIds] = useState<Set<string>>(new Set());
@@ -102,6 +102,10 @@ export default function FixedCostsScreen() {
   const [editAmount, setEditAmount] = useState('');
   const [editDueDay, setEditDueDay] = useState('');
   const [editSaving, setEditSaving] = useState(false);
+  const [editLinkedAccountId, setEditLinkedAccountId] = useState<string | null>(null);
+  const [editLinkedCardId, setEditLinkedCardId] = useState<string | null>(null);
+  const [editDebitAccountId, setEditDebitAccountId] = useState<string | null>(null);
+  const [editCreditAccountId, setEditCreditAccountId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -232,15 +236,34 @@ export default function FixedCostsScreen() {
     setEditName(item.name);
     setEditAmount(String(item.amount));
     setEditDueDay(item.due_day != null ? String(item.due_day) : '');
+    setEditLinkedAccountId(item.linked_account_id ?? null);
+    setEditLinkedCardId(item.linked_card_id ?? null);
+    setEditDebitAccountId(item.linked_account_id ?? null);
+    setEditCreditAccountId(item.linked_target_account_id ?? null);
   }
 
   async function handleSaveEdit() {
     if (!editingId || editSaving) return;
     const parsedAmt = parseInt(editAmount) || 0;
     if (!editName.trim() || parsedAmt <= 0) return;
+    const item = fixedCosts.find(f => f.id === editingId);
+    const isGreen = item?.kind === '고정저축';
     setEditSaving(true);
     try {
-      await editFixedCost(editingId, { name: editName.trim(), amount: parsedAmt, due_day: editDueDay ? parseInt(editDueDay) : null });
+      await editFixedCost(editingId, {
+        name: editName.trim(),
+        amount: parsedAmt,
+        due_day: editDueDay ? parseInt(editDueDay) : null,
+        ...(isGreen ? {
+          linked_account_id: editDebitAccountId,
+          linked_target_account_id: editCreditAccountId,
+          linked_card_id: null,
+        } : {
+          linked_account_id: editLinkedAccountId,
+          linked_card_id: editLinkedCardId,
+          linked_target_account_id: null,
+        }),
+      });
       setEditingId(null);
       await load();
     } finally {
@@ -267,6 +290,33 @@ export default function FixedCostsScreen() {
               onChangeText={v => setEditDueDay(v.replace(/[^0-9]/g, ''))}
               keyboardType="numeric" placeholder="납부일" placeholderTextColor={COLORS.gray400} />
           </View>
+          {isGreen ? (
+            <>
+              <SelectField
+                label="출금 계좌 (돈이 나가는 곳)"
+                placeholder="선택 안 함"
+                value={selectedLabel(accountOptions, editDebitAccountId)}
+                onPress={() => setActivePicker('edit-debit')}
+                color={COLORS.green}
+              />
+              <SelectField
+                label="입금 계좌 (적금 계좌)"
+                placeholder="선택 안 함"
+                value={selectedLabel(accountOptions, editCreditAccountId)}
+                onPress={() => setActivePicker('edit-credit')}
+                color={COLORS.green}
+              />
+            </>
+          ) : (
+            <SelectField
+              label="연결 계좌/카드"
+              placeholder="선택 안 함"
+              value={editLinkedAccountId ? selectedLabel(accountOptions, editLinkedAccountId)
+                : editLinkedCardId ? selectedLabel(linkedOptions, editLinkedCardId) : null}
+              onPress={() => setActivePicker('edit-linked')}
+              color={themeColors.accent}
+            />
+          )}
           <View style={styles.formBtnRow}>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditingId(null)}>
               <Text style={styles.cancelBtnText}>취소</Text>
@@ -522,6 +572,31 @@ export default function FixedCostsScreen() {
             title="입금 계좌 (적금 계좌)"
             options={accountOptions}
             onSelect={opt => { setCreditAccountId(opt?.id ?? null); setActivePicker(null); }}
+            onClose={() => setActivePicker(null)}
+          />
+          <SelectModal
+            visible={activePicker === 'edit-linked'}
+            title="연결 계좌/카드"
+            options={linkedOptions}
+            onSelect={opt => {
+              setEditLinkedAccountId(opt?.type === 'account' ? opt.id : null);
+              setEditLinkedCardId(opt?.type === 'card' ? opt.id : null);
+              setActivePicker(null);
+            }}
+            onClose={() => setActivePicker(null)}
+          />
+          <SelectModal
+            visible={activePicker === 'edit-debit'}
+            title="출금 계좌"
+            options={accountOptions}
+            onSelect={opt => { setEditDebitAccountId(opt?.id ?? null); setActivePicker(null); }}
+            onClose={() => setActivePicker(null)}
+          />
+          <SelectModal
+            visible={activePicker === 'edit-credit'}
+            title="입금 계좌 (적금 계좌)"
+            options={accountOptions}
+            onSelect={opt => { setEditCreditAccountId(opt?.id ?? null); setActivePicker(null); }}
             onClose={() => setActivePicker(null)}
           />
         </ScrollView>

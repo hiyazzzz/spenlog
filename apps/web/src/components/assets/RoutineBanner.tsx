@@ -8,6 +8,7 @@ interface FixedCost {
   id: string; name: string; amount: number; kind: string; due_day?: number
   linked_account_id?: string | null
   linked_target_account_id?: string | null
+  linked_card_id?: string | null
 }
 
 interface AccountUpdate { id: string; balance: number }
@@ -71,6 +72,7 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccount
         kind: fc.kind as '고정지출' | '고정저축',
         linked_account_id: fc.linked_account_id,
         linked_target_account_id: fc.linked_target_account_id,
+        linked_card_id: fc.linked_card_id,
       }, thisMonth)
       if (accountUpdates.length > 0) onAccountsChange?.(accountUpdates)
 

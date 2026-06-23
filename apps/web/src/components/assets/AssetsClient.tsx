@@ -93,12 +93,26 @@ function InlineForm({ fields, onSave, onCancel }: {
   )
 }
 
-function FixedRow({ item, accountName, targetAccountName, onDelete, onEdit }: {
+function FixedRow({ item, accountName, targetAccountName, onDelete, onEdit, accounts = [], cards = [] }: {
   item: FixedCost; accountName?: string; targetAccountName?: string
   onDelete: () => Promise<void>; onEdit: (updates: Record<string, unknown>) => Promise<void>
+  accounts?: Account[]; cards?: Card[]
 }) {
   const [editing, setEditing] = useState(false)
   const [vals, setVals] = useState({ name: item.name, amount: String(item.amount), due_day: String((item as any).due_day ?? '') })
+  const kind = (item as any).kind ?? '고정지출'
+  const isGreen = kind === '고정저축'
+  const [editLinkedAccountId, setEditLinkedAccountId] = useState<string>((item as any).linked_account_id ?? '')
+  const [editLinkedCardId, setEditLinkedCardId] = useState<string>((item as any).linked_card_id ?? '')
+  const [editDebitAccountId, setEditDebitAccountId] = useState<string>((item as any).linked_account_id ?? '')
+  const [editCreditAccountId, setEditCreditAccountId] = useState<string>((item as any).linked_target_account_id ?? '')
+
+  const selStyle: React.CSSProperties = {
+    width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb',
+    fontSize: 13, outline: 'none', fontFamily: 'inherit', background: '#fafafa',
+    boxSizing: 'border-box' as const,
+  }
+  const labelStyle: React.CSSProperties = { fontSize: 11, color: '#9ca3af', display: 'block', marginTop: 2 }
 
   if (editing) {
     return (
@@ -112,8 +126,57 @@ function FixedRow({ item, accountName, targetAccountName, onDelete, onEdit }: {
             <input value={vals.due_day} onChange={e => setVals(p => ({ ...p, due_day: e.target.value }))} type="number"
               style={{ width: 60, padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit' }} placeholder="출금일" />
           </div>
+          {isGreen ? (
+            <>
+              <label style={labelStyle}>출금 계좌 (돈이 나가는 곳)</label>
+              <select value={editDebitAccountId} onChange={e => setEditDebitAccountId(e.target.value)} style={selStyle}>
+                <option value="">선택 안 함</option>
+                {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({a.bank})</option>)}
+              </select>
+              <label style={labelStyle}>입금 계좌 (적금 계좌)</label>
+              <select value={editCreditAccountId} onChange={e => setEditCreditAccountId(e.target.value)} style={selStyle}>
+                <option value="">선택 안 함</option>
+                {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({a.bank})</option>)}
+              </select>
+            </>
+          ) : (
+            <>
+              <label style={labelStyle}>연결 계좌/카드</label>
+              <select
+                value={editLinkedCardId ? editLinkedCardId + '|card' : editLinkedAccountId ? editLinkedAccountId + '|account' : ''}
+                onChange={e => {
+                  const v = e.target.value
+                  if (!v) { setEditLinkedAccountId(''); setEditLinkedCardId(''); }
+                  else if (v.endsWith('|account')) { setEditLinkedAccountId(v.replace('|account', '')); setEditLinkedCardId(''); }
+                  else { setEditLinkedCardId(v.replace('|card', '')); setEditLinkedAccountId(''); }
+                }}
+                style={selStyle}
+              >
+                <option value="">선택 안 함</option>
+                {accounts.map(a => <option key={a.id} value={a.id + '|account'}>{a.name} (계좌)</option>)}
+                {cards.map(c => <option key={c.id} value={c.id + '|card'}>{c.name} (카드)</option>)}
+              </select>
+            </>
+          )}
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => { onEdit({ name: vals.name, amount: parseInt(vals.amount) || item.amount, due_day: parseInt(vals.due_day) || null }); setEditing(false) }}
+            <button onClick={() => {
+              const updates: Record<string, unknown> = {
+                name: vals.name,
+                amount: parseInt(vals.amount) || item.amount,
+                due_day: parseInt(vals.due_day) || null,
+              }
+              if (isGreen) {
+                updates.linked_account_id = editDebitAccountId || null
+                updates.linked_target_account_id = editCreditAccountId || null
+                updates.linked_card_id = null
+              } else {
+                updates.linked_account_id = editLinkedCardId ? null : (editLinkedAccountId || null)
+                updates.linked_card_id = editLinkedCardId || null
+                updates.linked_target_account_id = null
+              }
+              onEdit(updates)
+              setEditing(false)
+            }}
               style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', background: 'var(--color-primary)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>저장</button>
             <button onClick={() => setEditing(false)}
               style={{ flex: 1, padding: '8px', borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
@@ -268,8 +331,6 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   function getCardPayStatus(card: Card): { label: string; color: string; isToday: boolean } {
     if (!card.due_day) return { label: '', color: '#9ca3af', isToday: false }
     const today = new Date()
-    const thisYear = today.getFullYear()
-    const thisMonthNum = today.getMonth() + 1
     const todayDay = today.getDate()
     const due = card.due_day
 
@@ -277,7 +338,16 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
 
     const diff = due - todayDay
     if (diff === 0) return { label: '오늘 납부일 ⚠️', color: '#f59e0b', isToday: true }
-    if (diff < 0) return { label: '지연 ⚠️', color: '#ef4444', isToday: false }
+    if (diff < 0) {
+      // 등록 월이 이번 달이면 지연 뱃지 미표시 (다음 달부터 적용)
+      if (card.created_at) {
+        const cardDate = new Date(card.created_at)
+        const cardYearMonth = cardDate.getFullYear() * 100 + (cardDate.getMonth() + 1)
+        const thisYearMonth = today.getFullYear() * 100 + (today.getMonth() + 1)
+        if (cardYearMonth >= thisYearMonth) return { label: '', color: '#9ca3af', isToday: false }
+      }
+      return { label: '지연 ⚠️', color: '#ef4444', isToday: false }
+    }
     return { label: `D-${diff}`, color: '#9ca3af', isToday: false }
   }
 
@@ -754,7 +824,8 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
           {fixedExpenses.map(f => <FixedRow key={f.id} item={f}
             accountName={localAccounts.find(a => a.id === (f as any).linked_account_id)?.name}
             onDelete={() => deleteFixed(f.id)}
-            onEdit={(u: Record<string, unknown>) => editFixed(f.id, u)} />)}
+            onEdit={(u: Record<string, unknown>) => editFixed(f.id, u)}
+            accounts={localAccounts} cards={localCards} />)}
           <p style={{ fontSize: 12, color: '#6b7280', marginTop: 6, fontWeight: 600 }}>{TEXTS.assets.fixedSection.subtotal(fixedExpenseTotal)}</p>
         </div>
         <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 14 }}>
@@ -779,7 +850,8 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             accountName={localAccounts.find(a => a.id === (f as any).linked_account_id)?.name}
             targetAccountName={localAccounts.find(a => a.id === (f as any).linked_target_account_id)?.name}
             onDelete={() => deleteFixed(f.id)}
-            onEdit={(u: Record<string, unknown>) => editFixed(f.id, u)} />)}
+            onEdit={(u: Record<string, unknown>) => editFixed(f.id, u)}
+            accounts={localAccounts} cards={localCards} />)}
           <p style={{ fontSize: 12, color: '#059669', marginTop: 6, fontWeight: 600 }}>{TEXTS.assets.fixedSection.subtotalSaving(fixedSavingTotal)}</p>
         </div>
       </Section>
