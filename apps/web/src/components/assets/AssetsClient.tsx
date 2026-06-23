@@ -525,13 +525,12 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
           borderRadius: 16, padding: '14px 16px', marginBottom: 14,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
         }}>
-          <button
-            onClick={() => router.push('/onboarding')}
-            style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', padding: 0 }}
+          <div
+            style={{ flex: 1, textAlign: 'left', padding: 0 }}
           >
             <p style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 2 }}>{TEXTS.assets.bannerTitle}</p>
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>{TEXTS.assets.bannerDesc}</p>
-          </button>
+          </div>
           <button onClick={() => {
             setShowOnboardingBanner(false)
             // localStorage에 저장 (DB 업데이트 실패해도 재노출 방지)
