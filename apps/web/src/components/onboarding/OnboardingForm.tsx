@@ -180,8 +180,9 @@ export default function OnboardingForm({ userId, email }: Props) {
     try {
       const finalName = name.trim() || suggestedName
       const month = dayjs().format('YYYY-MM')
+      const emailToUse = email || `${userId}@guest.spenlog.app`
       const { error: uErr } = await supabase.from('users').upsert(
-        { id: userId, name: finalName, income: parseMan(income), saving_goal: parseMan(goal), theme, onboarding_completed: true },
+        { id: userId, email: emailToUse, name: finalName, income: parseMan(income), saving_goal: parseMan(goal), theme, onboarding_completed: true },
         { onConflict: 'id' }
       )
       if (uErr) throw uErr
@@ -267,7 +268,7 @@ export default function OnboardingForm({ userId, email }: Props) {
           <p style={{ fontSize: 12, color: '#B8A8AC', textAlign: 'center' as const, marginBottom: 24 }}>{TEXTS.onboarding.themeMoreNote}</p>
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px' }}>
             <button onClick={async () => {
-              await supabase.from('users').upsert({ id: userId, onboarding_completed: true }, { onConflict: 'id' })
+              await supabase.from('users').upsert({ id: userId, email: email || `${userId}@guest.spenlog.app`, onboarding_completed: true }, { onConflict: 'id' })
               if (typeof window !== 'undefined') localStorage.setItem('spenlog_onboarding_completed', 'true')
               setStep('income')
             }} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>다음 →</button>
@@ -282,7 +283,7 @@ export default function OnboardingForm({ userId, email }: Props) {
               <p style={{ fontSize: 13, color: '#6b7280', textAlign: 'center', lineHeight: 1.6, marginBottom: 24 }}>{TEXTS.onboarding.themePremiumDesc}</p>
               <button onClick={async () => {
                 setTheme('Burgundy'); setShowPremiumSheet(false)
-                await supabase.from('users').upsert({ id: userId, onboarding_completed: true }, { onConflict: 'id' })
+                await supabase.from('users').upsert({ id: userId, email: email || `${userId}@guest.spenlog.app`, onboarding_completed: true }, { onConflict: 'id' })
                 if (typeof window !== 'undefined') localStorage.setItem('spenlog_onboarding_completed', 'true')
                 setStep('income')
               }} style={{ width: '100%', padding: '14px', borderRadius: 14, background: '#f3f4f6', color: '#6b7280', fontSize: 14, fontWeight: 500, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.onboarding.themeBtnDefault}</button>
