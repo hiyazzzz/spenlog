@@ -7,13 +7,12 @@ import { THEMES } from '@/lib/themes'
 import type { Theme } from '@spenlog/types'
 import dayjs from 'dayjs'
 
-type Step = 'intro' | 'name' | 'theme' | 'income' | 'goal' | 'budget' | 'assets' | 'cards' | 'fixedcosts' | 'categories' | 'welcome'
-type FixedKind = '고정지출' | '고정저축'
+type Step = 'intro' | 'name' | 'theme' | 'income' | 'goal' | 'welcome'
 
 const INTRO_SLIDES = [
-  { emoji: '\u{1F916}', title: '"스타벅스 육천원 카드" 한 줄이면', desc: 'AI가 금액·카테고리·결제수단을 자동으로 분류해줘요', bg: 'linear-gradient(135deg, #6B1E2E 0%, #9B2C45 100%)' },
-  { emoji: '\u{1F4CA}', title: '이번 달 지출 현황을 한눈에', desc: '카테고리별 예산 달성률을 대시보드에서 바로 확인해요', bg: 'linear-gradient(135deg, #4A7541 0%, #6AAD5E 100%)' },
-  { emoji: '\u{1F3E6}', title: '계좌·카드·고정비 연결하면', desc: '루틴 기록 한 번으로 잔액이 자동으로 반영돼요', bg: 'linear-gradient(135deg, #5C4B8A 0%, #7B6AAD 100%)' },
+  { emoji: '🤖', title: '"스타벅스 육천원 카드" 한 줄이면', desc: 'AI가 금액·카테고리·결제수단을 자동으로 분류해줘요', bg: 'linear-gradient(135deg, #6B1E2E 0%, #9B2C45 100%)' },
+  { emoji: '📊', title: '이번 달 지출 현황을 한눈에', desc: '카테고리별 예산 달성률을 대시보드에서 바로 확인해요', bg: 'linear-gradient(135deg, #4A7541 0%, #6AAD5E 100%)' },
+  { emoji: '🏦', title: '계좌·카드·고정비 연결하면', desc: '루틴 기록 한 번으로 잔액이 자동으로 반영돼요', bg: 'linear-gradient(135deg, #5C4B8A 0%, #7B6AAD 100%)' },
 ]
 
 const RANDOM_NAMES = ['데굴데굴 도토리','반짝반짝 별님','폴짝폴짝 토끼','살금살금 고양이','두근두근 하트','알뜨살뜨 다람쥐','포근포근 구름','도란도란 물방울','사블사블 나비','속속 솔방울','통통 밤톨','꺜짝꺜짝 별동별']
@@ -24,7 +23,7 @@ const THEME_LIST: { key: Theme; premium?: boolean }[] = [
 ]
 
 const DEFAULT_CATS = ['생활비','고정비','활동비','수입']
-const TOTAL_STEPS = 9
+const TOTAL_STEPS = 4
 
 function randomName() { return RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)] }
 function formatWon(val: string) { const n = val.replace(/[^0-9]/g, ''); return n ? Number(n).toLocaleString() : '' }
@@ -43,9 +42,6 @@ function ProgressBar({ current, total, color }: { current: number; total: number
   )
 }
 
-interface Account { id: string; name: string; bank: string; balance: number }
-interface Card { id: string; name: string; bank: string }
-interface FixedCostItem { id: string; name: string; amount: number; kind: FixedKind; due_day: number | null }
 interface Props { userId: string; email: string }
 
 export default function OnboardingForm({ userId, email }: Props) {
@@ -59,29 +55,6 @@ export default function OnboardingForm({ userId, email }: Props) {
   const [showPremiumSheet, setShowPremiumSheet] = useState(false)
   const [income, setIncome] = useState('')
   const [goal, setGoal] = useState('')
-  const [budgetMode, setBudgetMode] = useState<'ai' | 'manual'>('ai')
-  const [budgets, setBudgets] = useState<Record<string, number>>({})
-  const [budgetLoading, setBudgetLoading] = useState(false)
-  const [budgetReason, setBudgetReason] = useState('')
-  const [budgetUsedFallback, setBudgetUsedFallback] = useState(false)
-  const [budgetLoaded, setBudgetLoaded] = useState(false)
-  const [accounts, setAccounts] = useState<Account[]>([])
-  const [accName, setAccName] = useState('')
-  const [accBank, setAccBank] = useState('')
-  const [accBalance, setAccBalance] = useState('')
-  const [accAdding, setAccAdding] = useState(false)
-  const [cards, setCards] = useState<Card[]>([])
-  const [cardName, setCardName] = useState('')
-  const [cardBank, setCardBank] = useState('')
-  const [cardAdding, setCardAdding] = useState(false)
-  const [fixedCosts, setFixedCosts] = useState<FixedCostItem[]>([])
-  const [fcName, setFcName] = useState('')
-  const [fcAmount, setFcAmount] = useState('')
-  const [fcKind, setFcKind] = useState<FixedKind>('고정지출')
-  const [fcDueDay, setFcDueDay] = useState('')
-  const [fcAdding, setFcAdding] = useState(false)
-  const [cats, setCats] = useState<string[]>(DEFAULT_CATS)
-  const [newCat, setNewCat] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -105,98 +78,43 @@ export default function OnboardingForm({ userId, email }: Props) {
     boxSizing: 'border-box', fontFamily: 'inherit',
   }
 
-  async function loadAIBudgets() {
-    setBudgetLoading(true); setBudgetReason('')
-    try {
-      const res = await fetch('/api/budget-recommend', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ income: parseMan(income), fixedSavings: 0, recentExpenses: [], currentBudgets: [], categories: DEFAULT_CATS.filter(c => c !== '수입') }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setBudgets(data.amounts ?? {}); setBudgetReason(data.reason ?? ''); setBudgetUsedFallback(data.usedFallback ?? false)
-      } else { fallbackBudgets() }
-    } catch { fallbackBudgets() }
-    setBudgetLoading(false); setBudgetLoaded(true)
-  }
-
-  function fallbackBudgets() {
-    const spend = Math.round(parseMan(income) * 0.75)
-    const spendCats = DEFAULT_CATS.filter(c => c !== '수입')
-    const dist: Record<string, number> = { '생활비': 0.40, '고정비': 0.35, '활동비': 0.25 }
-    const result: Record<string, number> = {}
-    spendCats.forEach(c => { result[c] = Math.round(spend * (dist[c] ?? 0.1) / 1000) * 1000 })
-    setBudgets(result); setBudgetUsedFallback(true); setBudgetLoaded(true)
-  }
-
-  async function addAccount() {
-    if (!accName.trim()) return
-    setAccAdding(true)
-    const { data } = await supabase.from('accounts').insert({ user_id: userId, name: accName.trim(), bank: accBank.trim(), balance: parseInt(accBalance.replace(/,/g, '')) || 0, type: '입출금' }).select().single()
-    if (data) setAccounts(prev => [...prev, data])
-    setAccName(''); setAccBank(''); setAccBalance(''); setAccAdding(false)
-  }
-
-  async function removeAccount(id: string) {
-    await supabase.from('accounts').delete().eq('id', id)
-    setAccounts(prev => prev.filter(a => a.id !== id))
-  }
-
-  async function addCard() {
-    if (!cardName.trim()) return
-    setCardAdding(true)
-    const { data } = await supabase.from('cards').insert({ user_id: userId, name: cardName.trim(), bank: cardBank.trim() }).select().single()
-    if (data) setCards(prev => [...prev, data])
-    setCardName(''); setCardBank(''); setCardAdding(false)
-  }
-
-  async function removeCard(id: string) {
-    await supabase.from('cards').delete().eq('id', id)
-    setCards(prev => prev.filter(c => c.id !== id))
-  }
-
-  async function addFixedCost() {
-    if (!fcName.trim() || !fcAmount) return
-    setFcAdding(true)
-    const { data } = await supabase.from('fixed_costs').insert({
-      user_id: userId,
-      name: fcName.trim(),
-      amount: parseInt(fcAmount.replace(/,/g, '')) || 0,
-      type: '월정액',
-      kind: fcKind,
-      due_day: fcDueDay ? parseInt(fcDueDay) : null,
-    }).select().single()
-    if (data) setFixedCosts(prev => [...prev, data])
-    setFcName(''); setFcAmount(''); setFcDueDay(''); setFcAdding(false)
-  }
-
-  async function removeFixedCost(id: string) {
-    await supabase.from('fixed_costs').delete().eq('id', id)
-    setFixedCosts(prev => prev.filter(f => f.id !== id))
-  }
-
-  async function handleFinish() {
+  // overrideGoal: 건너뛰기 시 goal을 빈값으로 처리
+  async function handleFinish(overrideGoal?: string) {
     setSaving(true); setError('')
     try {
       const finalName = name.trim() || suggestedName
       const month = dayjs().format('YYYY-MM')
+      const incomeNum = parseMan(income)
+      const goalNum = parseMan(overrideGoal !== undefined ? overrideGoal : goal)
       const emailToUse = email || `${userId}@guest.spenlog.app`
       const { error: uErr } = await supabase.from('users').upsert(
-        { id: userId, email: emailToUse, name: finalName, income: parseMan(income), saving_goal: parseMan(goal), theme, onboarding_completed: true },
+        { id: userId, email: emailToUse, name: finalName, income: incomeNum, saving_goal: goalNum, theme, onboarding_completed: true, init_setup_completed: true },
         { onConflict: 'id' }
       )
       if (uErr) throw uErr
-      if (typeof window !== 'undefined') localStorage.setItem('spenlog_theme', theme)
-      if (Object.keys(budgets).length > 0) {
-        const rows = Object.entries(budgets).filter(([, amt]) => amt > 0).map(([category, amount]) => ({ user_id: userId, category, amount, month, source: 'ai' }))
-        if (rows.length > 0) await supabase.from('budgets').upsert(rows, { onConflict: 'user_id,category,month' })
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('spenlog_theme', theme)
+        localStorage.setItem('spenlog_init_setup_completed', 'true')
+      }
+      // 수입 기반 자동 예산 분배: 생활비 40% / 고정비 35% / 활동비 25%
+      const budgetBase = Math.max(incomeNum - goalNum, 0)
+      if (budgetBase > 0) {
+        const dist: Record<string, number> = { '생활비': 0.40, '고정비': 0.35, '활동비': 0.25 }
+        const rows = Object.entries(dist).map(([category, ratio]) => ({
+          user_id: userId, category,
+          amount: Math.round(budgetBase * ratio / 1000) * 1000,
+          month, source: 'manual',
+        }))
+        await supabase.from('budgets').upsert(rows, { onConflict: 'user_id,category,month' })
       }
       const { data: existingCats } = await supabase.from('categories').select('id').eq('user_id', userId).limit(1)
-      if (!existingCats?.length && cats.length > 0) {
-        await supabase.from('categories').insert(cats.map((n, i) => ({ user_id: userId, name: n, is_default: true, is_hidden: false, sort_order: i })))
+      if (!existingCats?.length) {
+        await supabase.from('categories').insert(
+          DEFAULT_CATS.map((n, i) => ({ user_id: userId, name: n, is_default: true, is_hidden: false, sort_order: i }))
+        )
       }
       setStep('welcome')
-      setTimeout(() => router.push('/'), 2000)
+      setTimeout(() => router.push('/'), 2500)
     } catch (e: any) { setError(TEXTS.onboarding.errSave(e.message)); setSaving(false) }
   }
 
@@ -328,241 +246,11 @@ export default function OnboardingForm({ userId, email }: Props) {
         </div>
         {goal && <p style={{ fontSize: '12px', color: '#9A7A80', marginTop: '6px' }}>{TEXTS.onboarding.goalHint(parseMan(goal))}</p>}
         <p style={{ fontSize: '11px', color: '#C4A0A8', marginTop: '8px' }}>{TEXTS.onboarding.goalTip}</p>
+        {error && <p style={{ fontSize: '13px', color: '#E05070', marginTop: '8px' }}>{error}</p>}
         <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px', marginTop: '32px' }}>
-          <button onClick={async () => {
-            await supabase.from('users').update({ init_setup_completed: true }).eq('id', userId)
-            if (typeof window !== 'undefined') localStorage.setItem('spenlog_init_setup_completed', 'true')
-            setBudgetLoaded(false); setStep('budget')
-          }} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>다음 →</button>
-          <button onClick={async () => {
-            await supabase.from('users').update({ init_setup_completed: true }).eq('id', userId)
-            if (typeof window !== 'undefined') localStorage.setItem('spenlog_init_setup_completed', 'true')
-            setGoal(''); setBudgetLoaded(false); setStep('budget')
-          }} style={{ background: 'none', border: 'none', color: '#B8A8AC', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>건너뛰기</button>
-          <button onClick={() => setStep('income')} style={{ background: 'none', border: 'none', color: '#C4A0A8', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>← 이전</button>
-        </div>
-      </div>
-    )
-  }
-
-  if (step === 'budget') {
-    const spendCats = DEFAULT_CATS.filter(c => c !== '수입')
-    return (
-      <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
-        <ProgressBar current={4} total={TOTAL_STEPS} color={primary} />
-        <h1 style={{ fontSize: '24px', fontWeight: '800', color: primary, marginBottom: '6px' }}>{TEXTS.onboarding.budgetTitle}</h1>
-        <p style={{ fontSize: '14px', color: '#B8A8AC', marginBottom: '20px' }}>{TEXTS.onboarding.budgetSubtitle}</p>
-        <div style={{ display: 'flex', background: primaryLight, borderRadius: 12, padding: 3, marginBottom: 20, gap: 3 }}>
-          {(['ai', 'manual'] as const).map(m => (
-            <button key={m} onClick={() => setBudgetMode(m)} style={{ flex: 1, padding: '9px', borderRadius: 10, border: 'none', background: budgetMode === m ? primary : 'transparent', color: budgetMode === m ? '#fff' : primary, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
-              {m === 'ai' ? TEXTS.onboarding.budgetTabAI : TEXTS.onboarding.budgetTabManual}
-            </button>
-          ))}
-        </div>
-        {budgetMode === 'ai' && !budgetLoaded && (
-          <div style={{ textAlign: 'center' as const, padding: '24px 0' }}>
-            <p style={{ fontSize: 14, color: '#9A7A80', marginBottom: 16 }}>{income ? TEXTS.onboarding.budgetAIBasis(income) : TEXTS.onboarding.budgetAINoIncome}</p>
-            <button onClick={loadAIBudgets} disabled={budgetLoading} style={{ padding: '14px 28px', borderRadius: 14, background: primary, color: '#fff', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{budgetLoading ? TEXTS.onboarding.budgetBtnAILoading : TEXTS.onboarding.budgetBtnAI}</button>
-          </div>
-        )}
-        {(budgetMode === 'manual' || (budgetMode === 'ai' && budgetLoaded)) && (
-          <>
-            {budgetMode === 'ai' && (
-              <div style={{ background: primaryLight, borderRadius: 12, padding: '10px 14px', marginBottom: 14 }}>
-                <p style={{ fontSize: 12, color: primary, lineHeight: 1.5 }}>{budgetUsedFallback ? TEXTS.onboarding.budgetFallbackNote : '💡 ' + budgetReason}</p>
-              </div>
-            )}
-            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10, marginBottom: 8 }}>
-              {spendCats.map(cat => (
-                <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#374151', width: 56, flexShrink: 0 }}>{cat}</span>
-                  <input type="text" inputMode="numeric" placeholder="0" value={budgets[cat] ? budgets[cat].toLocaleString() : ''} onChange={e => { const val = parseInt(e.target.value.replace(/,/g, '')) || 0; setBudgets(prev => ({ ...prev, [cat]: val })) }} style={{ ...inputStyle, padding: '10px 12px', fontSize: 14, flex: 1 }} />
-                  <span style={{ fontSize: 12, color: '#9A7A80', flexShrink: 0 }}>원</span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px', marginTop: '20px' }}>
-          <button onClick={() => setStep('assets')} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>다음 →</button>
-          <button onClick={() => { setBudgets({}); setStep('assets') }} style={{ background: 'none', border: 'none', color: '#B8A8AC', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>건너뛰기</button>
-          <button onClick={() => setStep('goal')} style={{ background: 'none', border: 'none', color: '#C4A0A8', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>← 이전</button>
-        </div>
-      </div>
-    )
-  }
-
-  if (step === 'assets') {
-    return (
-      <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
-        <ProgressBar current={5} total={TOTAL_STEPS} color={primary} />
-        <h1 style={{ fontSize: '24px', fontWeight: '800', color: primary, marginBottom: '6px' }}>{TEXTS.onboarding.assetsTitle}</h1>
-        <p style={{ fontSize: '14px', color: '#B8A8AC', marginBottom: '20px' }}>{TEXTS.onboarding.assetsSubtitle} <span style={{ fontSize: 12 }}>{TEXTS.onboarding.assetsOpt}</span></p>
-        {accounts.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, marginBottom: 16 }}>
-            {accounts.map(acc => (
-              <div key={acc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: primaryLight, borderRadius: 12, padding: '10px 14px' }}>
-                <div>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: primary }}>{acc.name}</p>
-                  <p style={{ fontSize: 12, color: '#9A7A80' }}>{acc.bank} · {acc.balance.toLocaleString()}원</p>
-                </div>
-                <button onClick={() => removeAccount(acc.id)} style={{ fontSize: 16, background: 'none', border: 'none', cursor: 'pointer', color: '#d1d5db' }}>✕</button>
-              </div>
-            ))}
-          </div>
-        )}
-        <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid ' + primaryLight, padding: 16, marginBottom: 16 }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: primary, marginBottom: 12 }}>{TEXTS.onboarding.assetsAddTitle}</p>
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
-            <input type="text" placeholder={TEXTS.onboarding.assetsNamePh} value={accName} onChange={e => setAccName(e.target.value)} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14 }} />
-            <input type="text" placeholder={TEXTS.onboarding.assetsBankPh} value={accBank} onChange={e => setAccBank(e.target.value)} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14 }} />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input type="text" inputMode="numeric" placeholder={TEXTS.onboarding.assetsBalancePh} value={accBalance} onChange={e => setAccBalance(formatWon(e.target.value))} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14, flex: 1 }} />
-              <span style={{ fontSize: 13, color: '#9A7A80', alignSelf: 'center', flexShrink: 0 }}>원</span>
-            </div>
-          </div>
-          <button onClick={addAccount} disabled={accAdding || !accName.trim()} style={{ width: '100%', marginTop: 12, padding: '10px', borderRadius: 12, background: accName.trim() ? primary : '#f3f4f6', color: accName.trim() ? '#fff' : '#9ca3af', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.onboarding.assetsBtnAdd(accAdding)}</button>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px' }}>
-          <button onClick={() => setStep('cards')} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>다음 →</button>
-          <button onClick={async () => {
-            await supabase.from('users').update({ asset_setup_skipped: true }).eq('id', userId)
-            if (typeof window !== 'undefined') localStorage.setItem('spenlog_asset_setup_skipped', 'true')
-            setStep('cards')
-          }} style={{ background: 'none', border: 'none', color: '#B8A8AC', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>건너뛰기</button>
-          <button onClick={() => setStep('budget')} style={{ background: 'none', border: 'none', color: '#C4A0A8', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>← 이전</button>
-        </div>
-      </div>
-    )
-  }
-
-  if (step === 'cards') {
-    return (
-      <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
-        <ProgressBar current={6} total={TOTAL_STEPS} color={primary} />
-        <h1 style={{ fontSize: '24px', fontWeight: '800', color: primary, marginBottom: '6px' }}>{TEXTS.onboarding.cardsTitle}</h1>
-        <p style={{ fontSize: '14px', color: '#B8A8AC', marginBottom: '20px' }}>{TEXTS.onboarding.cardsSubtitle} <span style={{ fontSize: 12 }}>{TEXTS.onboarding.cardsOpt}</span></p>
-        {cards.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, marginBottom: 16 }}>
-            {cards.map(card => (
-              <div key={card.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: primaryLight, borderRadius: 12, padding: '10px 14px' }}>
-                <div>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: primary }}>{card.name}</p>
-                  {card.bank && <p style={{ fontSize: 12, color: '#9A7A80' }}>{card.bank}</p>}
-                </div>
-                <button onClick={() => removeCard(card.id)} style={{ fontSize: 16, background: 'none', border: 'none', cursor: 'pointer', color: '#d1d5db' }}>✕</button>
-              </div>
-            ))}
-          </div>
-        )}
-        <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid ' + primaryLight, padding: 16, marginBottom: 16 }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: primary, marginBottom: 12 }}>{TEXTS.onboarding.cardsAddTitle}</p>
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
-            <input type="text" placeholder={TEXTS.onboarding.cardsNamePh} value={cardName} onChange={e => setCardName(e.target.value)} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14 }} />
-            <input type="text" placeholder={TEXTS.onboarding.cardsBankPh} value={cardBank} onChange={e => setCardBank(e.target.value)} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14 }} />
-          </div>
-          <button onClick={addCard} disabled={cardAdding || !cardName.trim()} style={{ width: '100%', marginTop: 12, padding: '10px', borderRadius: 12, background: cardName.trim() ? primary : '#f3f4f6', color: cardName.trim() ? '#fff' : '#9ca3af', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.onboarding.cardsBtnAdd(cardAdding)}</button>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px' }}>
-          <button onClick={() => setStep('fixedcosts')} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>다음 →</button>
-          <button onClick={() => setStep('fixedcosts')} style={{ background: 'none', border: 'none', color: '#B8A8AC', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>건너뛰기</button>
-          <button onClick={() => setStep('assets')} style={{ background: 'none', border: 'none', color: '#C4A0A8', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>← 이전</button>
-        </div>
-      </div>
-    )
-  }
-
-  if (step === 'fixedcosts') {
-    const spendItems = fixedCosts.filter(f => f.kind === '고정지출')
-    const saveItems = fixedCosts.filter(f => f.kind === '고정저축')
-    return (
-      <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
-        <ProgressBar current={7} total={TOTAL_STEPS} color={primary} />
-        <h1 style={{ fontSize: '24px', fontWeight: '800', color: primary, marginBottom: '6px' }}>{TEXTS.onboarding.fixedTitle}</h1>
-        <p style={{ fontSize: '14px', color: '#B8A8AC', marginBottom: '8px' }}>{TEXTS.onboarding.fixedSubtitle} <span style={{ fontSize: 12 }}>{TEXTS.onboarding.fixedOpt}</span></p>
-        <p style={{ fontSize: 12, color: '#C4A0A8', marginBottom: 20 }}>{TEXTS.onboarding.fixedTip}</p>
-
-        {fixedCosts.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, marginBottom: 16 }}>
-            {spendItems.length > 0 && (
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#9A7A80', marginBottom: 2 }}>고정지출</p>
-            )}
-            {spendItems.map(fc => (
-              <div key={fc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: primaryLight, borderRadius: 12, padding: '10px 14px' }}>
-                <div>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: primary }}>{fc.name}</p>
-                  <p style={{ fontSize: 12, color: '#9A7A80' }}>{fc.amount.toLocaleString()}원{fc.due_day ? ` · ${TEXTS.onboarding.fixedDueSuffix(fc.due_day)}` : ''}</p>
-                </div>
-                <button onClick={() => removeFixedCost(fc.id)} style={{ fontSize: 16, background: 'none', border: 'none', cursor: 'pointer', color: '#d1d5db' }}>✕</button>
-              </div>
-            ))}
-            {saveItems.length > 0 && (
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#9A7A80', marginTop: 4, marginBottom: 2 }}>고정저축</p>
-            )}
-            {saveItems.map(fc => (
-              <div key={fc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f0fdf4', borderRadius: 12, padding: '10px 14px', border: '1px solid #bbf7d0' }}>
-                <div>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: '#16a34a' }}>{fc.name}</p>
-                  <p style={{ fontSize: 12, color: '#9A7A80' }}>{fc.amount.toLocaleString()}원{fc.due_day ? ` · ${TEXTS.onboarding.fixedDueSuffix(fc.due_day)}` : ''}</p>
-                </div>
-                <button onClick={() => removeFixedCost(fc.id)} style={{ fontSize: 16, background: 'none', border: 'none', cursor: 'pointer', color: '#d1d5db' }}>✕</button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div style={{ background: '#fff', borderRadius: 16, border: '1.5px solid ' + primaryLight, padding: 16, marginBottom: 16 }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: primary, marginBottom: 12 }}>{TEXTS.onboarding.fixedAddTitle}</p>
-          <div style={{ display: 'flex', background: primaryLight, borderRadius: 10, padding: 3, marginBottom: 10, gap: 3 }}>
-            {(['고정지출', '고정저축'] as FixedKind[]).map(k => (
-              <button key={k} onClick={() => setFcKind(k)} style={{ flex: 1, padding: '7px', borderRadius: 8, border: 'none', background: fcKind === k ? primary : 'transparent', color: fcKind === k ? '#fff' : primary, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>{k}</button>
-            ))}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
-            <input type="text" placeholder={TEXTS.onboarding.fixedNamePh} value={fcName} onChange={e => setFcName(e.target.value)} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14 }} />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input type="text" inputMode="numeric" placeholder={TEXTS.onboarding.fixedAmountPh} value={fcAmount} onChange={e => setFcAmount(formatWon(e.target.value))} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14, flex: 2 }} />
-              <span style={{ fontSize: 13, color: '#9A7A80', alignSelf: 'center', flexShrink: 0 }}>{TEXTS.onboarding.fixedAmountSuffix}</span>
-              <input type="text" inputMode="numeric" placeholder={TEXTS.onboarding.fixedDuePh} value={fcDueDay} onChange={e => setFcDueDay(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14, flex: 1 }} />
-              <span style={{ fontSize: 13, color: '#9A7A80', alignSelf: 'center', flexShrink: 0 }}>일</span>
-            </div>
-          </div>
-          <button onClick={addFixedCost} disabled={fcAdding || !fcName.trim() || !fcAmount} style={{ width: '100%', marginTop: 12, padding: '10px', borderRadius: 12, background: (fcName.trim() && fcAmount) ? primary : '#f3f4f6', color: (fcName.trim() && fcAmount) ? '#fff' : '#9ca3af', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.onboarding.fixedBtnAdd(fcAdding)}</button>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px' }}>
-          <button onClick={() => setStep('categories')} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>다음 →</button>
-          <button onClick={() => setStep('categories')} style={{ background: 'none', border: 'none', color: '#B8A8AC', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>건너뛰기</button>
-          <button onClick={() => setStep('cards')} style={{ background: 'none', border: 'none', color: '#C4A0A8', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>← 이전</button>
-        </div>
-      </div>
-    )
-  }
-
-  if (step === 'categories') {
-    return (
-      <div style={{ maxWidth: 420, margin: '0 auto', padding: '0 24px' }}>
-        <ProgressBar current={8} total={TOTAL_STEPS} color={primary} />
-        <h1 style={{ fontSize: '24px', fontWeight: '800', color: primary, marginBottom: '6px' }}>{TEXTS.onboarding.catsTitle}</h1>
-        <p style={{ fontSize: '14px', color: '#B8A8AC', marginBottom: '6px' }}>{TEXTS.onboarding.catsSubtitle}</p>
-        <p style={{ fontSize: 12, color: '#C4A0A8', marginBottom: 16 }}>{TEXTS.onboarding.catsTip}</p>
-        <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 16 }}>
-          {cats.map(cat => (
-            <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 6, background: primaryLight, borderRadius: 20, padding: '7px 12px' }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: primary }}>{cat}</span>
-              <button onClick={() => setCats(prev => prev.filter(c => c !== cat))} style={{ fontSize: 13, color: primary, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1, padding: 0, opacity: 0.6 }}>✕</button>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-          <input type="text" placeholder={TEXTS.onboarding.catsNewPh} value={newCat} onChange={e => setNewCat(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && newCat.trim()) { setCats(prev => [...prev, newCat.trim()]); setNewCat('') } }} style={{ ...inputStyle, padding: '10px 14px', fontSize: 14, flex: 1 }} />
-          <button onClick={() => { if (newCat.trim()) { setCats(prev => [...prev, newCat.trim()]); setNewCat('') } }} style={{ padding: '10px 16px', borderRadius: 12, background: primary, color: '#fff', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>추가</button>
-        </div>
-        <p style={{ fontSize: 11, color: '#C4A0A8', marginBottom: 20 }}>{TEXTS.onboarding.catsIncomeTip}</p>
-        {error && <p style={{ fontSize: '13px', color: '#E05070', marginBottom: '8px' }}>{error}</p>}
-        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px', marginTop: '8px' }}>
-          <button onClick={handleFinish} disabled={saving} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: saving ? '#C4A0A8' : primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>{saving ? TEXTS.onboarding.btnStartSaving : TEXTS.onboarding.btnStart}</button>
-          <button onClick={() => setStep('fixedcosts')} style={{ background: 'none', border: 'none', color: '#C4A0A8', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>← 이전</button>
+          <button onClick={() => handleFinish()} disabled={saving} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: saving ? '#C4A0A8' : primary, color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>{saving ? TEXTS.onboarding.btnStartSaving : '시작하기 🎉'}</button>
+          <button onClick={() => handleFinish('')} disabled={saving} style={{ background: 'none', border: 'none', color: '#B8A8AC', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>건너뛰기</button>
+          <button onClick={() => setStep('income')} style={{ background: 'none', border: 'none', color: '#C4A0A8', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.onboarding.btnPrev}</button>
         </div>
       </div>
     )
@@ -574,7 +262,10 @@ export default function OnboardingForm({ userId, email }: Props) {
       <div style={{ fontSize: '64px', marginBottom: '24px' }}>🌿</div>
       <h1 style={{ fontSize: '26px', fontWeight: '800', color: primary, marginBottom: '12px' }}>{finalName}{TEXTS.onboarding.completeSuffix}</h1>
       <p style={{ fontSize: '18px', fontWeight: '600', color: primary, marginBottom: '8px' }}>{TEXTS.onboarding.completeTitle}</p>
-      <p style={{ fontSize: '15px', color: '#B8A8AC', lineHeight: 1.6 }}>{TEXTS.onboarding.completeSubtitle}</p>
+      <p style={{ fontSize: '15px', color: '#B8A8AC', lineHeight: 1.6, marginBottom: '20px' }}>{TEXTS.onboarding.completeSubtitle}</p>
+      <p style={{ fontSize: '13px', color: '#9A7A80', background: primaryLight, borderRadius: '12px', padding: '12px 16px', lineHeight: 1.6 }}>
+        🏦 계좌·카드·고정비는 <strong>자산 탭</strong>에서 설정할 수 있어요
+      </p>
     </div>
   )
 }
