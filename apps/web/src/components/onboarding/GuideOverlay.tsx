@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import GuideDots from '@/components/ui/GuideDots'
@@ -52,12 +52,19 @@ interface Props { userId: string }
 
 export default function GuideOverlay({ userId }: Props) {
   const [step, setStep] = useState(0)
-  const [visible, setVisible] = useState(true)
+  // false로 초기화 후 useEffect에서 localStorage 확인 — 이미 완료한 경우 오버레이 미표시
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const done = localStorage.getItem('spenlog_guide_completed') === '1'
+    if (!done) setVisible(true)
+  }, [])
   const supabase = createClient()
   const router = useRouter()
 
   async function dismiss(goAssets = false) {
     setVisible(false)
+    localStorage.setItem('spenlog_guide_completed', '1') // DB 호출 실패해도 재노출 방지
     await markGuideCompleted(supabase, userId)
     if (goAssets) router.push('/assets')
     else router.refresh()

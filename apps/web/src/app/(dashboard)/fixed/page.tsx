@@ -11,10 +11,12 @@ export default async function FixedPage() {
 
   const thisMonth = dayjs().format('YYYY-MM')
 
-  const [{ data: fixedCosts }, { data: appliedExpenses }] = await Promise.all([
+  const [{ data: fixedCosts }, { data: appliedExpenses }, { data: accounts }, { data: cards }] = await Promise.all([
     supabase.from('fixed_costs').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
     supabase.from('expenses').select('name').eq('user_id', user.id)
       .gte('date', `${thisMonth}-01`).eq('category', '고정비'),
+    supabase.from('accounts').select('*').eq('user_id', user.id),
+    supabase.from('cards').select('*').eq('user_id', user.id),
   ])
 
   const total = fixedCosts?.reduce((s, f) => s + f.amount, 0) ?? 0
@@ -38,7 +40,7 @@ export default async function FixedPage() {
         thisMonth={thisMonth}
       />
 
-      <FixedCostList initialItems={fixedCosts ?? []} userId={user.id} />
+      <FixedCostList initialItems={fixedCosts ?? []} userId={user.id} accounts={accounts ?? []} cards={cards ?? []} />
     </div>
   )
 }

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Budget } from '@spenlog/types'
@@ -80,7 +80,8 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
   })
 
   // savedAmounts: DB 저장된 값 (탭 전환해도 유지)
-  const savedAmounts = useMemo(() => getInitialAmounts(initialBudgets, allCategories), [initialBudgets, allCategories])
+  // savedAmounts: 저장된 값 (useState로 관리 — save 후 즉시 업데이트되어야 manual 탭 전환 시 반영됨)
+  const [savedAmounts, setSavedAmounts] = useState<Record<string, string>>(() => getInitialAmounts(initialBudgets, allCategories))
 
   // amounts: 현재 입력 필드값 (manual 탭 전용)
   const [amounts, setAmounts] = useState<Record<string, string>>(savedAmounts)
@@ -223,6 +224,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
     }
 
     setLoading(false)
+    setSavedAmounts({...amounts}) // ← 저장 직후 savedAmounts 갱신 (manual 탭 전환 시 반영)
     setSavedOk(true)
     setTimeout(() => setSavedOk(false), 2000)
     router.refresh()

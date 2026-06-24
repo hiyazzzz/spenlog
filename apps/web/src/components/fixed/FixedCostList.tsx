@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { TEXTS } from '@/config/texts'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { FixedCost, FixedCostType, FixedCostKind } from '@spenlog/types'
+import { FixedCost, FixedCostType, FixedCostKind, Account, Card } from '@spenlog/types'
 
 const TYPES: FixedCostType[] = ['월정액', '연정액', '기타']
 const KINDS: FixedCostKind[] = ['고정지출', '고정저축']
@@ -11,9 +11,13 @@ const KINDS: FixedCostKind[] = ['고정지출', '고정저축']
 interface Props {
   initialItems: FixedCost[]
   userId: string
+  accounts?: Account[]
+  cards?: Card[]
 }
 
-export default function FixedCostList({ initialItems, userId }: Props) {
+type LinkedOption = { id: string; label: string; type: 'account' | 'card' }
+
+export default function FixedCostList({ initialItems, userId, accounts = [], cards = [] }: Props) {
   const router = useRouter()
   const [activeKind, setActiveKind] = useState<FixedCostKind>('고정지출')
   const [showForm, setShowForm] = useState(false)
@@ -22,16 +26,35 @@ export default function FixedCostList({ initialItems, userId }: Props) {
   const [type, setType] = useState<FixedCostType>('월정액')
   const [kind, setKind] = useState<FixedCostKind>('고정지출')
   const [dueDay, setDueDay] = useState('')
+  const [linkedId, setLinkedId] = useState('')
   const [saving, setSaving] = useState(false)
+
+  const linkedOptions: LinkedOption[] = [
+    ...accounts.map(a => ({ id: a.id, label: `${a.name}·${a.bank}`, type: 'account' as const })),
+    ...cards.map(c => ({ id: c.id, label: `${c.name}·${c.bank}`, type: 'card' as const })),
+  ]
 
   const filtered = initialItems.filter(item => (item.kind ?? '고정지출') === activeKind)
   const totalSpend = initialItems.filter(i => (i.kind ?? '고정지출') === '고정지출').reduce((s, f) => s + f.amount, 0)
   const totalSave = initialItems.filter(i => i.kind === '고정저축').reduce((s, f) => s + f.amount, 0)
 
+  function getLinkedLabel(item: FixedCost): string | null {
+    if (item.linked_card_id) {
+      const card = cards.find(c => c.id === item.linked_card_id)
+      return card ? card.name : null
+    }
+    if (item.linked_account_id) {
+      const acc = accounts.find(a => a.id === item.linked_account_id)
+      return acc ? acc.name : null
+    }
+    return null
+  }
+
   const handleAdd = async () => {
     if (!name.trim() || !amount) return
     setSaving(true)
     const supabase = createClient()
+    const selected = linkedOptions.find(o => o.id === linkedId)
     await supabase.from('fixed_costs').insert({
       user_id: userId,
       name: name.trim(),
@@ -39,8 +62,10 @@ export default function FixedCostList({ initialItems, userId }: Props) {
       type,
       kind,
       due_day: dueDay ? Number(dueDay) : null,
+      linked_account_id: selected?.type === 'account' ? selected.id : null,
+      linked_card_id: selected?.type === 'card' ? selected.id : null,
     })
-    setName(''); setAmount(''); setDueDay(''); setType('월정액'); setKind(activeKind)
+    setName(''); setAmount(''); setDueDay(''); setType('월정액'); setKind(activeKind); setLinkedId('')
     setShowForm(false)
     setSaving(false)
     router.refresh()
@@ -79,23 +104,28 @@ export default function FixedCostList({ initialItems, userId }: Props) {
           <p className="text-xs text-gray-400 text-center py-8">{TEXTS.fixed.noItems(activeKind)}</p>
         ) : (
           <div className="divide-y divide-gray-50">
-            {filtered.map((item) => (
-              <div key={item.id} className="flex items-center justify-between px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-800">{item.name}</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">
-                    {item.type}{item.due_day ? ` · ${TEXTS.fixed.dueDateLabel(item.due_day)}` : ''}
-                  </p>
+            {filtered.map((item) => {
+              const linkedLabel = getLinkedLabel(item)
+              return (
+                <div key={item.id} className="flex items-center justify-between px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{item.name}</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      {item.type}
+                      {item.due_day ? ` · ${TEXTS.fixed.dueDateLabel(item.due_day)}` : ''}
+                      {linkedLabel ? ` · ${linkedLabel}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold" style={{ color: item.kind === '고정저축' ? '#10B981' : '#374151' }}>
+                      {item.amount.toLocaleString()}원
+                    </span>
+                    <button onClick={() => handleDelete(item.id)}
+                      className="text-xs text-gray-300 hover:text-rose-400 transition-colors">✕</button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold" style={{ color: item.kind === '고정저축' ? '#10B981' : '#374151' }}>
-                    {item.amount.toLocaleString()}원
-                  </span>
-                  <button onClick={() => handleDelete(item.id)}
-                    className="text-xs text-gray-300 hover:text-rose-400 transition-colors">✕</button>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
@@ -130,6 +160,30 @@ export default function FixedCostList({ initialItems, userId }: Props) {
           <input className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none"
             placeholder={TEXTS.fixed.formDuePh} type="text" inputMode="numeric"
             value={dueDay} onChange={e => setDueDay(e.target.value.replace(/[^0-9]/g, ''))} />
+          {linkedOptions.length > 0 && (
+            <select
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none bg-white"
+              value={linkedId}
+              onChange={e => setLinkedId(e.target.value)}
+              style={{ fontFamily: 'inherit', color: linkedId ? '#374151' : '#9ca3af' }}
+            >
+              <option value="">연결 계좌/카드 선택</option>
+              {accounts.length > 0 && (
+                <optgroup label="계좌">
+                  {accounts.map(a => (
+                    <option key={a.id} value={a.id}>{a.name}·{a.bank}</option>
+                  ))}
+                </optgroup>
+              )}
+              {cards.length > 0 && (
+                <optgroup label="카드">
+                  {cards.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}·{c.bank}</option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          )}
           <div className="flex gap-2">
             <button onClick={() => setShowForm(false)} className="flex-1 py-2 rounded-xl text-sm bg-gray-100 text-gray-500">{TEXTS.fixed.btnCancel}</button>
             <button onClick={handleAdd} disabled={saving}
