@@ -39,6 +39,8 @@ export async function recordFixedCostPayment(userId: string, fc: FixedCost, mont
 
   const isTransfer = fc.kind === '고정저축'
   let paymentMethod: string | null = null
+  let targetAccountName: string | null = null
+
   if (fc.linked_card_id) {
     const { data: card } = await supabase.from('cards').select('name').eq('id', fc.linked_card_id).single()
     paymentMethod = card?.name ?? null
@@ -46,6 +48,16 @@ export async function recordFixedCostPayment(userId: string, fc: FixedCost, mont
     const { data: acc } = await supabase.from('accounts').select('name').eq('id', fc.linked_account_id).single()
     paymentMethod = acc?.name ?? null
   }
+
+  // 저축 이체 시 목적지 계좌명 조회 → [이체] 형식으로 memo 저장 (삭제 시 잔액 역복구에 필요)
+  if (isTransfer && fc.linked_target_account_id) {
+    const { data: tgtAcc } = await supabase.from('accounts').select('name').eq('id', fc.linked_target_account_id).single()
+    targetAccountName = tgtAcc?.name ?? null
+  }
+
+  const expenseMemo = isTransfer
+    ? (targetAccountName ? `[이체] ${targetAccountName}` : '고정 저축 이체')
+    : '고정 지출 처리'
 
   await supabase.from('expenses').insert({
     user_id: userId,
@@ -56,7 +68,7 @@ export async function recordFixedCostPayment(userId: string, fc: FixedCost, mont
     payment_method: paymentMethod,
     type: isTransfer ? 'savings' : 'expense',
     source: 'routine',
-    memo: isTransfer ? '고정 저축 이체' : '고정 지출 처리',
+    memo: expenseMemo,
   })
 
   const accountUpdates: AccountUpdate[] = []

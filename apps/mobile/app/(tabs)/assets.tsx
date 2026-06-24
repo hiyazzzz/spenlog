@@ -6,7 +6,7 @@ import { useDataCache } from '@/store/dataCache';
 import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, getThemeColors, useThemeColors, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
 import { monthString } from '@/lib/date';
-import { getAssetsData, addAccount, deleteAccount, addCard, deleteCard, updateIncome, type AssetsData } from '@/lib/api/assets';
+import { getAssetsData, addAccount, deleteAccount, addCard, deleteCard, updateIncome, updateAccount, updateCard, type AssetsData } from '@/lib/api/assets';
 import { getFixedCostsData, addFixedCost, deleteFixedCost, type FixedCostsData } from '@/lib/api/fixed-costs';
 import { getBudgetData, saveBudgets, recommendBudget, type BudgetData } from '@/lib/api/budget';
 import { getPaidIds, recordFixedCostPayment, recordCardPayment } from '@/lib/api/routine';
@@ -104,6 +104,21 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
   const [cardBillingStartDay, setCardBillingStartDay] = useState('');
   const [cardLinkedAccountId, setCardLinkedAccountId] = useState<string | null>(null);
   const [savingCard, setSavingCard] = useState(false);
+
+  // 계좌 수정 인라인
+  const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
+  const [editAccName, setEditAccName] = useState('');
+  const [editAccBank, setEditAccBank] = useState('');
+  const [editAccType, setEditAccType] = useState<typeof ACCOUNT_TYPES[number]>('입출금');
+  const [editAccBalance, setEditAccBalance] = useState('');
+  const [savingEditAccount, setSavingEditAccount] = useState(false);
+
+  // 카드 수정 인라인
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [editCardName, setEditCardName] = useState('');
+  const [editCardBank, setEditCardBank] = useState('');
+  const [editCardDueDay, setEditCardDueDay] = useState('');
+  const [savingEditCard, setSavingEditCard] = useState(false);
 
   // 월 수입 수정
   const [editingIncome, setEditingIncome] = useState(false);
@@ -261,6 +276,38 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
         },
       },
     ]);
+  }
+
+  async function handleUpdateAccount() {
+    if (!editingAccountId || savingEditAccount) return;
+    setSavingEditAccount(true);
+    try {
+      const { error: err } = await updateAccount(editingAccountId, {
+        name: editAccName.trim(), bank: editAccBank.trim(),
+        type: editAccType, balance: parse(editAccBalance),
+      });
+      if (err) { Alert.alert('수정 실패', err.message); return; }
+      setEditingAccountId(null);
+      await load();
+    } finally {
+      setSavingEditAccount(false);
+    }
+  }
+
+  async function handleUpdateCard() {
+    if (!editingCardId || savingEditCard) return;
+    setSavingEditCard(true);
+    try {
+      const { error: err } = await updateCard(editingCardId, {
+        name: editCardName.trim(), bank: editCardBank.trim(),
+        due_day: editCardDueDay ? parseInt(editCardDueDay) : null,
+      });
+      if (err) { Alert.alert('수정 실패', err.message); return; }
+      setEditingCardId(null);
+      await load();
+    } finally {
+      setSavingEditCard(false);
+    }
   }
 
   async function handleSaveIncome() {
@@ -491,17 +538,51 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
           <Text style={assetStyles.emptyText}>등록된 계좌가 없어요</Text>
         )}
         {accounts.map(acc => (
-          <View key={acc.id} style={assetStyles.row}>
-            <View>
-              <Text style={assetStyles.rowTitle}>{acc.name}</Text>
-              <Text style={assetStyles.rowSubtitle}>{acc.bank} · {acc.type}</Text>
+          <View key={acc.id}>
+            <View style={assetStyles.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={assetStyles.rowTitle}>{acc.name}</Text>
+                <Text style={assetStyles.rowSubtitle}>{acc.bank} · {acc.type}</Text>
+              </View>
+              <View style={assetStyles.rowRight}>
+                <Text style={[assetStyles.rowAmountAccent, { color: themeColors.accent }]}>{formatCurrency(acc.balance)}</Text>
+                <TouchableOpacity style={assetStyles.editBtn} onPress={() => {
+                  if (editingAccountId === acc.id) { setEditingAccountId(null); return; }
+                  setEditingAccountId(acc.id);
+                  setEditAccName(acc.name);
+                  setEditAccBank(acc.bank);
+                  setEditAccType((acc.type || '입출금') as typeof ACCOUNT_TYPES[number]);
+                  setEditAccBalance(String(acc.balance ?? 0));
+                }}>
+                  <Text style={assetStyles.editBtnText}>{editingAccountId === acc.id ? '닫기' : '수정'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={assetStyles.deleteBtn} onPress={() => confirmDeleteAccount(acc.id, acc.name)}>
+                  <Text style={assetStyles.deleteBtnText}>삭제</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={assetStyles.rowRight}>
-              <Text style={[assetStyles.rowAmountAccent, { color: themeColors.accent }]}>{formatCurrency(acc.balance)}</Text>
-              <TouchableOpacity style={assetStyles.deleteBtn} onPress={() => confirmDeleteAccount(acc.id, acc.name)}>
-                <Text style={assetStyles.deleteBtnText}>삭제</Text>
-              </TouchableOpacity>
-            </View>
+            {editingAccountId === acc.id && (
+              <View style={assetStyles.inlineEditForm}>
+                <TextInput style={assetStyles.input} value={editAccName} onChangeText={setEditAccName} placeholder="계좌명" placeholderTextColor={COLORS.gray400} />
+                <TextInput style={[assetStyles.input, { marginTop: 8 }]} value={editAccBank} onChangeText={setEditAccBank} placeholder="은행" placeholderTextColor={COLORS.gray400} />
+                <TextInput style={[assetStyles.input, { marginTop: 8 }]} value={editAccBalance} onChangeText={v => setEditAccBalance(v.replace(/[^0-9]/g, ''))} keyboardType="numeric" placeholder="잔액" placeholderTextColor={COLORS.gray400} />
+                <View style={[assetStyles.chipRow, { marginTop: 8 }]}>
+                  {ACCOUNT_TYPES.map(t => (
+                    <TouchableOpacity key={t} style={[assetStyles.typeChip, editAccType === t && assetStyles.typeChipActive, { borderColor: themeColors.primary }]} onPress={() => setEditAccType(t)}>
+                      <Text style={[assetStyles.typeChipText, editAccType === t && { color: themeColors.primary }]}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View style={assetStyles.formBtnRow}>
+                  <TouchableOpacity style={[assetStyles.confirmBtn, { backgroundColor: themeColors.primary }]} onPress={handleUpdateAccount} disabled={savingEditAccount || !editAccName.trim()}>
+                    <Text style={assetStyles.confirmBtnText}>{savingEditAccount ? '저장 중...' : '저장'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={assetStyles.cancelBtn} onPress={() => setEditingAccountId(null)}>
+                    <Text style={assetStyles.cancelBtnText}>취소</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </View>
         ))}
 
@@ -547,25 +628,51 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
           const linkedAccount = accounts.find(a => a.id === card.linked_account);
           const status = getCardPayStatus(card);
           return (
-            <View key={card.id} style={assetStyles.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={assetStyles.rowTitle}>{card.name}</Text>
-                <Text style={assetStyles.rowSubtitle}>
-                  {card.bank} · 납부일 매월 {card.due_day}일
-                  {linkedAccount ? ' · ' + linkedAccount.name : ''}
-                </Text>
-                {!!status.label && (
-                  <Text style={[assetStyles.cardStatusBadge, { color: status.color }]}>{status.label}</Text>
-                )}
+            <View key={card.id}>
+              <View style={assetStyles.row}>
+                <View style={{ flex: 1 }}>
+                  <Text style={assetStyles.rowTitle}>{card.name}</Text>
+                  <Text style={assetStyles.rowSubtitle}>
+                    {card.bank} · 납부일 매월 {card.due_day}일
+                    {linkedAccount ? ' · ' + linkedAccount.name : ''}
+                  </Text>
+                  {!!status.label && (
+                    <Text style={[assetStyles.cardStatusBadge, { color: status.color }]}>{status.label}</Text>
+                  )}
+                </View>
+                <View style={assetStyles.rowRight}>
+                  <TouchableOpacity style={[assetStyles.recordBtn, { backgroundColor: themeColors.primary }]} onPress={() => openCardPaySheet(card)}>
+                    <Text style={assetStyles.recordBtnText}>납부 기록</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={assetStyles.editBtn} onPress={() => {
+                    if (editingCardId === card.id) { setEditingCardId(null); return; }
+                    setEditingCardId(card.id);
+                    setEditCardName(card.name);
+                    setEditCardBank(card.bank);
+                    setEditCardDueDay(card.due_day ? String(card.due_day) : '');
+                  }}>
+                    <Text style={assetStyles.editBtnText}>{editingCardId === card.id ? '닫기' : '수정'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={assetStyles.deleteBtn} onPress={() => confirmDeleteCard(card.id, card.name)}>
+                    <Text style={assetStyles.deleteBtnText}>삭제</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-              <View style={assetStyles.rowRight}>
-                <TouchableOpacity style={[assetStyles.recordBtn, { backgroundColor: themeColors.primary }]} onPress={() => openCardPaySheet(card)}>
-                  <Text style={assetStyles.recordBtnText}>납부 기록</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={assetStyles.deleteBtn} onPress={() => confirmDeleteCard(card.id, card.name)}>
-                  <Text style={assetStyles.deleteBtnText}>삭제</Text>
-                </TouchableOpacity>
-              </View>
+              {editingCardId === card.id && (
+                <View style={assetStyles.inlineEditForm}>
+                  <TextInput style={assetStyles.input} value={editCardName} onChangeText={setEditCardName} placeholder="카드명" placeholderTextColor={COLORS.gray400} />
+                  <TextInput style={[assetStyles.input, { marginTop: 8 }]} value={editCardBank} onChangeText={setEditCardBank} placeholder="카드사" placeholderTextColor={COLORS.gray400} />
+                  <TextInput style={[assetStyles.input, { marginTop: 8 }]} value={editCardDueDay} onChangeText={v => setEditCardDueDay(v.replace(/[^0-9]/g, ''))} keyboardType="numeric" placeholder="납부일 (예: 15)" placeholderTextColor={COLORS.gray400} />
+                  <View style={assetStyles.formBtnRow}>
+                    <TouchableOpacity style={[assetStyles.confirmBtn, { backgroundColor: themeColors.primary }]} onPress={handleUpdateCard} disabled={savingEditCard || !editCardName.trim()}>
+                      <Text style={assetStyles.confirmBtnText}>{savingEditCard ? '저장 중...' : '저장'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={assetStyles.cancelBtn} onPress={() => setEditingCardId(null)}>
+                      <Text style={assetStyles.cancelBtnText}>취소</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             </View>
           );
         })}
@@ -1437,6 +1544,9 @@ const assetStyles = StyleSheet.create({
   rowAmountAccent: { fontSize: 14, fontWeight: '700', color: COLORS.accent },
   rowAmountGreen: { fontSize: 13, fontWeight: '700', color: COLORS.green },
 
+  editBtn: { backgroundColor: COLORS.gray100, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  editBtnText: { fontSize: 11, color: COLORS.gray500, fontWeight: '600' },
+  inlineEditForm: { backgroundColor: '#f8fafc', borderRadius: 10, padding: 12, marginBottom: 6, borderWidth: 1, borderColor: COLORS.gray100 },
   deleteBtn: { backgroundColor: COLORS.redBg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   deleteBtnText: { fontSize: 11, color: COLORS.red },
 
