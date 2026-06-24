@@ -68,10 +68,12 @@ export default function AddExpenseForm({ prefill, userCategories }: Props) {
       if (!amount || amount <= 0) { setError(TEXTS.addExpense.errAmount); return }
       if (!transferFrom) { setError('출금 계좌를 선택하세요'); return }
       if (!transferTo) { setError('입금 계좌를 선택하세요'); return }
+      const { data: { user: tUser } } = await supabase.auth.getUser()
+      if (!tUser) { router.push('/login'); return }
       const fromAcc = accounts.find(a => a.name === transferFrom)
       const toAcc = accounts.find(a => a.name === transferTo)
       const { error: saveErr } = await supabase.from('expenses').insert({
-        user_id: user.id, name: `${transferFrom} → ${transferTo}`, amount,
+        user_id: tUser.id, name: `${transferFrom} → ${transferTo}`, amount,
         category: '고정비', date: form.date,
         payment_method: transferFrom,
         memo: `[이체] ${transferTo}`,
