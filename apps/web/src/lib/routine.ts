@@ -53,7 +53,7 @@ export async function recordFixedCostPayment(
   }
 
   const expenseMemo = isTransfer
-    ? (targetAccountName ? \`[이체] \${targetAccountName}\` : '고정 저축 이체')
+    ? (targetAccountName ? `[이체] ${targetAccountName}` : '고정 저축 이체')
     : '고정 지출 처리'
 
   await supabase.from('expenses').insert({
