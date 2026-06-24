@@ -54,12 +54,13 @@ interface Props {
 const LS_KEY = 'spenlog_assets_guide_dismissed'
 
 export default function AssetsGuide({ hasNoAccounts = false }: Props) {
-  const [dismissed, setDismissed] = useState(false)
+  // 초기값 true(숨김)으로 시작 → localStorage에 없을 때만 false로 전환
+  // dismissed=false로 시작하면 useEffect 전까지 잠깐 보여서 flash 발생
+  const [dismissed, setDismissed] = useState(true)
   const [step, setStep] = useState(0)
 
-  // SSR-safe: 클라이언트 마운트 후 localStorage 확인
   useEffect(() => {
-    if (localStorage.getItem(LS_KEY) === 'true') setDismissed(true)
+    if (localStorage.getItem(LS_KEY) !== 'true') setDismissed(false)
   }, [])
 
   function dismiss() {
