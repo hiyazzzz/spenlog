@@ -199,7 +199,9 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
                   {items.map((e, idx) => (
                     <div key={e.id}>
                       {editingId === e.id
-                        ? <EditRow expense={e} onSave={u => saveExpense(e.id, u)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} />
+                        ? ((e.type === 'savings' || e.type === 'transfer')
+                            ? <TransferEditRow expense={e} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} />
+                            : <EditRow expense={e} onSave={u => saveExpense(e.id, u)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} />)
                         : <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} />
                       }
                       {idx < items.length - 1 && <div className="h-px bg-gray-50 mx-4" />}
@@ -227,7 +229,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
 function ExpenseRow({ expense, onTap }: { expense: Expense; onTap: () => void }) {
   const type = expense.type ?? 'expense'
   const isIncome = type === 'income'
-  const isTransfer = type === 'transfer'
+  const isTransfer = type === 'transfer' || type === 'savings'
   return (
     <button onClick={onTap} className="w-full flex justify-between items-center p-4 text-left hover:bg-gray-50 transition-colors">
       <div>
@@ -322,6 +324,30 @@ function EditRow({ expense, onSave, onDelete, onCancel, userCategories }: {
   )
 }
 
+function TransferEditRow({ expense, onDelete, onCancel }: { expense: Expense; onDelete: () => void; onCancel: () => void }) {
+  const parts = expense.name.includes('→') ? expense.name.split('→').map((s: string) => s.trim()) : [expense.name, '']
+  const from = parts[0]
+  const to = parts[1] || ''
+  return (
+    <div className="p-4 bg-purple-50">
+      <div className="flex justify-between items-center mb-3">
+        <span className="text-xs font-semibold text-gray-500">{dayjs(expense.date).format('M월 D일')}</span>
+        <button onClick={onCancel} className="text-xs text-gray-400">✕</button>
+      </div>
+      <div className="bg-white rounded-xl p-3 mb-3 border border-purple-100">
+        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-600 font-semibold">🔄 이체</span>
+        <p className="text-sm font-semibold text-gray-800 mt-2">{from}{to ? ` → ${to}` : ''}</p>
+        <p className="text-base font-bold text-purple-600 mt-0.5">{expense.amount.toLocaleString()}원</p>
+        <p className="text-[11px] text-gray-400 mt-2">이체 항목은 지출 통계에서 제외됩니다</p>
+      </div>
+      <button onClick={onDelete} className="w-full py-2 rounded-xl text-sm font-semibold bg-rose-50 text-rose-400 border border-rose-100">
+        이체 기록 삭제
+      </button>
+    </div>
+  )
+}
+
+
 function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, today, selectedDate, onSelectDate, expenses, editingId, onEdit, onSave, onDelete, onCancelEdit }: {
   calMonth: string; onChangeMonth: (m: string) => void; calExpenseMap: Map<string, number>; calIncomeSet: Set<string>
   today: string; selectedDate: string | null; onSelectDate: (d: string) => void
@@ -397,7 +423,9 @@ function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, to
             : selectedItems.map((e, idx) => (
               <div key={e.id}>
                 {editingId === e.id
-                  ? <EditRow expense={e} onSave={u => onSave(e.id, u)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />
+                  ? ((e.type === 'savings' || e.type === 'transfer')
+                      ? <TransferEditRow expense={e} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />
+                      : <EditRow expense={e} onSave={u => onSave(e.id, u)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />)
                   : <ExpenseRow expense={e} onTap={() => onEdit(e.id)} />
                 }
                 {idx < selectedItems.length - 1 && <div className="h-px bg-gray-50 mx-4" />}

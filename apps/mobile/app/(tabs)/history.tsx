@@ -256,7 +256,9 @@ export default function HistoryScreen() {
                   {items.map((e, idx) => (
                     <View key={e.id}>
                       {editingId === e.id ? (
-                        <EditRow expense={e} categories={categories} themeColors={themeColors} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
+                        (e.type === 'savings' || e.type === 'transfer')
+                          ? <TransferEditRow expense={e} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
+                          : <EditRow expense={e} categories={categories} themeColors={themeColors} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
                       ) : (
                         <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} />
                       )}
@@ -298,7 +300,9 @@ export default function HistoryScreen() {
           ) : selectedItems.map((e, idx) => (
             <View key={e.id}>
               {editingId === e.id ? (
-                <EditRow expense={e} categories={categories} themeColors={themeColors} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
+                (e.type === 'savings' || e.type === 'transfer')
+                  ? <TransferEditRow expense={e} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
+                  : <EditRow expense={e} categories={categories} themeColors={themeColors} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
               ) : (
                 <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} />
               )}
@@ -411,6 +415,38 @@ function EditRow({ expense, categories, themeColors, onSave, onDelete, onCancel 
     </View>
   );
 }
+
+function TransferEditRow({ expense, onDelete, onCancel }: { expense: Expense; onDelete: () => void; onCancel: () => void }) {
+  const parts = expense.name.includes('→') ? expense.name.split('→').map(s => s.trim()) : [expense.name, ''];
+  const from = parts[0];
+  const to = parts[1] || '';
+  return (
+    <View style={styles.editBox}>
+      <View style={styles.editHeaderRow}>
+        <Text style={styles.dateLabel}>{dayjs(expense.date).format('M월 D일')}</Text>
+        <TouchableOpacity onPress={onCancel}><Text style={{ color: COLORS.gray400 }}>✕</Text></TouchableOpacity>
+      </View>
+      <View style={{ backgroundColor: '#f5f3ff', borderRadius: 12, padding: 12, marginBottom: 12 }}>
+        <View style={[styles.savingsBadge, { alignSelf: 'flex-start' as const }]}>
+          <Text style={styles.savingsBadgeText}>🔄 이체</Text>
+        </View>
+        <Text style={{ fontSize: 14, fontWeight: '700', color: '#374151', marginTop: 8 }}>
+          {from}{to ? ` → ${to}` : ''}
+        </Text>
+        <Text style={{ fontSize: 18, fontWeight: '800', color: '#7c3aed', marginTop: 4 }}>
+          {formatCurrency(expense.amount)}
+        </Text>
+        <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 8 }}>
+          이체 항목은 지출 통계에서 제외됩니다
+        </Text>
+      </View>
+      <TouchableOpacity style={styles.deleteFormBtn} onPress={onDelete}>
+        <Text style={styles.deleteFormBtnText}>이체 기록 삭제</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 
 function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, today, selectedDate, onSelectDate, themeColors }: {
   calMonth: string;
