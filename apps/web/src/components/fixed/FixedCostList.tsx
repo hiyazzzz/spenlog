@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import { TEXTS } from '@/config/texts'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import { FixedCost, FixedCostType, FixedCostKind, Account, Card } from '@spenlog/types'
 
 const TYPES: FixedCostType[] = ['월정액', '연정액', '기타']
@@ -18,7 +17,6 @@ interface Props {
 type LinkedOption = { id: string; label: string; type: 'account' | 'card' }
 
 export default function FixedCostList({ initialItems, userId, accounts = [], cards = [] }: Props) {
-  const router = useRouter()
   const [activeKind, setActiveKind] = useState<FixedCostKind>('고정지출')
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
@@ -29,15 +27,16 @@ export default function FixedCostList({ initialItems, userId, accounts = [], car
   const [linkedId, setLinkedId] = useState('')
   const [saving, setSaving] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
+  const [items, setItems] = useState<FixedCost[]>(initialItems)
 
   const linkedOptions: LinkedOption[] = [
     ...accounts.map(a => ({ id: a.id, label: `${a.name}·${a.bank}`, type: 'account' as const })),
     ...cards.map(c => ({ id: c.id, label: `${c.name}·${c.bank}`, type: 'card' as const })),
   ]
 
-  const filtered = initialItems.filter(item => (item.kind ?? '고정지출') === activeKind)
-  const totalSpend = initialItems.filter(i => (i.kind ?? '고정지출') === '고정지출').reduce((s, f) => s + f.amount, 0)
-  const totalSave = initialItems.filter(i => i.kind === '고정저축').reduce((s, f) => s + f.amount, 0)
+  const filtered = items.filter(item => (item.kind ?? '고정지출') === activeKind)
+  const totalSpend = items.filter(i => (i.kind ?? '고정지출') === '고정지출').reduce((s, f) => s + f.amount, 0)
+  const totalSave = items.filter(i => i.kind === '고정저축').reduce((s, f) => s + f.amount, 0)
 
   function getLinkedLabel(item: FixedCost): string | null {
     if (item.linked_card_id) {
@@ -67,7 +66,8 @@ export default function FixedCostList({ initialItems, userId, accounts = [], car
     }
     if (selected?.type === 'account') insertPayload.linked_account_id = selected.id
     if (selected?.type === 'card') insertPayload.linked_card_id = selected.id
-    const { error } = await supabase.from('fixed_costs').insert(insertPayload)
+    const { data: inserted, error } = await supabase
+      .from('fixed_costs').insert(insertPayload).select().single()
     if (error) {
       console.error('[FixedCostList] insert error:', error.code, error.message, error.details)
       setAddError(`저장 실패: ${error.message} (${error.code})`)
@@ -75,16 +75,17 @@ export default function FixedCostList({ initialItems, userId, accounts = [], car
       return // 에러 시 form 유지
     }
     setAddError(null)
+    // 로컬 state에 즉시 추가 (캐시/지연 이슈 방지)
+    if (inserted) setItems(prev => [...prev, inserted as FixedCost])
     setName(''); setAmount(''); setDueDay(''); setType('월정액'); setKind(activeKind); setLinkedId('')
     setShowForm(false)
     setSaving(false)
-    router.refresh()
   }
 
   const handleDelete = async (id: string) => {
     const supabase = createClient()
     await supabase.from('fixed_costs').delete().eq('id', id)
-    router.refresh()
+    setItems(prev => prev.filter(i => i.id !== id))
   }
 
   return (
