@@ -23,14 +23,15 @@ export async function checkOnboardingStatus(userId: string): Promise<boolean> {
     if (local === 'true') return true
   } catch {}
 
-  const { data, error } = await supabase.from('users').select('onboarding_completed').eq('id', userId).single()
+  const { data, error } = await supabase.from('users').select('onboarding_completed, name').eq('id', userId).single()
   if (error) {
     // DB 컬럼 없음·네트워크 에러 등 — false 반환 시 무한 redirect가 발생하므로 true로 처리
     // PGRST116(row not found)은 진짜 신규 유저이므로 false 유지
     return error.code === 'PGRST116' ? false : true
   }
-  if (data?.onboarding_completed) {
-    // DB 기준 완료 → AsyncStorage에도 동기화해 다음 호출을 빠르게
+  // onboarding_completed 플래그 OR name이 있으면 완료로 처리
+  // (migration이 name 기준으로 적용 안 됐거나 컬럼이 false/null인 기존 유저 보호)
+  if (data?.onboarding_completed || (data as any)?.name) {
     try { await AsyncStorage.setItem(ONBOARDING_KEY(userId), 'true') } catch {}
     return true
   }

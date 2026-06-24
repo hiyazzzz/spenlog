@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const GUIDE_STEPS = [
   {
@@ -51,9 +51,21 @@ interface Props {
   hasNoAccounts?: boolean
 }
 
+const LS_KEY = 'spenlog_assets_guide_dismissed'
+
 export default function AssetsGuide({ hasNoAccounts = false }: Props) {
   const [dismissed, setDismissed] = useState(false)
   const [step, setStep] = useState(0)
+
+  // SSR-safe: 클라이언트 마운트 후 localStorage 확인
+  useEffect(() => {
+    if (localStorage.getItem(LS_KEY) === 'true') setDismissed(true)
+  }, [])
+
+  function dismiss() {
+    localStorage.setItem(LS_KEY, 'true')
+    setDismissed(true)
+  }
 
   if (!hasNoAccounts || dismissed) return null
 
@@ -62,14 +74,14 @@ export default function AssetsGuide({ hasNoAccounts = false }: Props) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9999 }}>
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)' }} onClick={() => setDismissed(true)} />
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)' }} onClick={() => dismiss()} />
 
       <div style={{
         position: 'fixed', top: 16, left: 0, right: 0,
         display: 'flex', justifyContent: 'space-between', padding: '0 20px', zIndex: 10001,
       }}>
         <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: 600 }}>{step + 1} / {GUIDE_STEPS.length}</span>
-        <button onClick={() => setDismissed(true)} style={{
+        <button onClick={() => dismiss()} style={{
           background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.35)',
           backdropFilter: 'blur(8px)', color: 'white', fontSize: 13,
           padding: '6px 16px', borderRadius: 20, cursor: 'pointer', fontFamily: 'inherit',
@@ -117,7 +129,7 @@ export default function AssetsGuide({ hasNoAccounts = false }: Props) {
           {isLast ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <p style={{ fontSize: 13, color: '#374151', fontWeight: 600, marginBottom: 4 }}>계좌를 입력하면 가계부 초기 설정이 완성돼요! 🎯</p>
-              <button onClick={() => setDismissed(true)} style={{
+              <button onClick={() => dismiss()} style={{
                 width: '100%', padding: '13px', borderRadius: 14,
                 background: 'var(--color-primary)', color: 'white',
                 fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit',

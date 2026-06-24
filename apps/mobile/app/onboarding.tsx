@@ -104,8 +104,9 @@ export default function OnboardingScreen() {
     if (authErr || !user) throw new Error('로그인 필요');
     const uid = user.id;
 
+    const emailToUse = user.email ?? `${uid}@guest.spenlog.app`
     await supabase.from('users').upsert(
-      { id: uid, email: user.email ?? '', name: finalName, income: incomeNum, saving_goal: goalNum, theme, onboarding_completed: true },
+      { id: uid, email: emailToUse, name: finalName, income: incomeNum, saving_goal: goalNum, theme, onboarding_completed: true },
       { onConflict: 'id' },
     );
     setStoreTheme(theme);

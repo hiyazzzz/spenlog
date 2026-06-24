@@ -1,0 +1,11 @@
+==== COMMIT GUEST-USERS FIX ====
+warning: in the working copy of 'supabase_migration_guest_users.sql', LF will be replaced by CRLF the next time Git touches it
+[main 0b93b5f] fix(web): ensure public.users row for guests in dashboard layout (fixes expenses 409 FK 23503)
+ 2 files changed, 49 insertions(+), 4 deletions(-)
+ create mode 100644 supabase_migration_guest_users.sql
+To https://github.com/hiyazzzz/spenlog.git
+   bf70f0d..0b93b5f  main -> main
+[PUSH EXIT 0]
+0b93b5f fix(web): ensure public.users row for guests in dashboard layout (fixes expenses 409 FK 23503)
+bf70f0d fix: pnpm node-linker=isolated resolves EAS 'No variants exist' (community RN modules)
+==== DONE ====

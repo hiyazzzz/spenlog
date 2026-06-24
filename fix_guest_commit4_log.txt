@@ -1,0 +1,10 @@
+==== COMMIT GUEST-USERS FIX v4 (empty-string email) ====
+warning: in the working copy of 'apps/web/src/components/auth/EnsureUserRow.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'supabase_migration_guest_users.sql', LF will be replaced by CRLF the next time Git touches it
+[main 069bdd6] fix(web): guest email is empty string not null; use || + nullif for unique placeholder
+ 3 files changed, 8 insertions(+), 5 deletions(-)
+To https://github.com/hiyazzzz/spenlog.git
+   d73b69c..069bdd6  main -> main
+[PUSH EXIT 0]
+069bdd6 fix(web): guest email is empty string not null; use || + nullif for unique placeholder
+==== DONE ====

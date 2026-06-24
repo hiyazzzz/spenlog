@@ -1,0 +1,10 @@
+==== COMMIT GUEST-USERS FIX v3 (client EnsureUserRow) ====
+warning: in the working copy of 'apps/web/src/components/auth/EnsureUserRow.tsx', LF will be replaced by CRLF the next time Git touches it
+[main d73b69c] fix(web): ensure guest users row client-side (EnsureUserRow) to avoid RSC cache
+ 2 files changed, 33 insertions(+)
+ create mode 100644 apps/web/src/components/auth/EnsureUserRow.tsx
+To https://github.com/hiyazzzz/spenlog.git
+   20c77c7..d73b69c  main -> main
+[PUSH EXIT 0]
+d73b69c fix(web): ensure guest users row client-side (EnsureUserRow) to avoid RSC cache
+==== DONE ====
