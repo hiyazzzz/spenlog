@@ -105,29 +105,24 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
     setSelectedPreset(preset.key)
     if (!income) return
 
-    // 저축 우선 로직:
-    // 1) 목표 저축액 = income × savingRate
-    // 2) 고정저축이 있으면 이미 확보된 저축 차감
-    // 3) 추가 저축 필요액 = 목표 저축 - 고정저축
-    // 4) 지출 예산 = income - 목표 저축액
     const targetSaving = Math.round(income * preset.savingRate)
-    const additionalSaving = Math.max(0, targetSaving - fixedSavings)
     const spendBudget = income - targetSaving
 
     const knownDist = preset.dist as Record<string, number>
-    const unknownCats = allCategories.filter(cat => !(cat in knownDist) && cat !== '수입')
-    const knownRatio = allCategories.filter(cat => cat in knownDist).reduce((s, cat) => s + (knownDist[cat] ?? 0), 0)
-    const unknownRatio = unknownCats.length > 0 ? Math.max(0, 1 - knownRatio) / unknownCats.length : 0
+    const BASE_RATIO = 0.1
+    // 토글 ON 카테고리만 계산 대상
+    const enabledCatsList = allCategories.filter(cat => enabledCats[cat])
+    const rawRatios: Record<string, number> = Object.fromEntries(
+      enabledCatsList.map(cat => [cat, cat in knownDist ? (knownDist[cat] ?? 0) : BASE_RATIO])
+    )
+    const totalRatio = Object.values(rawRatios).reduce((s, r) => s + r, 0)
     const newAmounts = Object.fromEntries(
       allCategories.map(cat => {
-        if (cat === '수입') return [cat, '0']
-        const ratio = cat in knownDist ? (knownDist[cat] ?? 0) : unknownRatio
-        return [cat, Math.round(spendBudget * ratio).toString()]
+        if (!enabledCats[cat]) return [cat, '0']
+        return [cat, totalRatio > 0 ? Math.round(spendBudget * (rawRatios[cat] ?? 0) / totalRatio).toString() : '0']
       })
     )
     setAiAmounts(newAmounts)
-
-    // AI 탭에서 바로 manual amounts에도 반영 (저장 시 이 값으로)
     setAmounts(newAmounts)
   }
 
@@ -152,7 +147,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
             fixedSavings,
             recentExpenses,
             currentBudgets: initialBudgets.map(b => ({ category: b.category, amount: b.amount })),
-            categories: allCategories,
+            categories: allCategories.filter(cat => enabledCats[cat]),
           }),
           signal: controller.signal,
         })
@@ -187,15 +182,16 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
   function fallbackAmounts(inc: number, _fixed: number): Record<string, number> {
     const spendBudget = inc - Math.round(inc * 0.25)
     const dist: Record<string, number> = { '생활비': 0.40, '고정비': 0.35, '활동비': 0.25 }
-    const spendCats = allCategories.filter(cat => cat !== '수입')
-    const knownRatio = spendCats.filter(cat => cat in dist).reduce((s, cat) => s + (dist[cat] ?? 0), 0)
-    const unknownCats = spendCats.filter(cat => !(cat in dist))
-    const unknownRatio = unknownCats.length > 0 ? Math.max(0, 1 - knownRatio) / unknownCats.length : 0
+    const BASE_RATIO = 0.1
+    const enabledCatsList = allCategories.filter(cat => enabledCats[cat])
+    const rawRatios: Record<string, number> = Object.fromEntries(
+      enabledCatsList.map(cat => [cat, cat in dist ? (dist[cat] ?? 0) : BASE_RATIO])
+    )
+    const totalRatio = Object.values(rawRatios).reduce((s, r) => s + r, 0)
     return Object.fromEntries(
       allCategories.map(cat => {
-        if (cat === '수입') return [cat, 0]
-        const ratio = cat in dist ? (dist[cat] ?? 0) : unknownRatio
-        return [cat, Math.round(spendBudget * ratio)]
+        if (!enabledCats[cat]) return [cat, 0]
+        return [cat, totalRatio > 0 ? Math.round(spendBudget * (rawRatios[cat] ?? 0) / totalRatio) : 0]
       })
     )
   }
@@ -378,7 +374,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
           {selectedPreset && income > 0 && (
             <div className="space-y-1.5">
               <p className="text-xs text-gray-400 mb-2">{TEXTS.budget.distTitle}</p>
-              {allCategories.map(cat => (
+              {allCategories.filter(cat => enabledCats[cat]).map(cat => (
                 <div key={cat} className="flex justify-between text-xs py-1 border-b border-gray-50">
                   <span className="text-gray-600">{cat}</span>
                   <span className="font-semibold" style={{ color: 'var(--color-primary)' }}>
