@@ -70,6 +70,7 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccount
       const { accountUpdates } = await recordFixedCostPayment(supabase, userId, {
         id: fc.id, name: fc.name, amount: fc.amount,
         kind: fc.kind as '고정지출' | '고정저축',
+        due_day: fc.due_day,
         linked_account_id: fc.linked_account_id,
         linked_target_account_id: fc.linked_target_account_id,
         linked_card_id: fc.linked_card_id,
@@ -167,10 +168,3 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccount
                   )}
                 </div>
               )
-            })}
-          </div>
-        )}
-      </div>
-    </>
-  )
-}

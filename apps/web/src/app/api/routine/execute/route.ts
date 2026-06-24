@@ -58,8 +58,8 @@ export async function GET(req: Request) {
 
     await recordFixedCostPayment(admin, fc.user_id, {
       id: fc.id, name: fc.name, amount: fc.amount,
-      kind: fc.kind, linked_account_id: fc.linked_account_id,
-      linked_target_account_id: fc.linked_target_account_id,
+      kind: fc.kind, due_day: fc.due_day, linked_account_id: fc.linked_account_id,
+      linked_target_account_id: fc.linked_target_account_id, linked_card_id: fc.linked_card_id,
     }, yearMonth)
 
     processed++

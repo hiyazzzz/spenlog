@@ -185,7 +185,7 @@ export default function AddExpenseScreen() {
           {type === 'expense' ? '결제수단' : '받은 수단'} {type === 'expense' && <Text style={{ color: COLORS.red }}>*</Text>}
         </Text>
         <View style={styles.chipWrap}>
-          {paymentOptions.slice(0, 6).map(method => (
+          {paymentOptions.map(method => (
             <TouchableOpacity
               key={method}
               style={[styles.chip, paymentMethod === method && styles.chipActive]}

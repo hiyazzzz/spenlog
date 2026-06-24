@@ -42,6 +42,9 @@ export async function recordFixedCostPayment(userId: string, fc: FixedCost, mont
   if (fc.linked_card_id) {
     const { data: card } = await supabase.from('cards').select('name').eq('id', fc.linked_card_id).single()
     paymentMethod = card?.name ?? null
+  } else if (fc.linked_account_id) {
+    const { data: acc } = await supabase.from('accounts').select('name').eq('id', fc.linked_account_id).single()
+    paymentMethod = acc?.name ?? null
   }
 
   await supabase.from('expenses').insert({

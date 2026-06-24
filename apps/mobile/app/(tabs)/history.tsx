@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard, Alert } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useDataCache } from '@/store/dataCache';
 import dayjs from 'dayjs';
@@ -107,10 +107,19 @@ export default function HistoryScreen() {
     return { calExpenseMap: expenseMap, calIncomeSet: incomeSet };
   }, [expenses, calMonth]);
 
-  async function handleDelete(expense: Expense) {
-    await deleteExpense(expense);
-    setData(d => d ? { ...d, expenses: d.expenses.filter(e => e.id !== expense.id) } : d);
-    setEditingId(null);
+  function handleDelete(expense: Expense) {
+    Alert.alert(
+      '내역 삭제',
+      `'${expense.name}' 내역을 삭제할까요?`,
+      [
+        { text: '취소', style: 'cancel' },
+        { text: '삭제', style: 'destructive', onPress: async () => {
+          await deleteExpense(expense);
+          setData(d => d ? { ...d, expenses: d.expenses.filter(e => e.id !== expense.id) } : d);
+          setEditingId(null);
+        }},
+      ]
+    );
   }
 
   async function handleSave(id: string, updates: Partial<Expense>) {

@@ -39,6 +39,10 @@ export async function recordFixedCostPayment(
   if (fc.linked_card_id) {
     const { data: card } = await supabase.from('cards').select('name').eq('id', fc.linked_card_id).single()
     paymentMethod = card?.name ?? null
+  } else if (fc.linked_account_id) {
+    // 계좌 연동 시 account name을 payment_method로 저장 → 삭제 시 잔액 역복구에 필요
+    const { data: acc } = await supabase.from('accounts').select('name').eq('id', fc.linked_account_id).single()
+    paymentMethod = acc?.name ?? null
   }
 
   await supabase.from('expenses').insert({
