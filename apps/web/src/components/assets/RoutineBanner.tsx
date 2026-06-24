@@ -5,7 +5,7 @@ import { recordFixedCostPayment } from '@/lib/routine'
 import dayjs from 'dayjs'
 
 interface FixedCost {
-  id: string; name: string; amount: number; kind: string; due_day?: number
+  id: string; name: string; amount: number; kind: string; due_day?: number | null
   linked_account_id?: string | null
   linked_target_account_id?: string | null
   linked_card_id?: string | null
