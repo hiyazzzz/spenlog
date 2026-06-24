@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { CATEGORIES } from '@/lib/themes'
 import CategoryManager from './CategoryManager'
 import RoutineBanner from './RoutineBanner'
-import { Account, Card, FixedCost } from '@spenlog/types'
+import { Account, Card, FixedCost, AccountType } from '@spenlog/types'
 import { formatCurrency } from '@/lib/format'
 import dayjs from 'dayjs'
 import AssetsGuide from './AssetsGuide'
@@ -253,7 +253,7 @@ function AccountRow({ acc, sb, onDelete, onUpdated }: {
   onDelete: () => void
   onUpdated: (u: Account) => void
 }) {
-  const ACCT_TYPES = ['입출금', '파킹', 'CMA', '현금']
+  const ACCT_TYPES: AccountType[] = ['입출금', '적금', '투자', '기타']
   const [editing, setEditing] = useState(false)
   const [vals, setVals] = useState({ name: acc.name, bank: acc.bank, type: acc.type ?? '입출금', balance: String(acc.balance ?? 0) })
   const [sav, setSav] = useState(false)
@@ -265,7 +265,7 @@ function AccountRow({ acc, sb, onDelete, onUpdated }: {
       <input value={vals.balance} onChange={e => setVals(p => ({ ...p, balance: e.target.value.replace(/[^0-9]/g, '') }))} inputMode="numeric" placeholder="잔액" style={inp} />
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 8 }}>
         {ACCT_TYPES.map(t => (
-          <button key={t} onClick={() => setVals(p => ({ ...p, type: t }))}
+          <button key={t} onClick={() => setVals(p => ({ ...p, type: t as AccountType }))}
             style={{ padding: '4px 10px', borderRadius: 20, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12,
               background: vals.type === t ? 'var(--color-primary)' : '#f3f4f6', color: vals.type === t ? '#fff' : '#6b7280' }}>
             {t}
