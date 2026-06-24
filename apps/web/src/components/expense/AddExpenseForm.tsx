@@ -63,39 +63,40 @@ export default function AddExpenseForm({ prefill, userCategories }: Props) {
 
   async function handleSave() {
     const amount = parseInt(form.amount.replace(/,/g, ''))
-    // 이체 분기 — 별도 처리
+    // 공통 검증
+    if (!amount || amount <= 0) { setError(TEXTS.addExpense.errAmount); return }
     if (type === 'transfer') {
-      if (!amount || amount <= 0) { setError(TEXTS.addExpense.errAmount); return }
       if (!transferFrom) { setError('출금 계좌를 선택하세요'); return }
       if (!transferTo) { setError('입금 계좌를 선택하세요'); return }
-      const { data: { user: tUser } } = await supabase.auth.getUser()
-      if (!tUser) { router.push('/login'); return }
-      const fromAcc = accounts.find(a => a.name === transferFrom)
-      const toAcc = accounts.find(a => a.name === transferTo)
-      const { error: saveErr } = await supabase.from('expenses').insert({
-        user_id: tUser.id, name: `${transferFrom} → ${transferTo}`, amount,
-        category: '고정비', date: form.date,
-        payment_method: transferFrom,
-        memo: `[이체] ${transferTo}`,
-        source: 'manual', type: 'savings',
-      })
-      if (saveErr) throw saveErr
-      if (fromAcc) await supabase.from('accounts').update({ balance: (fromAcc.balance ?? 0) - amount }).eq('id', fromAcc.id)
-      if (toAcc) await supabase.from('accounts').update({ balance: (toAcc.balance ?? 0) + amount }).eq('id', toAcc.id)
-      clearPrefill()
-      showToast('이체 기록 완료')
-      setForm({ name: '', amount: '', category: '생활비', date: dayjs().format('YYYY-MM-DD'), payment_method: '', memo: '' })
-      setTransferFrom(''); setTransferTo('')
-      setTimeout(() => router.push('/history'), 1000)
-      return
+    } else {
+      if (!form.name.trim()) { setError(TEXTS.addExpense.errName); return }
+      if (type === 'expense' && !form.payment_method) { setError(TEXTS.addExpense.errPayment); return }
     }
-    if (!amount || amount <= 0) { setError(TEXTS.addExpense.errAmount); return }
-    if (!form.name.trim()) { setError(TEXTS.addExpense.errName); return }
-    if (type === 'expense' && !form.payment_method) { setError(TEXTS.addExpense.errPayment); return }
     setSaving(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
+      // ── 이체 ────────────────────────────────────────────────
+      if (type === 'transfer') {
+        const fromAcc = accounts.find(a => a.name === transferFrom)
+        const toAcc = accounts.find(a => a.name === transferTo)
+        const { error: saveErr } = await supabase.from('expenses').insert({
+          user_id: user.id, name: `${transferFrom} → ${transferTo}`, amount,
+          category: '고정비', date: form.date,
+          payment_method: transferFrom,
+          memo: `[이체] ${transferTo}`,
+          source: 'manual', type: 'savings',
+        })
+        if (saveErr) throw saveErr
+        if (fromAcc) await supabase.from('accounts').update({ balance: (fromAcc.balance ?? 0) - amount }).eq('id', fromAcc.id)
+        if (toAcc) await supabase.from('accounts').update({ balance: (toAcc.balance ?? 0) + amount }).eq('id', toAcc.id)
+        clearPrefill()
+        showToast('이체 기록 완료')
+        setForm({ name: '', amount: '', category: '생활비', date: dayjs().format('YYYY-MM-DD'), payment_method: '', memo: '' })
+        setTransferFrom(''); setTransferTo('')
+        setTimeout(() => router.push('/history'), 1000)
+        return
+      }
       if (type === 'expense') {
         const { error: saveErr } = await supabase.from('expenses').insert({
           user_id: user.id, name: form.name.trim(), amount,
