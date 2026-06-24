@@ -13,7 +13,7 @@ const EXPENSE_METHODS = ['현금', '계좌이체', '카카오페이', '네이버
 const INCOME_METHODS = ['현금', '계좌이체']
 
 interface Props {
-  prefill?: { name?: string; amount?: number; category?: string; type?: 'expense' | 'income' }
+  prefill?: { name?: string; amount?: number; category?: string; type?: 'expense' | 'income' | 'transfer' }
   userCategories?: string[]
 }
 
@@ -29,7 +29,9 @@ export default function AddExpenseForm({ prefill, userCategories }: Props) {
   const { prefill: storePrefill, clearPrefill } = useAiInputStore()
   // props prefill 우선, 없으면 store prefill
   const effectivePrefill = prefill ?? storePrefill
-  const [type, setType] = useState<'expense' | 'income'>(prefill?.type ?? 'expense')
+  const [type, setType] = useState<'expense' | 'income' | 'transfer'>(prefill?.type ?? 'expense')
+  const [transferFrom, setTransferFrom] = useState('')
+  const [transferTo, setTransferTo] = useState('')
   const [form, setForm] = useState({
     name: effectivePrefill?.name ?? '',
     amount: effectivePrefill?.amount ? effectivePrefill.amount.toLocaleString() : '',
@@ -61,6 +63,30 @@ export default function AddExpenseForm({ prefill, userCategories }: Props) {
 
   async function handleSave() {
     const amount = parseInt(form.amount.replace(/,/g, ''))
+    // 이체 분기 — 별도 처리
+    if (type === 'transfer') {
+      if (!amount || amount <= 0) { setError(TEXTS.addExpense.errAmount); return }
+      if (!transferFrom) { setError('출금 계좌를 선택하세요'); return }
+      if (!transferTo) { setError('입금 계좌를 선택하세요'); return }
+      const fromAcc = accounts.find(a => a.name === transferFrom)
+      const toAcc = accounts.find(a => a.name === transferTo)
+      const { error: saveErr } = await supabase.from('expenses').insert({
+        user_id: user.id, name: `${transferFrom} → ${transferTo}`, amount,
+        category: '고정비', date: form.date,
+        payment_method: transferFrom,
+        memo: `[이체] ${transferTo}`,
+        source: 'manual', type: 'savings',
+      })
+      if (saveErr) throw saveErr
+      if (fromAcc) await supabase.from('accounts').update({ balance: (fromAcc.balance ?? 0) - amount }).eq('id', fromAcc.id)
+      if (toAcc) await supabase.from('accounts').update({ balance: (toAcc.balance ?? 0) + amount }).eq('id', toAcc.id)
+      clearPrefill()
+      showToast('이체 기록 완료')
+      setForm({ name: '', amount: '', category: '생활비', date: dayjs().format('YYYY-MM-DD'), payment_method: '', memo: '' })
+      setTransferFrom(''); setTransferTo('')
+      setTimeout(() => router.push('/history'), 1000)
+      return
+    }
     if (!amount || amount <= 0) { setError(TEXTS.addExpense.errAmount); return }
     if (!form.name.trim()) { setError(TEXTS.addExpense.errName); return }
     if (type === 'expense' && !form.payment_method) { setError(TEXTS.addExpense.errPayment); return }
@@ -125,11 +151,11 @@ export default function AddExpenseForm({ prefill, userCategories }: Props) {
         </div>
       )}
       <div className="flex bg-white rounded-2xl border border-gray-100 p-1">
-        {(['expense', 'income'] as const).map(t => (
-          <button key={t} onClick={() => { setType(t); setError('') }}
+        {(['expense', 'income', 'transfer'] as const).map(t => (
+          <button key={t} onClick={() => { setType(t as any); setError(''); setTransferFrom(''); setTransferTo('') }}
             className="flex-1 py-2 rounded-xl text-sm font-medium transition-colors"
             style={{ background: type === t ? 'var(--color-primary)' : 'transparent', color: type === t ? 'white' : '#9ca3af' }}>
-            {t === 'expense' ? TEXTS.addExpense.tabExpense : TEXTS.addExpense.tabIncome}
+            {t === 'expense' ? TEXTS.addExpense.tabExpense : t === 'income' ? TEXTS.addExpense.tabIncome : '🔄 이체'}
           </button>
         ))}
       </div>
@@ -141,14 +167,14 @@ export default function AddExpenseForm({ prefill, userCategories }: Props) {
             onChange={e => update('amount', formatAmount(e.target.value))} autoFocus />
         </div>
       </div>
-      <div className="bg-white rounded-2xl p-4 border border-gray-100">
+      {type !== 'transfer' && <div className="bg-white rounded-2xl p-4 border border-gray-100">
         <label className="text-xs text-gray-400 mb-1 block">
           {type === 'expense' ? TEXTS.addExpense.labelNameExpense : TEXTS.addExpense.labelNameIncome}
         </label>
         <input className="w-full text-sm outline-none text-gray-800"
           placeholder={type === 'expense' ? TEXTS.addExpense.namePlaceholderExpense : TEXTS.addExpense.namePlaceholderIncome}
           value={form.name} onChange={e => update('name', e.target.value)} />
-      </div>
+      </div>}
       {type === 'expense' && (
         <div className="bg-white rounded-2xl p-4 border border-gray-100">
           <label className="text-xs text-gray-400 mb-2 block">{TEXTS.addExpense.labelCategory}</label>
@@ -168,7 +194,34 @@ export default function AddExpenseForm({ prefill, userCategories }: Props) {
         <input type="date" className="w-full text-sm outline-none text-gray-800"
           value={form.date} onChange={e => update('date', e.target.value)} />
       </div>
-      {(
+      {type === 'transfer' ? (
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-3">
+          <div>
+            <label className="text-xs text-gray-400 mb-2 block">출금 계좌 (돈이 나가는 곳) <span className="text-rose-400">*</span></label>
+            <div className="flex flex-wrap gap-2">
+              {accountNames.map(n => (
+                <button key={n} onClick={() => setTransferFrom(n)}
+                  className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+                  style={{ background: transferFrom === n ? 'var(--color-primary)' : '#f3f4f6', color: transferFrom === n ? 'white' : '#6b7280' }}>
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-gray-400 mb-2 block">입금 계좌 (돈이 들어오는 곳) <span className="text-rose-400">*</span></label>
+            <div className="flex flex-wrap gap-2">
+              {accountNames.map(n => (
+                <button key={n} onClick={() => setTransferTo(n)}
+                  className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+                  style={{ background: transferTo === n ? '#3b82f6' : '#f3f4f6', color: transferTo === n ? 'white' : '#6b7280' }}>
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
         <div className="bg-white rounded-2xl p-4 border border-gray-100">
           <label className="text-xs text-gray-400 mb-2 block">{type === 'expense' ? TEXTS.addExpense.labelPaymentExpense : TEXTS.addExpense.labelPaymentIncome} <span className="text-rose-400">*</span></label>
           <div className="flex flex-wrap gap-2">
@@ -193,7 +246,7 @@ export default function AddExpenseForm({ prefill, userCategories }: Props) {
       <button onClick={handleSave} disabled={saving}
         className="w-full text-white py-3.5 rounded-2xl text-sm font-medium mt-2 disabled:opacity-60"
         style={{ background: 'var(--color-primary)' }}>
-        {saving ? TEXTS.addExpense.btnSaving : type === 'expense' ? TEXTS.addExpense.btnSaveExpense : TEXTS.addExpense.btnSaveIncome}
+        {saving ? TEXTS.addExpense.btnSaving : type === 'transfer' ? '이체 기록' : type === 'expense' ? TEXTS.addExpense.btnSaveExpense : TEXTS.addExpense.btnSaveIncome}
       </button>
     </div>
   )

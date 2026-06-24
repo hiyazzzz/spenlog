@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import dayjs from 'dayjs';
@@ -128,7 +128,7 @@ export default function AddExpenseScreen() {
           user_id: userId,
           name: name.trim() || '계좌 이체',
           amount: amt,
-          category: '이체',
+          category: '고정비',
           date,
           payment_method: transferFrom || null,
           memo: memoVal,
@@ -183,7 +183,8 @@ export default function AddExpenseScreen() {
       if (paymentMethod) await saveRecency([paymentMethod]);
 
       router.back();
-    } catch {
+    } catch (err: any) {
+      console.error('[add] save error:', JSON.stringify(err));
       setError('저장 중 오류가 발생했어요');
     } finally {
       setSaving(false);
@@ -199,6 +200,7 @@ export default function AddExpenseScreen() {
   }
 
   return (
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.headerRow}>
         <Text style={styles.pageTitle}>직접 입력</Text>
@@ -398,6 +400,7 @@ export default function AddExpenseScreen() {
         </Text>
       </TouchableOpacity>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
