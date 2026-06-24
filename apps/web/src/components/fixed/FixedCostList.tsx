@@ -55,16 +55,19 @@ export default function FixedCostList({ initialItems, userId, accounts = [], car
     setSaving(true)
     const supabase = createClient()
     const selected = linkedOptions.find(o => o.id === linkedId)
-    await supabase.from('fixed_costs').insert({
+    // null 컬럼은 payload에서 제외 — DB에 해당 컬럼이 없으면 42703 에러 방지
+    const insertPayload: Record<string, unknown> = {
       user_id: userId,
       name: name.trim(),
       amount: Number(amount.replace(/,/g, '')),
       type,
       kind,
       due_day: dueDay ? Number(dueDay) : null,
-      linked_account_id: selected?.type === 'account' ? selected.id : null,
-      linked_card_id: selected?.type === 'card' ? selected.id : null,
-    })
+    }
+    if (selected?.type === 'account') insertPayload.linked_account_id = selected.id
+    if (selected?.type === 'card') insertPayload.linked_card_id = selected.id
+    const { error } = await supabase.from('fixed_costs').insert(insertPayload)
+    if (error) console.error('[FixedCostList] insert error:', error.code, error.message)
     setName(''); setAmount(''); setDueDay(''); setType('월정액'); setKind(activeKind); setLinkedId('')
     setShowForm(false)
     setSaving(false)
