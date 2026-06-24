@@ -48,7 +48,7 @@ export async function recordFixedCostPayment(userId: string, fc: FixedCost, mont
     category: '고정비',
     date: today,
     payment_method: paymentMethod,
-    type: isTransfer ? 'savings' : 'expense',
+    type: isTransfer ? 'transfer' : 'expense',
     source: 'routine',
     memo: isTransfer ? '고정 저축 이체' : '고정 지출 처리',
   })

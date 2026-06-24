@@ -1,7 +1,7 @@
 @AGENTS.md
-# Spenlog 코워크 필수 지침 v4
-> 마지막 업데이트: 2026-06-19
-> 이전 버전 대비 변경: 모노레포 구조 및 배포 규칙 추가, 완료 항목 반영, DB 마이그레이션 현황 업데이트
+# Spenlog 코워크 필수 지침 v7
+> 마지막 업데이트: 2026-06-24
+> 이전 버전 대비 변경: 3순위 작업 4종 완료 처리 (온보딩 UI, 카드 루틴, 예산 AI 추천, 홈 UI 정돈)
 
 ---
 
@@ -101,7 +101,9 @@ Spenlog는 AI 자연어 입력 기반 가계부 PWA 앱이야.
 - `apps/web/` 변경 → git push → Vercel 배포 완료 후 모바일 테스트 (순서 반드시 지킬 것)
 - `apps/mobile/` 변경 → expo start 확인
 - API 경로/응답 변경 시 `EXPO_PUBLIC_API_URL` + 모바일 fetch 경로 동시 확인
-- 파일 200줄 초과 시 Python `open().write()`으로 전체 재작성 (virtiofs 잘림 버그)
+- **파일 수정은 반드시 Edit/Write 툴 사용. bash의 Python `open().write()` 절대 금지** (virtiofs 잘림 버그 — null byte 오염·잘림 발생)
+- 파일 수정 후 즉시 검증 필수: `python3 -c "c=open('파일','rb').read(); assert b'\\x00' not in c and len(c)>100, '손상됨'"` + 마지막 5줄 확인
+- 대형 파일(200줄+) 수정 시 전체 재작성 대신 Edit 툴로 해당 구간만 교체
 
 ### 8. 기획 방향 이탈 시 사전 논의
 - 기획서 스펙 대비 구현 방향이 크게 달라질 것 같으면 코드 작성 전 반드시 보고
@@ -184,6 +186,10 @@ export function isPremiumUnlocked(user: User | null): boolean {
 - 탈퇴 soft delete (`/api/delete-account` — `users.is_deleted=true`, Auth 유저 유지)
 - CSV 내보내기 (`settings.tsx` + `/api/export/csv`)
 - 다크 모드 (`AppThemeProvider`, AsyncStorage `dark_mode`)
+- 온보딩 화면 UI 상세 (기획서 스펙 기반 구현 완료)
+- 카드 루틴 자동화
+- 예산 AI 추천
+- 홈 화면 UI 정돈
 
 ---
 
@@ -298,23 +304,59 @@ CREATE INDEX IF NOT EXISTS idx_users_is_deleted ON users(is_deleted) WHERE is_de
 
 ### 🟡 3순위 — 기획 확정 후 개발
 
-6. **온보딩 화면 UI 상세**
-   - 기획서: `spenlog_onboarding_spec_v2.md`, `spenlog_onboarding_flow_spec_v1.md`
+6. ~~**온보딩 화면 UI 상세**~~ ✅ 완료
 
-7. **카드 루틴 자동화**
-   - 기획서: `spenlog_card_routine_spec_v1.md`
-   - 작업 전: 자산 탭 카드 섹션 현재 구조 확인
+7. ~~**카드 루틴 자동화**~~ ✅ 완료
 
-8. **예산 AI 추천**
-   - 기획서: `spenlog_budget_ai_spec_v1.md`, `spenlog_budget_spec_v1.md`
-   - 작업 전: 예산 화면 구조 + 카테고리 토글 ON/OFF 로직 확인
-   - AI 추천 대상: 유저 활성 카테고리 동적 처리 (하드코딩 금지)
+8. ~~**예산 AI 추천**~~ ✅ 완료
 
-9. **홈 화면 UI 정돈**
-   - 기획서: `spenlog_spec_home_ui_v2.docx`
-   - 데이터 로직 건드리지 말고 스타일만 수정
+9. ~~**홈 화면 UI 정돈**~~ ✅ 완료�
 
-10. **홈 편집 오버레이**
-    - 기획서: `spenlog_home_edit_overlay_spec_v1.md`, `spenlog_home_custom_spec_v1.md`
+---
 
-11. **자산
+## 🔧 Expo 모바일 개발 환경
+
+### 테스트 디바이스
+- **유저는 iPhone + Expo Go 앱으로 확인**
+- **웹은 Vercel URL(`https://spenlog-nr7t.vercel.app`)로 확인**
+- **유저는 원격 작업이 많음** → 로컬에서 처리할 일(파일 실행, 포트 킬, IP 확인 등)은 **bat 파일로 만들어서 제공**
+
+### 네트워크 설정 (필수)
+- PC 랜선은 반드시 **공유기 LAN 포트**에 연결 (KT 모뎀 직결 금지)
+- PC + 핸드폰 모두 `172.30.1.x` 대역이어야 통신 가능
+- KT 모뎀 직결 시 PC가 `222.107.136.97` (공인 IP) → 핸드폰과 망 분리 → 연결 불가
+- ngrok 터널은 KT 망에서 차단됨 → LAN 모드로만 사용
+
+### git push (Vercel 배포) 방법
+- **경로**: `C:\Users\curio\Desktop\spenlog` (프로젝트 루트)
+- **방법**: Windows 탐색기에서 해당 폴더 열기 → 주소창에 `cmd` 입력 후 Enter → 아래 명령 실행
+  ```
+  git add -A
+  git commit -m "커밋 메시지"
+  git push
+  ```
+- 또는 `git_push.bat` 파일 만들어서 더블클릭으로 실행 가능 (아래 참고)
+- Vercel 자동 배포 완료 확인: https://vercel.com/dashboard → 배포 상태 초록불 확인 후 모바일 테스트
+
+> ⚠️ `apps/web/` 변경 후 Vercel 배포 **전**에 모바일 테스트하면 구 버전 API로 테스트하는 것임
+
+### Expo 실행 방법
+- `run_expo.bat` 더블클릭으로 실행 (C:\Users\curio\Desktop\spenlog\run_expo.bat)
+- `--go` 플래그 필수: expo-dev-client가 설치돼 있어 없으면 dev build URL 생성 → Expo Go 인식 불가
+- `--clear` 필수: metro 캐시 초기화
+
+### Expo Go 호환성 (크래시 원인 목록)
+- **react-native-reanimated 4.x + react-native-worklets** → Expo Go에서 JSI 모듈 레벨 크래시
+  - category.tsx의 react-native-draggable-flatlist 임포트가 reanimated를 당겨서 발생
+  - 해결: metro.config.js resolveRequest로 lib/stubs/draggable-flatlist.jsx stub 적용 중
+  - dev build 전환 시 metro.config.js의 resolveRequest 블록 제거
+- **react-native-purchases** → Expo Go 미지원. lib/revenuecat.ts stub으로 대체됨
+- **expo-dev-client** 설치 상태 → expo start --go 플래그로 Expo Go 모드 강제
+
+### virtiofs 파일 손상 강화 지침
+- Edit/Write 툴도 Windows↔Linux 동기화 지연으로 잘림 발생 가능
+- 가장 신뢰성 높은 방법: bash에서 python3으로 직접 파일 쓰기
+  예: `python3 -c "with open('파일', 'w', encoding='utf-8') as f: f.write(content)"`
+- 수정 후 반드시 검증: `python3 -c "c=open('파일','rb').read(); print(len(c),'bytes, null:', c.find(b'\\x00'))"`
+- 기대 크기보다 작으면 bash로 재작성 (Edit/Write 툴 결과 믿지 말 것)
+- app.json이 잘릴 경우: python3로 JSON 파싱해서 닫는 중괄호 수동 보완

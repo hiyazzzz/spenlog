@@ -13,13 +13,15 @@ export interface FixedCostsData {
 export async function getFixedCostsData(userId: string): Promise<FixedCostsData> {
   const thisMonth = monthString()
 
-  const [{ data: fixedCosts }, { data: appliedExpenses }, { data: accounts }, { data: cards }] = await Promise.all([
+  const [{ data: fixedCosts, error: fcErr }, { data: appliedExpenses }, { data: accounts }, { data: cards }] = await Promise.all([
     supabase.from('fixed_costs').select('*').eq('user_id', userId).order('created_at', { ascending: true }),
     supabase.from('expenses').select('name').eq('user_id', userId)
       .gte('date', `${thisMonth}-01`).eq('category', '고정비'),
     supabase.from('accounts').select('*').eq('user_id', userId),
     supabase.from('cards').select('*').eq('user_id', userId),
   ])
+
+  if (fcErr) console.warn('[getFixedCostsData] fixed_costs fetch error:', fcErr.code, fcErr.message)
 
   return {
     fixedCosts: (fixedCosts as FixedCost[]) ?? [],
@@ -32,7 +34,7 @@ export async function getFixedCostsData(userId: string): Promise<FixedCostsData>
 
 export async function addFixedCost(userId: string, vals: {
   name: string; amount: number; due_day?: number | null
-  type: string; kind: '고정지출' | '고정저축'
+  type: string; kind: '\uace0\uc815\uc9c0\ucd9c' | '\uace0\uc815\uc800\ucd95'
   linked_account_id?: string | null
   linked_target_account_id?: string | null
   linked_card_id?: string | null
@@ -45,17 +47,25 @@ export async function addFixedCost(userId: string, vals: {
     linked_card_id: vals.linked_card_id ?? null,
   }
 
+  console.log('[addFixedCost] INSERT payload:', JSON.stringify(payload))
   let result = await supabase.from('fixed_costs').insert(payload).select().single()
+  console.log('[addFixedCost] result data:', result.data, 'error:', result.error?.code, result.error?.message)
 
-  // TODO: linked_account_id / linked_target_account_id / linked_card_id 컬럼이
-  // 아직 DB에 없는 환경에서는 PostgREST가 "column not found" 에러(42703)를 반환함.
-  // 마이그레이션 적용 전까지는 해당 필드를 제거하고 재시도.
+  // linked_* \ucee8\ub7fc\uc774 DB\uc5d0 \uc5c6\ub294 \ud658\uacbd(42703/PGRST204)\uc5d0\uc11c \uc7ac\uc2dc\ub3c4
   while (result.error?.code === '42703' || result.error?.code === 'PGRST204') {
     const missingCol = (['linked_account_id', 'linked_target_account_id', 'linked_card_id'] as const)
       .find(col => col in payload && result.error?.message?.includes(col))
     if (!missingCol) break
+    console.log('[addFixedCost] retrying without', missingCol)
     delete payload[missingCol]
     result = await supabase.from('fixed_costs').insert(payload).select().single()
+    console.log('[addFixedCost] retry result data:', result.data, 'error:', result.error?.code, result.error?.message)
+  }
+
+  if (result.error) {
+    console.error('[addFixedCost] FINAL ERROR:', result.error.code, result.error.message, result.error.details)
+  } else {
+    console.log('[addFixedCost] SUCCESS, inserted id:', result.data?.id)
   }
 
   return result
@@ -69,44 +79,5 @@ export async function editFixedCost(id: string, updates: Partial<{
 }
 
 export async function deleteFixedCost(id: string) {
-  // savings_payments 기록 기준으로 계좌 잔액 역복구
-  const { data: fc } = await supabase
-    .from('fixed_costs')
-    .select('kind, linked_account_id, linked_target_account_id')
-    .eq('id', id)
-    .single()
-
-  if (fc?.linked_account_id) {
-    const { data: payments } = await supabase
-      .from('savings_payments')
-      .select('paid_amount')
-      .eq('fixed_cost_id', id)
-      .eq('is_paid', true)
-
-    const totalPaid = (payments ?? []).reduce(
-      (s: number, p: { paid_amount: number | null }) => s + (p.paid_amount ?? 0),
-      0
-    )
-
-    if (totalPaid > 0) {
-      const { data: srcAcc } = await supabase.from('accounts').select('balance').eq('id', fc.linked_account_id).single()
-      if (srcAcc) {
-        await supabase.from('accounts')
-          .update({ balance: (srcAcc.balance ?? 0) + totalPaid })
-          .eq('id', fc.linked_account_id)
-      }
-
-      // 고정저축: 이체 대상 계좌에서도 역방향 차감
-      if (fc.kind === '고정저축' && fc.linked_target_account_id) {
-        const { data: tgtAcc } = await supabase.from('accounts').select('balance').eq('id', fc.linked_target_account_id).single()
-        if (tgtAcc) {
-          await supabase.from('accounts')
-            .update({ balance: (tgtAcc.balance ?? 0) - totalPaid })
-            .eq('id', fc.linked_target_account_id)
-        }
-      }
-    }
-  }
-
   return supabase.from('fixed_costs').delete().eq('id', id)
 }

@@ -10,11 +10,10 @@
       "ios",
       "android"
     ],
-    "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/a99c1ae4-b199-4f8d-8762-4b30f52c4e94",
-      "enabled": true,
-      "checkAutomatically": "ON_LOAD",
+      "enabled": false,
+      "checkAutomatically": "ON_ERROR_RECOVERY",
       "fallbackToCacheTimeout": 0
     },
     "ios": {

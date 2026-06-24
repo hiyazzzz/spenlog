@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, ActivityIndicator, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { useDataCache } from '@/store/dataCache';
 import { COLORS, RADIUS, formatCurrency, useThemeColors, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
 import { monthString } from '@/lib/date';
@@ -15,19 +16,16 @@ const PRESETS = [
 function presetAmounts(income: number, categories: string[], preset: typeof PRESETS[number]): Record<string, number> {
   const targetSave = Math.round(income * preset.savingRate);
   const spendBudget = income - targetSave;
-  // 수입 제외 (호출 시 이미 필터됐을 수 있으나 이중 방어)
   const spendCats = categories.filter(c => c !== '수입');
   if (spendCats.length === 0) return {};
 
-  // 각 카테고리에 raw 비율 부여
-  const knownRatio = spendCats.filter(c => c in preset.dist).reduce((s, c) => s + (preset.dist[c] ?? 0), 0);
-  const unknownCats = spendCats.filter(c => !(c in preset.dist));
-  const unknownRatio = unknownCats.length > 0 ? Math.max(0, 1 - knownRatio) / unknownCats.length : 0;
+  // 알려진 카테고리는 preset.dist 비율, 미지정 카테고리는 0.1 기본값 부여 후 전체 정규화
+  const BASE_RATIO = 0.1;
   const rawRatios: Record<string, number> = Object.fromEntries(
-    spendCats.map(cat => [cat, cat in preset.dist ? (preset.dist[cat] ?? 0) : unknownRatio])
+    spendCats.map(cat => [cat, cat in preset.dist ? (preset.dist[cat] ?? 0) : BASE_RATIO])
   );
 
-  // 합계로 정규화 → ON 카테고리만 전달받으면 자동으로 100% 채움
+  // 전체 합산으로 정규화 → ON 카테고리 합이 항상 spendBudget이 되도록
   const totalRatio = Object.values(rawRatios).reduce((s, r) => s + r, 0);
   return Object.fromEntries(
     spendCats.map(cat => [cat, totalRatio > 0 ? Math.round(spendBudget * rawRatios[cat] / totalRatio) : 0])
@@ -58,7 +56,12 @@ export default function BudgetScreen() {
         setError('로그인이 필요해요');
         return;
       }
+      // 캐시 먼저 표시
+      const cached = useDataCache.getState().budget;
+      if (cached) { setData(cached); setLoading(false); }
+
       const result = await getBudgetData(userId);
+      useDataCache.getState().setBudget(result);
       setData(result);
       const budgetMap: Record<string, number> = {};
       result.budgets.forEach(b => { budgetMap[b.category] = b.amount; });
@@ -245,6 +248,26 @@ export default function BudgetScreen() {
                   <Text style={styles.savingAnalysisLabel}>추가 저축 필요</Text>
                   <Text style={[styles.savingAnalysisValue, { color: COLORS.green, fontWeight: '800' }]}>{formatCurrency(addSave)}</Text>
                 </View>
+              </View>
+            );
+          })()}
+
+          {/* 지출 예산 배분 미리보기 — 프리셋 선택 시 */}
+          {selectedPreset && income > 0 && !aiAmounts && (() => {
+            const preset = PRESETS.find(p => p.key === selectedPreset);
+            if (!preset) return null;
+            const activeCats = categories.filter(c => c !== '수입' && enabledCats[c]);
+            const plan = presetAmounts(income, activeCats, preset);
+            if (activeCats.length === 0) return null;
+            return (
+              <View style={styles.aiResultBox}>
+                <Text style={styles.savingAnalysisTitle}>📊 지출 예산 배분</Text>
+                {activeCats.map(cat => (
+                  <View key={cat} style={styles.aiResultRow}>
+                    <Text style={[styles.aiResultLabel, { color: themeColors.accent }]}>{cat}</Text>
+                    <Text style={styles.aiResultValue}>{formatCurrency(plan[cat] ?? 0)}</Text>
+                  </View>
+                ))}
               </View>
             );
           })()}

@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { useDataCache } from '@/store/dataCache';
 import dayjs from 'dayjs';
 import { COLORS, RADIUS, formatCurrency, useThemeColors, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
@@ -18,10 +19,19 @@ export default function AnalyticsScreen() {
   const load = useCallback(async (month?: string) => {
     try {
       setError(null);
-      setLoading(true);
+      // 현재 달 첫 로드: 캐시 먼저 표시
+      if (!month) {
+        const cached = useDataCache.getState().analytics;
+        if (cached) { setData(cached); setLoading(false); }
+        else { setLoading(true); }
+      } else {
+        setLoading(true);
+      }
       const userId = await getCurrentUserId();
       if (!userId) { setError('로그인이 필요해요'); return; }
-      setData(await getAnalyticsData(userId, month));
+      const result = await getAnalyticsData(userId, month);
+      if (!month) useDataCache.getState().setAnalytics(result);
+      setData(result);
     } catch (e) {
       setError(e instanceof Error ? e.message : '데이터를 불러오지 못했어요');
     } finally {

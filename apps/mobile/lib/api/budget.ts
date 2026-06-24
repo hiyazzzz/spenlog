@@ -94,15 +94,16 @@ export async function saveBudgets(
 }
 
 export function fallbackBudgetAmounts(income: number, fixedSavings: number, categories: string[]): Record<string, number> {
-  const targetSaving = Math.round(income * 0.25)
-  const spendBudget = income - targetSaving
+  const spendBudget = income - fixedSavings
   const dist: Record<string, number> = { 생활비: 0.40, 고정비: 0.35, 활동비: 0.25 }
   const spendCats = categories.filter(c => c !== '수입')
-  const knownRatio = spendCats.filter(c => c in dist).reduce((s, c) => s + (dist[c] ?? 0), 0)
-  const unknownCats = spendCats.filter(c => !(c in dist))
-  const unknownRatio = unknownCats.length > 0 ? Math.max(0, 1 - knownRatio) / unknownCats.length : 0
+  const BASE_RATIO = 0.1
+  const rawRatios: Record<string, number> = Object.fromEntries(
+    spendCats.map(cat => [cat, cat in dist ? (dist[cat] ?? 0) : BASE_RATIO])
+  )
+  const totalRatio = Object.values(rawRatios).reduce((s, r) => s + r, 0)
   return Object.fromEntries(
-    spendCats.map(cat => [cat, Math.round(spendBudget * (cat in dist ? (dist[cat] ?? 0) : unknownRatio))])
+    spendCats.map(cat => [cat, Math.round(spendBudget * rawRatios[cat] / totalRatio)])
   )
 }
 

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Alert, Switch } from 'react-native';
 import SlideUpModal from '@/components/SlideUpModal';
 import { useFocusEffect } from 'expo-router';
+import { useDataCache } from '@/store/dataCache';
 import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, getThemeColors, useThemeColors, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
 import { monthString } from '@/lib/date';
@@ -132,7 +133,12 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
         return;
       }
       setUserId(uid);
+      // 캐시 먼저 표시 (스피너 없이 즉시 렌더링)
+      const cached = useDataCache.getState().assets;
+      if (cached) { setData(cached); setLoading(false); }
+
       const result = await getAssetsData(uid);
+      useDataCache.getState().setAssets(result);
       setData(result);
       setIncome(result.profile?.income ? Number(result.profile.income).toLocaleString() : '');
       setSavingGoal(result.profile?.saving_goal ? Number(result.profile.saving_goal).toLocaleString() : '');

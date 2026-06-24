@@ -1,39 +1,32 @@
-// TODO: react-native-purchases 패키지 설치 필요 — npx expo install react-native-purchases
-// 설치 전까지는 apps/mobile/types/react-native-purchases.d.ts 의 임시 타입 선언을 사용함
-import Purchases, { LOG_LEVEL, type PurchasesPackage, type PurchasesOfferings, type CustomerInfo } from 'react-native-purchases'
-import { Platform } from 'react-native'
+// react-native-purchases는 개발 빌드(dev build)에서만 사용 가능한 네이티브 모듈.
+// Expo Go 환경에서는 stub으로 대체 — 키가 설정되면 dev build로 전환 후 실제 모듈 연결.
+// TODO: npx expo install react-native-purchases 후 아래 stub 제거하고 원래 import 복원
+
+export type PurchasesOfferings = unknown
+export type PurchasesPackage = unknown
+export type CustomerInfo = unknown
 
 const IOS_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? ''
 const ANDROID_KEY = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? ''
 
 export function initRevenueCat(userId?: string) {
-  const apiKey = Platform.OS === 'ios' ? IOS_KEY : ANDROID_KEY
-  if (!apiKey) return
-  Purchases.setLogLevel(LOG_LEVEL.ERROR)
-  Purchases.configure({ apiKey, appUserID: userId ?? null })
+  if (!IOS_KEY && !ANDROID_KEY) return
+  // 키가 설정된 경우에만 RevenueCat 초기화 (dev build 필요)
+  console.warn('[RevenueCat] 네이티브 모듈 미설치 — dev build에서 react-native-purchases 연결 필요')
 }
 
 export async function getOfferings(): Promise<PurchasesOfferings | null> {
-  try {
-    return await Purchases.getOfferings()
-  } catch {
-    return null
-  }
+  return null
 }
 
 export async function purchasePremium(packageToPurchase: PurchasesPackage): Promise<CustomerInfo> {
-  const { customerInfo } = await Purchases.purchasePackage(packageToPurchase)
-  return customerInfo
+  throw new Error('RevenueCat 미설치 — dev build 필요')
 }
 
 export async function restorePurchases(): Promise<CustomerInfo> {
-  return await Purchases.restorePurchases()
+  throw new Error('RevenueCat 미설치 — dev build 필요')
 }
 
 export async function getCustomerInfo(): Promise<CustomerInfo | null> {
-  try {
-    return await Purchases.getCustomerInfo()
-  } catch {
-    return null
-  }
+  return null
 }

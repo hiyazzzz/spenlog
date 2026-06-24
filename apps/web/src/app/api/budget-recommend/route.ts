@@ -54,16 +54,17 @@ async function callGemini(prompt: string): Promise<string> {
 
 // 균형 프리셋 fallback (커스텀 카테고리 지원)
 function fallbackAmounts(income: number, fixedSavings: number, categories: string[]): Record<string, number> {
-  const targetSaving = Math.round(income * 0.25)
-  const spendBudget = income - targetSaving
+  const spendBudget = income - fixedSavings
   const dist: Record<string, number> = { 생활비: 0.40, 고정비: 0.35, 활동비: 0.25 }
   const spendCats = categories.filter(c => c !== '수입')
-  // 알려진 카테고리는 dist 비율, 모르는 카테고리는 남은 비율 균등 배분
-  const knownRatio = spendCats.filter(c => c in dist).reduce((s, c) => s + dist[c], 0)
-  const unknownCats = spendCats.filter(c => !(c in dist))
-  const unknownRatio = unknownCats.length > 0 ? Math.max(0, 1 - knownRatio) / unknownCats.length : 0
+  // 미지정 카테고리는 0.1 기본값 부여 후 전체 정규화
+  const BASE_RATIO = 0.1
+  const rawRatios: Record<string, number> = Object.fromEntries(
+    spendCats.map(cat => [cat, cat in dist ? dist[cat] : BASE_RATIO])
+  )
+  const totalRatio = Object.values(rawRatios).reduce((s, r) => s + r, 0)
   return Object.fromEntries(
-    spendCats.map(cat => [cat, Math.round(spendBudget * (cat in dist ? dist[cat] : unknownRatio))])
+    spendCats.map(cat => [cat, Math.round(spendBudget * rawRatios[cat] / totalRatio)])
   )
 }
 

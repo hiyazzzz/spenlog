@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { useDataCache } from '@/store/dataCache';
 import dayjs from 'dayjs';
 import { COLORS, RADIUS, formatCurrency, useThemeColors, getThemeColors, useAppTheme } from '@/constants/theme';
 import { DEFAULT_CATEGORIES } from '@/lib/api/categories';
@@ -41,7 +42,13 @@ export default function HistoryScreen() {
         setError('로그인이 필요해요');
         return;
       }
-      setData(await getHistoryData(userId));
+      // 캐시 먼저 표시
+      const cached = useDataCache.getState().history;
+      if (cached) { setData(cached); setLoading(false); }
+
+      const result = await getHistoryData(userId);
+      useDataCache.getState().setHistory(result);
+      setData(result);
     } catch (e) {
       setError(e instanceof Error ? e.message : '데이터를 불러오지 못했어요');
     } finally {

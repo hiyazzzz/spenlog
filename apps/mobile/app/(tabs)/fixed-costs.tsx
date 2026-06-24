@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import SlideUpModal from '@/components/SlideUpModal';
 import { useFocusEffect } from 'expo-router';
+import { useDataCache } from '@/store/dataCache';
 import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, useThemeColors, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
 import { getFixedCostsData, addFixedCost, editFixedCost, deleteFixedCost, type FixedCostsData } from '@/lib/api/fixed-costs';
@@ -112,10 +113,15 @@ export default function FixedCostsScreen() {
       setError(null);
       const userId = await getCurrentUserId();
       if (!userId) { setError('로그인이 필요해요'); return; }
+      // 캐시 먼저 표시
+      const cached = useDataCache.getState().fixedCosts;
+      if (cached) { setData(cached); setLoading(false); }
+
       const [fcData, { fixedCostIds }] = await Promise.all([
         getFixedCostsData(userId),
         getPaidIds(userId, monthString()),
       ]);
+      useDataCache.getState().setFixedCosts(fcData);
       setData(fcData);
       setPaidIds(fixedCostIds);
     } catch (e) {
@@ -651,12 +657,7 @@ const styles = StyleSheet.create({
   itemMeta: { fontSize: 11, color: COLORS.gray400, marginTop: 1 },
   itemAmount: { fontSize: 13, fontWeight: '700', marginHorizontal: 8 },
   itemAmountGreen: { fontSize: 13, fontWeight: '700', color: COLORS.green, marginHorizontal: 8 },
-  itemActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  recordBtn: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
-  recordBtnText: { fontSize: 11, fontWeight: '700', color: '#fff' },
-  paidBadge: { fontSize: 12, fontWeight: '700', color: COLORS.green, paddingHorizontal: 4 },
-  editBtn: { backgroundColor: '#f5f5f5', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
-  editBtnText: { fontSize: 11 },
+  itemAmountRed: { fontSize: 13, fontWeight: '700', color: COLORS.red, marginHorizontal: 8 },
   deleteBtn: { backgroundColor: COLORS.redBg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
   deleteBtnText: { fontSize: 11, color: COLORS.red },
 

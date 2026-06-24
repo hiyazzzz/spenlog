@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert, ImageBackground, Keyboard } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { useDataCache } from '@/store/dataCache';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, useAppTheme, useThemeColors } from '@/constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -76,6 +77,9 @@ export default function HomeScreen() {
         return;
       }
       setUserId(uid);
+      // 캐시 먼저 표시
+      const cached = useDataCache.getState().home;
+      if (cached) { setData(cached); setLoading(false); }
       const homeData = await getHomeData(uid);
 
       // 탈퇴 처리된 계정 감지: 재가입 유도
@@ -88,6 +92,7 @@ export default function HomeScreen() {
         return;
       }
 
+      useDataCache.getState().setHome(homeData);
       setData(homeData);
       if (homeData?.profile?.theme) setStoreTheme(homeData.profile.theme);
     } catch (e) {

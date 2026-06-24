@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { useDataCache } from '@/store/dataCache';
 import dayjs from 'dayjs';
 import { COLORS, RADIUS, formatCurrency, getThemeColors, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
@@ -26,7 +27,21 @@ export default function ReportScreen() {
   const load = useCallback(async (m?: string) => {
     try {
       setError(null);
-      setLoading(true);
+      // 현재 달 첫 로드: 캐시 먼저 표시
+      if (!m) {
+        const cachedReport = useDataCache.getState().report;
+        const cachedAnalytics = useDataCache.getState().reportAnalytics;
+        if (cachedReport && cachedAnalytics) {
+          setReport(cachedReport);
+          setAnalyticsData(cachedAnalytics);
+          setMonth(cachedReport.currentMonth);
+          setLoading(false);
+        } else {
+          setLoading(true);
+        }
+      } else {
+        setLoading(true);
+      }
       const uid = await getCurrentUserId();
       if (!uid) {
         setError('로그인이 필요해요');
@@ -37,6 +52,7 @@ export default function ReportScreen() {
         getReportData(uid, m),
         getAnalyticsData(uid, m),
       ]);
+      if (!m) useDataCache.getState().setReport(data, aData);
       setReport(data);
       setAnalyticsData(aData);
       setMonth(data.currentMonth);

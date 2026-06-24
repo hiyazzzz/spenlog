@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityI
 import SlideUpModal from '@/components/SlideUpModal';
 import CenterModal from '@/components/CenterModal';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { useDataCache } from '@/store/dataCache';
 import { Ionicons } from '@expo/vector-icons';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -329,6 +330,7 @@ export default function SettingsScreen() {
         return;
       }
       await clearSession();
+      useDataCache.getState().clearAll();
       await supabase.auth.signOut();
       setDeleteModalOpen(false);
       router.replace('/login');
@@ -601,6 +603,7 @@ export default function SettingsScreen() {
             onPress={async () => {
               setLogoutModalOpen(false);
               await clearSession();
+              useDataCache.getState().clearAll();
               await supabase.auth.signOut();
               router.replace('/login');
             }}
