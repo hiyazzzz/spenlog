@@ -95,9 +95,9 @@ export default function HistoryScreen() {
     return { calExpenseMap: expenseMap, calIncomeSet: incomeSet };
   }, [expenses, calMonth]);
 
-  async function handleDelete(id: string) {
-    await deleteExpense(id);
-    setData(d => d ? { ...d, expenses: d.expenses.filter(e => e.id !== id) } : d);
+  async function handleDelete(expense: Expense) {
+    await deleteExpense(expense);
+    setData(d => d ? { ...d, expenses: d.expenses.filter(e => e.id !== expense.id) } : d);
     setEditingId(null);
   }
 
@@ -235,7 +235,7 @@ export default function HistoryScreen() {
                   {items.map((e, idx) => (
                     <View key={e.id}>
                       {editingId === e.id ? (
-                        <EditRow expense={e} categories={categories} themeColors={themeColors} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e.id)} onCancel={() => setEditingId(null)} />
+                        <EditRow expense={e} categories={categories} themeColors={themeColors} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
                       ) : (
                         <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} />
                       )}
@@ -277,7 +277,7 @@ export default function HistoryScreen() {
           ) : selectedItems.map((e, idx) => (
             <View key={e.id}>
               {editingId === e.id ? (
-                <EditRow expense={e} categories={categories} themeColors={themeColors} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e.id)} onCancel={() => setEditingId(null)} />
+                <EditRow expense={e} categories={categories} themeColors={themeColors} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
               ) : (
                 <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} />
               )}

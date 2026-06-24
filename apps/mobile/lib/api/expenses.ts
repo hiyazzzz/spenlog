@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import type { Expense } from '@spenlog/types'
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://spenlog.vercel.app'
 
@@ -50,6 +51,22 @@ export async function parseAiInput(text: string): Promise<AiParseResult> {
   }
 }
 
+// payment_method 이름으로 accounts에서 계좌 찾아 잔액 조정
+// accounts 테이블에 없는 이름(카카오페이 등)은 null 반환 → 잔액 변동 없음
+async function adjustAccountBalance(userId: string, paymentMethod: string | null, delta: number) {
+  if (!paymentMethod) return
+  const { data: account } = await supabase
+    .from('accounts')
+    .select('id, balance')
+    .eq('user_id', userId)
+    .eq('name', paymentMethod)
+    .single()
+  if (!account) return
+  await supabase.from('accounts')
+    .update({ balance: (account.balance ?? 0) + delta })
+    .eq('id', account.id)
+}
+
 export async function addExpenses(userId: string, items: AiParsedItem[]) {
   const rows = items.map(p => ({
     user_id: userId,
@@ -62,7 +79,14 @@ export async function addExpenses(userId: string, items: AiParsedItem[]) {
     type: p.type,
     source: 'ai_input',
   }))
-  return supabase.from('expenses').insert(rows)
+  const result = await supabase.from('expenses').insert(rows)
+  if (!result.error) {
+    for (const item of items) {
+      const delta = item.type === 'income' ? item.amount : -item.amount
+      await adjustAccountBalance(userId, item.payment_method, delta)
+    }
+  }
+  return result
 }
 
 export async function addExpense(userId: string, expense: {
@@ -87,6 +111,10 @@ export async function addExpense(userId: string, expense: {
   })
 }
 
-export async function deleteExpense(id: string) {
-  return supabase.from('expenses').delete().eq('id', id)
+// expense 전체 객체를 받아 잔액 역복구 후 삭제
+// 지출 삭제 → 계좌 잔액 +, 수입 삭제 → 계좌 잔액 -
+export async function deleteExpense(expense: Pick<Expense, 'id' | 'type' | 'amount' | 'payment_method' | 'user_id'>) {
+  const delta = (expense.type ?? 'expense') === 'income' ? -expense.amount : expense.amount
+  await adjustAccountBalance(expense.user_id, expense.payment_method, delta)
+  return supabase.from('expenses').delete().eq('id', expense.id)
 }

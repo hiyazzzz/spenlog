@@ -75,7 +75,7 @@ export default function AddExpenseScreen() {
         amount: amt,
         category: type === 'income' ? '수입' : category,
         date,
-        payment_method: type === 'expense' ? paymentMethod : null,
+        payment_method: paymentMethod || null,
         memo: memo.trim() || null,
         type,
       });

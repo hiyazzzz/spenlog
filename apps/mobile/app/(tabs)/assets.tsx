@@ -311,10 +311,20 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
   function getCardPayStatus(card: CardType): { label: string; color: string } {
     if (paidCardIds.has(card.id)) return { label: '✓ 완료', color: COLORS.green };
     if (!card.due_day) return { label: '', color: COLORS.gray400 };
-    const todayDay = new Date().getDate();
+    const today = new Date();
+    const todayDay = today.getDate();
     const diff = card.due_day - todayDay;
     if (diff === 0) return { label: '오늘 납부일 ⚠️', color: COLORS.amber };
-    if (diff < 0) return { label: '지연 ⚠️', color: COLORS.red };
+    if (diff < 0) {
+      // 등록 월이 이번 달이면 지연 뱃지 미표시 (다음 달부터 적용)
+      if (card.created_at) {
+        const cardDate = new Date(card.created_at);
+        const cardYearMonth = cardDate.getFullYear() * 100 + (cardDate.getMonth() + 1);
+        const thisYearMonth = today.getFullYear() * 100 + (today.getMonth() + 1);
+        if (cardYearMonth >= thisYearMonth) return { label: '', color: COLORS.gray400 };
+      }
+      return { label: '지연 ⚠️', color: COLORS.red };
+    }
     return { label: `D-${diff}`, color: COLORS.gray400 };
   }
 

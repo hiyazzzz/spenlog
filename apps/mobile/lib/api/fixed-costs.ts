@@ -69,5 +69,44 @@ export async function editFixedCost(id: string, updates: Partial<{
 }
 
 export async function deleteFixedCost(id: string) {
+  // savings_payments 기록 기준으로 계좌 잔액 역복구
+  const { data: fc } = await supabase
+    .from('fixed_costs')
+    .select('kind, linked_account_id, linked_target_account_id')
+    .eq('id', id)
+    .single()
+
+  if (fc?.linked_account_id) {
+    const { data: payments } = await supabase
+      .from('savings_payments')
+      .select('paid_amount')
+      .eq('fixed_cost_id', id)
+      .eq('is_paid', true)
+
+    const totalPaid = (payments ?? []).reduce(
+      (s: number, p: { paid_amount: number | null }) => s + (p.paid_amount ?? 0),
+      0
+    )
+
+    if (totalPaid > 0) {
+      const { data: srcAcc } = await supabase.from('accounts').select('balance').eq('id', fc.linked_account_id).single()
+      if (srcAcc) {
+        await supabase.from('accounts')
+          .update({ balance: (srcAcc.balance ?? 0) + totalPaid })
+          .eq('id', fc.linked_account_id)
+      }
+
+      // 고정저축: 이체 대상 계좌에서도 역방향 차감
+      if (fc.kind === '고정저축' && fc.linked_target_account_id) {
+        const { data: tgtAcc } = await supabase.from('accounts').select('balance').eq('id', fc.linked_target_account_id).single()
+        if (tgtAcc) {
+          await supabase.from('accounts')
+            .update({ balance: (tgtAcc.balance ?? 0) - totalPaid })
+            .eq('id', fc.linked_target_account_id)
+        }
+      }
+    }
+  }
+
   return supabase.from('fixed_costs').delete().eq('id', id)
 }
