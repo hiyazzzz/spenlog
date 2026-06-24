@@ -153,12 +153,19 @@ export default function OnboardingScreen() {
     setSaving(true);
     try {
       await saveData();
-      router.replace('/(tabs)');
     } catch {
-      router.replace('/(tabs)');
+      // saveData 실패해도 onboarding 플래그는 반드시 저장 (무한 redirect 방지)
+      const { isGuest } = useThemeStore.getState();
+      if (isGuest) {
+        try { await AsyncStorage.setItem('guest_onboarding_completed', 'true'); } catch {}
+      } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) await completeOnboarding(user.id).catch(() => {});
+      }
     } finally {
       setSaving(false);
     }
+    router.replace('/(tabs)');
   }
 
   async function next() {

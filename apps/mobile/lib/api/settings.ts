@@ -18,7 +18,6 @@ export async function updateName(userId: string, name: string) {
 const ONBOARDING_KEY = (uid: string) => `onboarding_completed_${uid}`
 
 export async function checkOnboardingStatus(userId: string): Promise<boolean> {
-  // AsyncStorage 로컬 플래그 먼저 확인 (DB 컬럼 미적용 시 폴백)
   try {
     const local = await AsyncStorage.getItem(ONBOARDING_KEY(userId))
     if (local === 'true') return true
@@ -26,10 +25,16 @@ export async function checkOnboardingStatus(userId: string): Promise<boolean> {
 
   const { data, error } = await supabase.from('users').select('onboarding_completed').eq('id', userId).single()
   if (error) {
-    // DB 컬럼 없음 등 에러 시 로컬 플래그 없으면 온보딩 필요로 판단
-    return false
+    // DB 컬럼 없음·네트워크 에러 등 — false 반환 시 무한 redirect가 발생하므로 true로 처리
+    // PGRST116(row not found)은 진짜 신규 유저이므로 false 유지
+    return error.code === 'PGRST116' ? false : true
   }
-  return !!data?.onboarding_completed
+  if (data?.onboarding_completed) {
+    // DB 기준 완료 → AsyncStorage에도 동기화해 다음 호출을 빠르게
+    try { await AsyncStorage.setItem(ONBOARDING_KEY(userId), 'true') } catch {}
+    return true
+  }
+  return false
 }
 
 export async function completeOnboarding(userId: string) {
