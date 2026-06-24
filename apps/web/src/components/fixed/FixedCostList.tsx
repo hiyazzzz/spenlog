@@ -28,6 +28,7 @@ export default function FixedCostList({ initialItems, userId, accounts = [], car
   const [dueDay, setDueDay] = useState('')
   const [linkedId, setLinkedId] = useState('')
   const [saving, setSaving] = useState(false)
+  const [addError, setAddError] = useState<string | null>(null)
 
   const linkedOptions: LinkedOption[] = [
     ...accounts.map(a => ({ id: a.id, label: `${a.name}·${a.bank}`, type: 'account' as const })),
@@ -67,7 +68,13 @@ export default function FixedCostList({ initialItems, userId, accounts = [], car
     if (selected?.type === 'account') insertPayload.linked_account_id = selected.id
     if (selected?.type === 'card') insertPayload.linked_card_id = selected.id
     const { error } = await supabase.from('fixed_costs').insert(insertPayload)
-    if (error) console.error('[FixedCostList] insert error:', error.code, error.message)
+    if (error) {
+      console.error('[FixedCostList] insert error:', error.code, error.message, error.details)
+      setAddError(`저장 실패: ${error.message} (${error.code})`)
+      setSaving(false)
+      return // 에러 시 form 유지
+    }
+    setAddError(null)
     setName(''); setAmount(''); setDueDay(''); setType('월정액'); setKind(activeKind); setLinkedId('')
     setShowForm(false)
     setSaving(false)
@@ -188,6 +195,7 @@ export default function FixedCostList({ initialItems, userId, accounts = [], car
             </select>
           )}
           <div className="flex gap-2">
+            {addError && <p style={{ color: '#ef4444', fontSize: 12, marginBottom: 4 }}>{addError}</p>}
             <button onClick={() => setShowForm(false)} className="flex-1 py-2 rounded-xl text-sm bg-gray-100 text-gray-500">{TEXTS.fixed.btnCancel}</button>
             <button onClick={handleAdd} disabled={saving}
               className="flex-1 py-2 rounded-xl text-sm text-white font-medium disabled:opacity-50"
