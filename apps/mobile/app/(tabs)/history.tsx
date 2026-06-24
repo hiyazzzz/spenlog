@@ -12,7 +12,7 @@ import type { Expense } from '@spenlog/types';
 
 type ViewMode = 'list' | 'calendar';
 type SortKey = 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc';
-type TypeFilter = '' | 'expense' | 'income';
+type TypeFilter = '' | 'expense' | 'income' | 'savings';
 
 const PAYMENT_OPTIONS = ['카드', '현금', '카카오페이', '네이버페이', '토스', '계좌이체'];
 
@@ -65,7 +65,12 @@ export default function HistoryScreen() {
       if (search && !e.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (filterCat && e.category !== filterCat) return false;
       if (filterPay && e.payment_method !== filterPay) return false;
-      if (filterType && (e.type ?? 'expense') !== filterType) return false;
+      if (filterType === 'savings') {
+        const et = e.type ?? 'expense';
+        if (et !== 'savings' && et !== 'transfer') return false;
+      } else if (filterType && (e.type ?? 'expense') !== filterType) {
+        return false;
+      }
       return true;
     });
     switch (sort) {
@@ -177,10 +182,10 @@ export default function HistoryScreen() {
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={{ gap: 6 }}>
-        {(['', 'expense', 'income'] as TypeFilter[]).map(t => (
+        {(['', 'expense', 'income', 'savings'] as TypeFilter[]).map(t => (
           <TouchableOpacity key={t} style={[styles.filterChip, filterType === t && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]} onPress={() => setFilterType(t)}>
             <Text style={[styles.filterChipText, filterType === t && styles.filterChipTextActive]}>
-              {t === '' ? '전체' : t === 'expense' ? '지출' : '수입'}
+              {t === '' ? '전체' : t === 'expense' ? '지출' : t === 'income' ? '수입' : '저축이체'}
             </Text>
           </TouchableOpacity>
         ))}
@@ -298,7 +303,9 @@ export default function HistoryScreen() {
 }
 
 function ExpenseRow({ expense, onTap }: { expense: Expense; onTap: () => void }) {
-  const isIncome = (expense.type ?? 'expense') === 'income';
+  const expType = expense.type ?? 'expense';
+  const isIncome = expType === 'income';
+  const isSavings = expType === 'savings' || expType === 'transfer';
   return (
     <TouchableOpacity style={styles.row} onPress={onTap} activeOpacity={0.7}>
       <View style={{ flex: 1 }}>
@@ -307,12 +314,15 @@ function ExpenseRow({ expense, onTap }: { expense: Expense; onTap: () => void })
           {isIncome && (
             <View style={styles.incomeBadge}><Text style={styles.incomeBadgeText}>수입</Text></View>
           )}
+          {isSavings && (
+            <View style={styles.savingsBadge}><Text style={styles.savingsBadgeText}>저축이체</Text></View>
+          )}
         </View>
         <Text style={styles.rowMeta}>
           {expense.category}{expense.payment_method ? ` · ${expense.payment_method}` : ''}
         </Text>
       </View>
-      <Text style={[styles.rowAmount, { color: isIncome ? COLORS.green : COLORS.red }]}>
+      <Text style={[styles.rowAmount, { color: isIncome ? COLORS.green : isSavings ? '#7c3aed' : COLORS.red }]}>
         {isIncome ? '+' : '-'}{formatCurrency(expense.amount).replace('원', '')}원
       </Text>
     </TouchableOpacity>
@@ -514,7 +524,9 @@ const styles = StyleSheet.create({
   rowMeta: { fontSize: 11, color: COLORS.gray400, marginTop: 2 },
   rowAmount: { fontSize: 14, fontWeight: '700', marginLeft: 12 },
   incomeBadge: { backgroundColor: COLORS.greenBg, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
+  savingsBadge: { backgroundColor: '#ede9fe', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
   incomeBadgeText: { fontSize: 9, fontWeight: '700', color: COLORS.green },
+  savingsBadgeText: { fontSize: 9, fontWeight: '700', color: '#7c3aed' },
   divider: { height: 1, backgroundColor: COLORS.gray50, marginHorizontal: 14 },
 
   selectedHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: COLORS.gray50 },

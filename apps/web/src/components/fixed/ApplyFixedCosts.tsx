@@ -40,8 +40,8 @@ export default function ApplyFixedCosts({ fixedCosts, userId, appliedNames, this
     for (const f of toInsert) {
       await recordFixedCostPayment(supabase, userId, {
         id: f.id, name: f.name, amount: f.amount,
-        kind: f.kind, linked_account_id: f.linked_account_id,
-        linked_target_account_id: f.linked_target_account_id,
+        kind: f.kind, due_day: f.due_day, linked_account_id: f.linked_account_id,
+        linked_target_account_id: f.linked_target_account_id, linked_card_id: f.linked_card_id,
       }, thisMonth)
     }
     setApplying(false)

@@ -24,7 +24,10 @@ export async function getPaidIds(userId: string, month: string): Promise<{ fixed
 }
 
 export async function recordFixedCostPayment(userId: string, fc: FixedCost, month: string): Promise<{ accountUpdates: AccountUpdate[] }> {
-  const today = new Date().toISOString().split('T')[0]
+  // due_day가 있으면 해당 날짜, 없으면 KST 오늘 (UTC+9)
+  const expenseDate = fc.due_day
+    ? `${month}-${String(fc.due_day).padStart(2, '0')}`
+    : new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0]
 
   await supabase.from('savings_payments').upsert({
     user_id: userId,
@@ -46,9 +49,9 @@ export async function recordFixedCostPayment(userId: string, fc: FixedCost, mont
     name: fc.name,
     amount: fc.amount,
     category: '고정비',
-    date: today,
+    date: expenseDate,
     payment_method: paymentMethod,
-    type: isTransfer ? 'transfer' : 'expense',
+    type: isTransfer ? 'savings' : 'expense',
     source: 'routine',
     memo: isTransfer ? '고정 저축 이체' : '고정 지출 처리',
   })

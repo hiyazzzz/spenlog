@@ -17,10 +17,13 @@ export interface AccountUpdate {
 export async function recordFixedCostPayment(
   supabase: SupabaseClient,
   userId: string,
-  fc: Pick<FixedCost, 'id' | 'name' | 'amount' | 'kind' | 'linked_account_id' | 'linked_target_account_id' | 'linked_card_id'>,
+  fc: Pick<FixedCost, 'id' | 'name' | 'amount' | 'kind' | 'due_day' | 'linked_account_id' | 'linked_target_account_id' | 'linked_card_id'>,
   month: string,
 ): Promise<{ accountUpdates: AccountUpdate[] }> {
-  const today = new Date().toISOString().split('T')[0]
+  // due_day가 있으면 해당 날짜, 없으면 KST 오늘 (UTC+9)
+  const expenseDate = fc.due_day
+    ? `${month}-${String(fc.due_day).padStart(2, '0')}`
+    : new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0]
 
   await supabase.from('savings_payments').upsert({
     user_id: userId,
@@ -43,7 +46,7 @@ export async function recordFixedCostPayment(
     name: fc.name,
     amount: fc.amount,
     category: '고정비',
-    date: today,
+    date: expenseDate,
     payment_method: paymentMethod,
     type: isTransfer ? 'savings' : 'expense',
     source: 'routine',
