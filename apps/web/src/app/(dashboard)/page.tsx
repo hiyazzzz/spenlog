@@ -19,22 +19,19 @@ export default async function DashboardHomePage() {
   if (!user) redirect('/login')
 
   const thisMonth = dayjs().format('YYYY-MM')
-  const [{ data: profile }, { data: expenses }, { data: budgets }, { data: userCategories }, { data: fixedCosts }] = await Promise.all([
+  const [{ data: profile }, { data: expenses }, { data: budgets }, { data: userCategories }] = await Promise.all([
     supabase.from('users').select('*').eq('id', user.id).single(),
     supabase.from('expenses').select('*').eq('user_id', user.id)
       .gte('date', thisMonth + '-01').order('date', { ascending: false }),
     supabase.from('budgets').select('*').eq('user_id', user.id).eq('month', thisMonth),
     supabase.from('categories').select('name, color').eq('user_id', user.id).eq('is_hidden', false).order('sort_order'),
-    supabase.from('fixed_costs').select('amount, kind').eq('user_id', user.id),
   ])
 
   const allExpenses = (expenses ?? []).map(e => ({ ...e, type: e.type ?? 'expense' }))
   const totalSpent = allExpenses.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
   const recentExpenses = allExpenses.filter(e => e.type === 'expense').slice(0, 3)
   const savingGoal = profile?.saving_goal ?? 0
-  const income = profile?.income ?? 0
-  const fixedSavingsTotal = (fixedCosts ?? []).filter((f: any) => f.kind === '고정저축').reduce((s: number, f: any) => s + f.amount, 0)
-  const actualSaving = fixedSavingsTotal + Math.max(0, income - totalSpent - fixedSavingsTotal)
+  const actualSaving = allExpenses.filter(e => e.type === 'savings').reduce((s, e) => s + e.amount, 0)
   const displayName = profile?.name || '소비요정'
   const isPremium = isPremiumUnlocked(profile)
   const coverUrl = profile?.home_cover_url ?? null

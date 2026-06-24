@@ -176,9 +176,7 @@ export default function HomeScreen() {
   const totalSpent = allExpenses.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0);
   const recentExpenses = allExpenses.filter(e => e.type === 'expense').slice(0, 3);
   const savingGoal = data.profile?.saving_goal ?? 0;
-  const income = data.profile?.income ?? 0;
-  const fixedSavingsTotal = data.fixedCosts.filter(f => f.kind === '고정저축').reduce((s, f) => s + f.amount, 0);
-  const actualSaving = fixedSavingsTotal + Math.max(0, income - totalSpent - fixedSavingsTotal);
+  const actualSaving = allExpenses.filter(e => e.type === 'savings').reduce((s, e) => s + e.amount, 0);
   const displayName = data.profile?.name || '소비요정';
 
   const categories = data.categories.map(c => c.name);
