@@ -255,14 +255,14 @@ function AccountRow({ acc, sb, onDelete, onUpdated }: {
 }) {
   const ACCT_TYPES: AccountType[] = ['입출금', '적금', '투자', '기타']
   const [editing, setEditing] = useState(false)
-  const [vals, setVals] = useState({ name: acc.name, bank: acc.bank, type: acc.type ?? '입출금', balance: String(acc.balance ?? 0) })
+  const [vals, setVals] = useState({ name: acc.name, bank: acc.bank, type: acc.type ?? '입출금', balance: fmt(String(acc.balance ?? 0)) })
   const [sav, setSav] = useState(false)
   const inp: React.CSSProperties = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const, marginBottom: 6 }
   if (editing) return (
     <div style={{ padding: '10px 0', borderBottom: '1px solid #f9fafb' }}>
       <input value={vals.name} onChange={e => setVals(p => ({ ...p, name: e.target.value }))} placeholder="계좌명" style={inp} />
       <input value={vals.bank} onChange={e => setVals(p => ({ ...p, bank: e.target.value }))} placeholder="은행" style={inp} />
-      <input value={vals.balance} onChange={e => setVals(p => ({ ...p, balance: e.target.value.replace(/[^0-9]/g, '') }))} inputMode="numeric" placeholder="잔액" style={inp} />
+      <input value={vals.balance} onChange={e => setVals(p => ({ ...p, balance: fmt(e.target.value) }))} inputMode="numeric" placeholder="잔액" style={inp} />
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 8 }}>
         {ACCT_TYPES.map(t => (
           <button key={t} onClick={() => setVals(p => ({ ...p, type: t as AccountType }))}
@@ -275,9 +275,9 @@ function AccountRow({ acc, sb, onDelete, onUpdated }: {
       <div style={{ display: 'flex', gap: 6 }}>
         <button disabled={sav} onClick={async () => {
           setSav(true)
-          const { error } = await sb.from('accounts').update({ name: vals.name.trim(), bank: vals.bank.trim(), type: vals.type, balance: parseInt(vals.balance) || 0 }).eq('id', acc.id)
+          const { error } = await sb.from('accounts').update({ name: vals.name.trim(), bank: vals.bank.trim(), type: vals.type, balance: parse(vals.balance) }).eq('id', acc.id)
           setSav(false)
-          if (!error) { onUpdated({ ...acc, name: vals.name.trim(), bank: vals.bank.trim(), type: vals.type as any, balance: parseInt(vals.balance) || 0 }); setEditing(false) }
+          if (!error) { onUpdated({ ...acc, name: vals.name.trim(), bank: vals.bank.trim(), type: vals.type as any, balance: parse(vals.balance) }); setEditing(false) }
         }} style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', background: 'var(--color-primary)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{sav ? '저장 중...' : '저장'}</button>
         <button onClick={() => setEditing(false)} style={{ flex: 1, padding: '8px', borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
       </div>
