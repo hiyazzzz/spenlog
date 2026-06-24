@@ -1,6 +1,7 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import dayjs from 'dayjs';
 import { COLORS, RADIUS } from '@/constants/theme';
 import { getCurrentUserId, supabase } from '@/lib/supabase';
@@ -10,11 +11,16 @@ import { DEFAULT_CATEGORIES } from '@/lib/api/categories';
 
 const EXPENSE_METHODS = ['현금', '계좌이체', '카카오페이', '네이버페이', '토스페이', '제로페이'];
 const INCOME_METHODS = ['현금', '계좌이체'];
+const RECENCY_KEY = 'payment_method_recency';
 
 function formatAmount(val: string): string {
   const num = val.replace(/[^0-9]/g, '');
   if (!num) return '';
   return Number(num).toLocaleString();
+}
+
+function sortByRecency(methods: string[], recency: Record<string, number>): string[] {
+  return [...methods].sort((a, b) => (recency[b] ?? 0) - (recency[a] ?? 0));
 }
 
 type EntryType = 'expense' | 'income' | 'transfer';
@@ -33,6 +39,7 @@ export default function AddExpenseScreen() {
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [accounts, setAccounts] = useState<{ id: string; name: string; balance: number }[]>([]);
   const [cards, setCards] = useState<{ name: string }[]>([]);
+  const [recency, setRecency] = useState<Record<string, number>>({});
 
   const initType: EntryType =
     params.type === 'income' ? 'income' :
@@ -45,10 +52,19 @@ export default function AddExpenseScreen() {
   const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [paymentMethod, setPaymentMethod] = useState('');
   const [memo, setMemo] = useState('');
-  const [transferFrom, setTransferFrom] = useState('');   // 출금 계좌명
-  const [transferTo, setTransferTo] = useState('');       // 입금 계좌명
+  const [transferFrom, setTransferFrom] = useState('');
+  const [transferTo, setTransferTo] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // 최근 사용 수단 로드
+  useEffect(() => {
+    AsyncStorage.getItem(RECENCY_KEY).then(raw => {
+      if (raw) {
+        try { setRecency(JSON.parse(raw)); } catch {}
+      }
+    });
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -70,10 +86,20 @@ export default function AddExpenseScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  async function saveRecency(methods: string[]) {
+    const updated = { ...recency };
+    const now = Date.now();
+    methods.forEach(m => { if (m) updated[m] = now; });
+    setRecency(updated);
+    await AsyncStorage.setItem(RECENCY_KEY, JSON.stringify(updated));
+  }
+
   const accountNames = accounts.map(a => a.name);
-  const paymentOptions = type === 'income'
+  const rawPaymentOptions = type === 'income'
     ? [...accountNames, ...INCOME_METHODS.filter(m => !accountNames.includes(m))]
     : [...cards.map(c => c.name), ...accountNames.filter(n => !cards.some(c => c.name === n)), ...EXPENSE_METHODS.filter(m => !cards.some(c => c.name === m) && !accountNames.includes(m))];
+  // 최근 사용순 정렬 (한 번이라도 쓴 것은 앞으로)
+  const paymentOptions = sortByRecency(rawPaymentOptions, recency);
 
   function resetTypeState() {
     setError('');
@@ -111,14 +137,12 @@ export default function AddExpenseScreen() {
         });
         if (saveErr) throw saveErr;
 
-        // 출금 계좌 잔액 -
         const fromAcc = accounts.find(a => a.name === transferFrom);
         if (fromAcc) {
           await supabase.from('accounts')
             .update({ balance: (fromAcc.balance ?? 0) - amt })
             .eq('id', fromAcc.id);
         }
-        // 입금 계좌 잔액 +
         const toAcc = accounts.find(a => a.name === transferTo);
         if (toAcc) {
           await supabase.from('accounts')
@@ -126,6 +150,8 @@ export default function AddExpenseScreen() {
             .eq('id', toAcc.id);
         }
 
+        // 이체 계좌도 recency 저장
+        await saveRecency([transferFrom, transferTo].filter(Boolean));
         router.back();
         return;
       }
@@ -152,6 +178,9 @@ export default function AddExpenseScreen() {
           .update({ balance: (selectedAccount.balance ?? 0) + delta })
           .eq('id', selectedAccount.id);
       }
+
+      // 사용한 결제수단 recency 저장
+      if (paymentMethod) await saveRecency([paymentMethod]);
 
       router.back();
     } catch {
@@ -221,7 +250,7 @@ export default function AddExpenseScreen() {
                   transferTo === a.name && styles.chipDisabled,
                 ]}
                 onPress={() => {
-                  if (transferTo === a.name) return; // 입금 계좌와 같은 것 선택 불가
+                  if (transferTo === a.name) return;
                   setTransferFrom(prev => prev === a.name ? '' : a.name);
                 }}
               >
@@ -231,9 +260,7 @@ export default function AddExpenseScreen() {
               </TouchableOpacity>
             ))}
           </View>
-          {accounts.length === 0 && (
-            <Text style={styles.emptyHint}>등록된 계좌가 없어요</Text>
-          )}
+          {accounts.length === 0 && <Text style={styles.emptyHint}>등록된 계좌가 없어요</Text>}
         </View>
       )}
 
@@ -251,7 +278,7 @@ export default function AddExpenseScreen() {
                   transferFrom === a.name && styles.chipDisabled,
                 ]}
                 onPress={() => {
-                  if (transferFrom === a.name) return; // 출금 계좌와 같은 것 선택 불가
+                  if (transferFrom === a.name) return;
                   setTransferTo(prev => prev === a.name ? '' : a.name);
                 }}
               >
@@ -261,9 +288,21 @@ export default function AddExpenseScreen() {
               </TouchableOpacity>
             ))}
           </View>
-          {accounts.length === 0 && (
-            <Text style={styles.emptyHint}>등록된 계좌가 없어요</Text>
-          )}
+          {accounts.length === 0 && <Text style={styles.emptyHint}>등록된 계좌가 없어요</Text>}
+        </View>
+      )}
+
+      {/* 이체 — 항목명 */}
+      {type === 'transfer' && (
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>이체 항목 (선택)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="예) ISA 투자금"
+            placeholderTextColor={COLORS.gray400}
+            value={name}
+            onChangeText={setName}
+          />
         </View>
       )}
 
@@ -274,20 +313,6 @@ export default function AddExpenseScreen() {
           <TextInput
             style={styles.input}
             placeholder={type === 'expense' ? '예) 스타벅스' : '예) 용돈'}
-            placeholderTextColor={COLORS.gray400}
-            value={name}
-            onChangeText={setName}
-          />
-        </View>
-      )}
-
-      {/* 이체 — 메모/항목명 */}
-      {type === 'transfer' && (
-        <View style={styles.card}>
-          <Text style={styles.fieldLabel}>이체 항목 (선택)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="예) ISA 투자금"
             placeholderTextColor={COLORS.gray400}
             value={name}
             onChangeText={setName}
@@ -325,13 +350,16 @@ export default function AddExpenseScreen() {
         />
       </View>
 
-      {/* 지출/수입 — 결제수단 */}
+      {/* 지출/수입 — 결제수단 (최근사용순) */}
       {type !== 'transfer' && (
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>
             {type === 'expense' ? '결제수단' : '받은 수단'}{' '}
             {type === 'expense' && <Text style={{ color: COLORS.red }}>*</Text>}
           </Text>
+          {Object.keys(recency).length > 0 && (
+            <Text style={styles.recencyHint}>최근 사용순으로 정렬됨</Text>
+          )}
           <View style={styles.chipWrap}>
             {paymentOptions.map(method => (
               <TouchableOpacity
@@ -392,6 +420,8 @@ const styles = StyleSheet.create({
   fieldLabel: { fontSize: 11, color: COLORS.gray400, marginBottom: 8 },
   amountInput: { fontSize: 22, fontWeight: '800', color: COLORS.gray800 },
   input: { fontSize: 14, color: COLORS.gray800 },
+
+  recencyHint: { fontSize: 10, color: COLORS.gray400, marginBottom: 6 },
 
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: COLORS.gray100 },

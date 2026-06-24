@@ -353,10 +353,36 @@ CREATE INDEX IF NOT EXISTS idx_users_is_deleted ON users(is_deleted) WHERE is_de
 - **react-native-purchases** → Expo Go 미지원. lib/revenuecat.ts stub으로 대체됨
 - **expo-dev-client** 설치 상태 → expo start --go 플래그로 Expo Go 모드 강제
 
-### virtiofs 파일 손상 강화 지침
-- Edit/Write 툴도 Windows↔Linux 동기화 지연으로 잘림 발생 가능
-- 가장 신뢰성 높은 방법: bash에서 python3으로 직접 파일 쓰기
-  예: `python3 -c "with open('파일', 'w', encoding='utf-8') as f: f.write(content)"`
-- 수정 후 반드시 검증: `python3 -c "c=open('파일','rb').read(); print(len(c),'bytes, null:', c.find(b'\\x00'))"`
-- 기대 크기보다 작으면 bash로 재작성 (Edit/Write 툴 결과 믿지 말 것)
-- app.json이 잘릴 경우: python3로 JSON 파싱해서 닫는 중괄호 수동 보완
+### virtiofs 파일 손상 강화 지침 (반복 빌드 에러 근본 원인)
+
+**실제 발생 패턴:**
+1. Edit/Write 툴 → virtiofs 동기화 지연으로 닫는 태그 등 말미 내용 소실
+2. bash python3 write → 상대적 안전하나 검증 필수
+3. 잘린 파일이 push되면 Vercel에서 "Parsing ecmascript source code failed"
+
+**파일 쓰기 우선순위:**
+- 전체 재작성/신규 파일: /tmp/write_xxx.py 별도 스크립트 파일 만들어 실행 (heredoc 금지)
+- 부분 수정: str.replace() Python 스크립트 방식
+
+**쓰기 후 필수 검증 (생략 금지):**
+```bash
+python3 -c "
+c=open('파일','rb').read()
+t=c.decode('utf-8','ignore').split('\n')
+print(len(c),'bytes null:',c.find(b'\x00'),'lines:',len(t))
+for l in t[-3:]: print(repr(l))
+"
+```
+마지막 줄이 } 또는 닫는 태그 아니면 HEAD에서 즉시 복구:
+```bash
+git show HEAD:파일경로 | python3 -c "import sys; open('경로','wb').write(sys.stdin.buffer.read())"
+```
+
+**TypeScript SELECT 필드 누락 방지:**
+- Pick<> 타입에 새 필드 추가 시 해당 테이블 SELECT 구문 전체 grep 필수
+  예: `grep -r "from('fixed_costs').select" apps/web/src/`
+- route.ts에서 fc.새필드 사용 전 SELECT에 컬럼 포함 여부 확인
+
+**git lock 충돌 시:**
+- push_now.bat에 lock 삭제 코드 포함되어 있음
+- "Everything up-to-date" = 이미 push 성공, 다음 에러는 별개 커밋 필요
