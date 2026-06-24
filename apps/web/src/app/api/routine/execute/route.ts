@@ -36,7 +36,7 @@ export async function GET(req: Request) {
 
   const { data: fixedCosts, error } = await admin
     .from('fixed_costs')
-    .select('id, user_id, name, amount, kind, due_day, linked_account_id, linked_target_account_id')
+    .select('id, user_id, name, amount, kind, due_day, linked_account_id, linked_target_account_id, linked_card_id')
     .eq('due_day', todayDay)
 
   if (error) {
