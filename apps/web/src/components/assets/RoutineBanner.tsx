@@ -168,3 +168,10 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccount
                   )}
                 </div>
               )
+            })}
+          </div>
+        )}
+      </div>
+    </>
+  )
+}

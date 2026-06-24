@@ -85,3 +85,15 @@ export async function deleteCard(id: string) {
 export async function updateIncome(userId: string, income: number, savingGoal: number) {
   return supabase.from('users').update({ income, saving_goal: savingGoal }).eq('id', userId)
 }
+
+export async function updateAccount(id: string, updates: {
+  name?: string; bank?: string; type?: string; balance?: number
+}) {
+  return supabase.from('accounts').update(updates).eq('id', id)
+}
+
+export async function updateCard(id: string, updates: {
+  name?: string; bank?: string; due_day?: number | null; billing_start_day?: number | null; linked_account_id?: string | null
+}) {
+  return supabase.from('cards').update(updates).eq('id', id)
+}

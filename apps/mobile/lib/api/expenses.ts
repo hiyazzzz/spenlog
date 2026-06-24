@@ -52,7 +52,6 @@ export async function parseAiInput(text: string): Promise<AiParseResult> {
 }
 
 // payment_method 이름으로 accounts에서 계좌 찾아 잔액 조정
-// accounts 테이블에 없는 이름(카카오페이 등)은 null 반환 → 잔액 변동 없음
 async function adjustAccountBalance(userId: string, paymentMethod: string | null, delta: number) {
   if (!paymentMethod) return
   const { data: account } = await supabase
@@ -111,10 +110,30 @@ export async function addExpense(userId: string, expense: {
   })
 }
 
-// expense 전체 객체를 받아 잔액 역복구 후 삭제
-// 지출 삭제 → 계좌 잔액 +, 수입 삭제 → 계좌 잔액 -
-export async function deleteExpense(expense: Pick<Expense, 'id' | 'type' | 'amount' | 'payment_method' | 'user_id'>) {
-  const delta = (expense.type ?? 'expense') === 'income' ? -expense.amount : expense.amount
-  await adjustAccountBalance(expense.user_id, expense.payment_method, delta)
+// expense 삭제 + 계좌 잔액 역복구
+// - savings/transfer: 출금계좌(payment_method) +복구, 입금계좌([이체] 메모 파싱) -복구
+// - income: 계좌 잔액 -
+// - expense: 계좌 잔액 +
+export async function deleteExpense(
+  expense: Pick<Expense, 'id' | 'type' | 'amount' | 'payment_method' | 'user_id' | 'memo'>,
+) {
+  const expType = expense.type ?? 'expense'
+
+  if (expType === 'savings' || expType === 'transfer') {
+    // 출금계좌 역복구: payment_method → +amount
+    await adjustAccountBalance(expense.user_id, expense.payment_method, expense.amount)
+    // 입금계좌 역복구: memo에서 "[이체] 계좌명" 파싱 → -amount
+    const memoStr = expense.memo ?? ''
+    if (memoStr.startsWith('[이체] ')) {
+      const targetName = memoStr.slice('[이체] '.length).split(' · ')[0].trim()
+      if (targetName) {
+        await adjustAccountBalance(expense.user_id, targetName, -expense.amount)
+      }
+    }
+  } else {
+    const delta = expType === 'income' ? -expense.amount : expense.amount
+    await adjustAccountBalance(expense.user_id, expense.payment_method, delta)
+  }
+
   return supabase.from('expenses').delete().eq('id', expense.id)
 }
