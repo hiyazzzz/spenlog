@@ -20,10 +20,9 @@ export async function recordFixedCostPayment(
   fc: Pick<FixedCost, 'id' | 'name' | 'amount' | 'kind' | 'due_day' | 'linked_account_id' | 'linked_target_account_id' | 'linked_card_id'>,
   month: string,
 ): Promise<{ accountUpdates: AccountUpdate[] }> {
-  // due_day가 있으면 해당 날짜, 없으면 KST 오늘 (UTC+9)
-  const expenseDate = fc.due_day
-    ? `${month}-${String(fc.due_day).padStart(2, '0')}`
-    : new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0]
+  // 항상 KST 오늘 날짜로 기록 — due_day는 출금 예정일 메타데이터이지 실제 기록 날짜가 아님
+  // (25일에 26일 출금 예정 항목을 기록해도 25일로 찍힌다)
+  const expenseDate = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0]
 
   // 중복 기록 방지: 이미 처리된 항목인지 확인
   const { data: existingPayment } = await supabase
