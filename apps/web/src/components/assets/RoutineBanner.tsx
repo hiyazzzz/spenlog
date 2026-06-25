@@ -23,6 +23,7 @@ interface Props {
 export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccountsChange }: Props) {
   const supabase = createClient()
   const [payments, setPayments] = useState<Record<string, boolean>>({})
+  const [paymentDates, setPaymentDates] = useState<Record<string, string>>({})
   const [loadingPayments, setLoadingPayments] = useState(true)
   const [processing, setProcessing] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
@@ -39,18 +40,21 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccount
       // (savings_payments upsert가 불안정한 경우에도 expenses는 항상 생성됨)
       const { data: expData } = await supabase
         .from('expenses')
-        .select('name')
+        .select('name, date')
         .eq('user_id', userId)
         .eq('source', 'routine')
         .gte('date', `${thisMonth}-01`)
         .lt('date', `${nextMonth}-01`)
 
-      const paidNames = new Set((expData ?? []).map(e => e.name))
+      const paidMap: Record<string, string> = {}
+      ;(expData ?? []).forEach(e => { paidMap[e.name] = e.date })
       const map: Record<string, boolean> = {}
+      const dateMap: Record<string, string> = {}
       fixedCosts.forEach(fc => {
-        if (paidNames.has(fc.name)) map[fc.id] = true
+        if (paidMap[fc.name]) { map[fc.id] = true; dateMap[fc.id] = paidMap[fc.name] }
       })
       setPayments(map)
+      setPaymentDates(dateMap)
       setLoadingPayments(false)
     }
     loadPayments()
@@ -73,6 +77,7 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccount
   )
 
   const allDone = pending.length === 0
+  const doneCount = fixedCosts.length - pending.length
 
   async function recordPayment(fc: FixedCost) {
     setProcessing(fc.id)
@@ -87,7 +92,9 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccount
       }, thisMonth)
       if (accountUpdates.length > 0) onAccountsChange?.(accountUpdates)
 
+      const today = new Date(Date.now() + 9*60*60*1000).toISOString().split('T')[0]
       setPayments(p => ({ ...p, [fc.id]: true }))
+      setPaymentDates(d => ({ ...d, [fc.id]: today }))
       setToast(fc.name + ' 기록 완료 ✓')
       setTimeout(() => setToast(''), 2000)
     } finally {
@@ -122,12 +129,10 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccount
             <span style={{ fontSize: 16 }}>{allDone ? '🎉' : '📋'}</span>
             <div style={{ textAlign: 'left' as const }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: allDone ? '#059669' : 'var(--color-accent)' }}>
-                {allDone
-                  ? '이번 달 모두 완료!'
-                  : '이번 달 처리할 항목 ' + pending.length + '건'}
+                {allDone ? '이번 달 모두 완료!' : '루틴 기록'}
               </p>
               <p style={{ fontSize: 11, color: allDone ? '#6ee7b7' : 'var(--color-primary-mid)' }}>
-                {expanded ? '탭해서 접기' : '탭해서 확인하기'}
+                {doneCount}/{fixedCosts.length}건 완료 · {expanded ? '접기' : '펼치기'}
               </p>
             </div>
           </div>
@@ -138,32 +143,72 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccount
         </button>
 
         {expanded && (
-          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+            {/* 전체 기록하기 버튼 (미완료 항목이 2개 이상일 때만) */}
+            {pending.length >= 2 && (
+              <button
+                onClick={async () => {
+                  for (const fc of pending) {
+                    if (processing) continue
+                    await recordPayment(fc)
+                  }
+                }}
+                disabled={!!processing}
+                style={{
+                  width: '100%', padding: '9px 0', borderRadius: 10, border: 'none',
+                  background: 'var(--color-primary)', color: '#fff',
+                  fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                  marginBottom: 4, opacity: processing ? 0.6 : 1,
+                }}
+              >
+                {processing ? '기록 중...' : `전체 기록하기 (${pending.length}건)`}
+              </button>
+            )}
             {fixedCosts.map(fc => {
               const paid = payments[fc.id]
+              const paidDate = paymentDates[fc.id]
               const overdue = fc.due_day && today > fc.due_day
               return (
                 <div key={fc.id} style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '10px 12px', background: paid ? '#f0fdf4' : '#fff',
-                  borderRadius: 10, border: '1px solid ' + (paid ? '#bbf7d0' : '#f0f0f0'),
+                  padding: '10px 12px',
+                  background: paid ? 'rgba(16,185,129,0.06)' : '#fff',
+                  borderRadius: 10,
+                  border: '1px solid ' + (paid ? '#bbf7d0' : '#f0f0f0'),
+                  opacity: paid ? 0.85 : 1,
+                  transition: 'all 0.2s',
                 }}>
-                  <div>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: '#1f2937' }}>
-                      {fc.name}
-                      {overdue && !paid && (
-                        <span style={{ fontSize: 10, color: '#ef4444', marginLeft: 4 }}>
-                          ⚠️ 출금일 지남
-                        </span>
-                      )}
-                    </p>
-                    <p style={{ fontSize: 11, color: '#9ca3af' }}>
-                      {fc.amount.toLocaleString()}원 {fc.due_day ? '매월 ' + fc.due_day + '일' : ''}
-                    </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {/* 체크 아이콘 */}
+                    <div style={{
+                      width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                      background: paid ? '#10B981' : 'transparent',
+                      border: paid ? 'none' : '2px solid #d1d5db',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {paid && <span style={{ fontSize: 11, color: '#fff', fontWeight: 700 }}>✓</span>}
+                    </div>
+                    <div>
+                      <p style={{
+                        fontSize: 13, fontWeight: 600,
+                        color: paid ? '#6b7280' : '#1f2937',
+                        textDecoration: paid ? 'line-through' : 'none',
+                      }}>
+                        {fc.name}
+                        {overdue && !paid && (
+                          <span style={{ fontSize: 10, color: '#ef4444', marginLeft: 4 }}>⚠️ 출금일 지남</span>
+                        )}
+                      </p>
+                      <p style={{ fontSize: 11, color: '#9ca3af' }}>
+                        {fc.amount.toLocaleString()}원
+                        {paid && paidDate
+                          ? <span style={{ color: '#10B981', marginLeft: 4 }}>{paidDate.slice(5).replace('-', '/')} 기록됨</span>
+                          : fc.due_day ? <span style={{ marginLeft: 4 }}>매월 {fc.due_day}일</span> : null
+                        }
+                      </p>
+                    </div>
                   </div>
-                  {paid ? (
-                    <span style={{ fontSize: 12, color: '#10B981', fontWeight: 700 }}>✓ 완료</span>
-                  ) : (
+                  {!paid && (
                     <button
                       onClick={() => recordPayment(fc)}
                       disabled={processing === fc.id}
@@ -171,6 +216,7 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccount
                         padding: '6px 12px', borderRadius: 8, border: 'none',
                         background: 'var(--color-primary)', color: '#fff',
                         fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                        flexShrink: 0,
                       }}
                     >
                       {processing === fc.id ? '...' : '기록하기'}

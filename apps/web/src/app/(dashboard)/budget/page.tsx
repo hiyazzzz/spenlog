@@ -17,7 +17,7 @@ export default async function BudgetPage() {
 
   const [{ data: budgets }, { data: expenses }, { data: profile }, { data: fixedCosts }, { data: recentExpenses }, { data: categories }] = await Promise.all([
     supabase.from('budgets').select('*').eq('user_id', user.id).eq('month', thisMonth),
-    supabase.from('expenses').select('category, amount').eq('user_id', user.id)
+    supabase.from('expenses').select('category, amount, type').eq('user_id', user.id)
       .gte('date', `${thisMonth}-01`)
       .lt('date', `${nextMonth}-01`),
     supabase.from('users').select('income').eq('id', user.id).single(),

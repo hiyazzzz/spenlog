@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Budget } from '@spenlog/types'
 import { TEXTS } from '@/config/texts'
 
-interface Expense { category: string; amount: number }
+interface Expense { category: string; amount: number; type?: string }
 interface RecentExpense { category: string; amount: number; month: string }
 interface Props {
   userId: string
@@ -231,7 +231,9 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
 
   const displayAmounts = tab === 'ai' && selectedPreset ? aiAmounts : amounts
   const totalBudget = allCategories.filter(c => enabledCats[c]).reduce((s, c) => s + (parseInt(displayAmounts[c] || '0') || 0), 0)
-  const totalSpent = expenses.reduce((s, e) => s + e.amount, 0)
+  // income · savings · transfer 제외 — 순수 지출만 예산 달성률 계산
+  const spendOnly = expenses.filter(e => !e.type || e.type === 'expense')
+  const totalSpent = spendOnly.reduce((s, e) => s + e.amount, 0)
   const overallPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0
 
   return (
@@ -426,7 +428,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
         <>
           <div className="space-y-3">
             {allCategories.map((cat) => {
-              const spent = expenses.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0)
+              const spent = spendOnly.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0)
               const budget = parseInt(amounts[cat] || '0') || 0
               const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0
               const over = spent > budget && budget > 0
