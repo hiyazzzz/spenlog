@@ -196,7 +196,7 @@ function FixedRow({ item, accountName, targetAccountName, onDelete, onEdit, acco
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>{formatCurrency(item.amount)}</span>
-        <button onClick={() => { setVals({ name: acc.name, bank: acc.bank, type: acc.type ?? '입출금', balance: fmt(String(acc.balance ?? 0)) }); setEditing(true); }} style={{ fontSize: 11, color: 'var(--color-primary-mid)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>수정</button>
+        <button onClick={() => { setVals({ name: item.name, amount: String(item.amount), due_day: String((item as any).due_day ?? '') }); setEditing(true); }} style={{ fontSize: 11, color: 'var(--color-primary-mid)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>수정</button>
         <button onClick={onDelete} style={{ fontSize: 11, color: '#ef4444', background: '#fef2f2', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
       </div>
     </div>
