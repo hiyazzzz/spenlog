@@ -3,7 +3,9 @@ import { redirect } from 'next/navigation'
 import dayjs from 'dayjs'
 import HistoryClient from '@/components/history/HistoryClient'
 
-export default async function HistoryPage() {
+export default async function HistoryPage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
+  const resolvedParams = await searchParams
+  const initialCategory = resolvedParams.category ?? ''
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -31,6 +33,7 @@ export default async function HistoryPage() {
       initialExpenses={normalizedExpenses}
       paymentMethods={paymentMethods}
       userCategories={userCategories}
+      initialCategory={initialCategory}
     />
   )
 }

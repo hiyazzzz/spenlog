@@ -72,7 +72,7 @@ export default function HomeCategoryGrid({ expenses, budgets, categoryImages, us
 
           return (
             <button key={cat}
-              onClick={() => router.push('/budget')}
+              onClick={() => router.push('/history?category=' + encodeURIComponent(cat))}
               style={{
                 display: 'flex', flexDirection: 'column',
                 background: '#fff', borderRadius: 16,

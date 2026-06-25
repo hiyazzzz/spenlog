@@ -23,19 +23,20 @@ interface Props {
   initialExpenses: Expense[]
   paymentMethods: string[]
   userCategories?: string[]
+  initialCategory?: string
 }
 
 type ViewMode = 'list' | 'calendar'
 type SortKey = 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc'
 type TypeFilter = '' | 'expense' | 'income' | 'transfer' | 'savings'
 
-export default function HistoryClient({ userId, initialExpenses, paymentMethods, userCategories }: Props) {
+export default function HistoryClient({ userId, initialExpenses, paymentMethods, userCategories, initialCategory }: Props) {
   const supabase = createClient()
 
   const [expenses, setExpenses] = useState(initialExpenses)
   const [view, setView] = useState<ViewMode>('list')
   const [search, setSearch] = useState('')
-  const [filterCat, setFilterCat] = useState('')
+  const [filterCat, setFilterCat] = useState(initialCategory ?? '')
   const [filterPay, setFilterPay] = useState('')
   const [filterType, setFilterType] = useState<TypeFilter>('')
   const [sort, setSort] = useState<SortKey>('date_desc')
