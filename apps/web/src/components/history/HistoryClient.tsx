@@ -15,7 +15,7 @@ interface Expense {
   date: string
   payment_method: string | null
   memo: string | null
-  type: 'expense' | 'income' | 'transfer'
+  type: 'expense' | 'income' | 'transfer' | 'savings'
 }
 
 interface Props {
@@ -27,7 +27,7 @@ interface Props {
 
 type ViewMode = 'list' | 'calendar'
 type SortKey = 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc'
-type TypeFilter = '' | 'expense' | 'income' | 'transfer'
+type TypeFilter = '' | 'expense' | 'income' | 'transfer' | 'savings'
 
 export default function HistoryClient({ userId, initialExpenses, paymentMethods, userCategories }: Props) {
   const supabase = createClient()
@@ -48,7 +48,14 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
       if (search && !e.name.toLowerCase().includes(search.toLowerCase())) return false
       if (filterCat && e.category !== filterCat) return false
       if (filterPay && e.payment_method !== filterPay) return false
-      if (filterType && (e.type ?? 'expense') !== filterType) return false
+      if (filterType) {
+        const t = e.type ?? 'expense'
+        if (filterType === 'transfer') {
+          if (t !== 'transfer' && t !== 'savings') return false
+        } else {
+          if (t !== filterType) return false
+        }
+      }
       return true
     })
     switch (sort) {
@@ -138,6 +145,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
           <option value="">전체</option>
           <option value="expense">지출</option>
           <option value="income">수입</option>
+          <option value="transfer">이체</option>
         </select>
         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
           className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full border cursor-pointer outline-none"
@@ -200,7 +208,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
                     <div key={e.id}>
                       {editingId === e.id
                         ? ((e.type === 'savings' || e.type === 'transfer')
-                            ? <TransferEditRow expense={e} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} />
+                            ? <TransferEditRow expense={e} onSave={u => saveExpense(e.id, u)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} />
                             : <EditRow expense={e} onSave={u => saveExpense(e.id, u)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} />)
                         : <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} />
                       }
@@ -230,18 +238,39 @@ function ExpenseRow({ expense, onTap }: { expense: Expense; onTap: () => void })
   const type = expense.type ?? 'expense'
   const isIncome = type === 'income'
   const isTransfer = type === 'transfer' || type === 'savings'
+
+  if (isTransfer) {
+    const parts = expense.name.includes('→') ? expense.name.split('→').map((s: string) => s.trim()) : [expense.name, '']
+    const fromAcc = parts[0]
+    const toAcc = parts[1] || ''
+    return (
+      <button onClick={onTap} className="w-full p-4 text-left transition-colors" style={{ background: 'rgba(245,243,255,0.6)' }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: '#ede9fe', color: '#7c3aed' }}>🔄 이체</span>
+            </div>
+            <p className="text-sm font-semibold text-gray-800">
+              {fromAcc}{toAcc && <span className="text-gray-400 font-normal"> → {toAcc}</span>}
+            </p>
+          </div>
+          <span className="text-sm font-bold" style={{ color: '#7c3aed' }}>⇔ {expense.amount.toLocaleString()}원</span>
+        </div>
+      </button>
+    )
+  }
+
   return (
     <button onClick={onTap} className="w-full flex justify-between items-center p-4 text-left hover:bg-gray-50 transition-colors">
       <div>
         <div className="flex items-center gap-1.5">
           <p className="text-sm font-semibold text-gray-800">{expense.name}</p>
           {isIncome && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-semibold">수입</span>}
-          {isTransfer && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-500 font-semibold">이체</span>}
         </div>
         <p className="text-xs text-gray-400 mt-0.5">{expense.category}{expense.payment_method && ` · ${expense.payment_method}`}</p>
       </div>
-      <span className={`text-sm font-bold ${isIncome ? 'text-emerald-500' : isTransfer ? 'text-blue-500' : 'text-rose-400'}`}>
-        {isIncome ? '+' : isTransfer ? '↔' : '-'}{expense.amount.toLocaleString()}원
+      <span className={`text-sm font-bold ${isIncome ? 'text-emerald-500' : 'text-rose-400'}`}>
+        {isIncome ? '+' : '-'}{expense.amount.toLocaleString()}원
       </span>
     </button>
   )
@@ -324,25 +353,41 @@ function EditRow({ expense, onSave, onDelete, onCancel, userCategories }: {
   )
 }
 
-function TransferEditRow({ expense, onDelete, onCancel }: { expense: Expense; onDelete: () => void; onCancel: () => void }) {
+function TransferEditRow({ expense, onSave, onDelete, onCancel }: { expense: Expense; onSave: (u: Partial<Expense>) => void; onDelete: () => void; onCancel: () => void }) {
   const parts = expense.name.includes('→') ? expense.name.split('→').map((s: string) => s.trim()) : [expense.name, '']
-  const from = parts[0]
-  const to = parts[1] || ''
+  const [fromText, setFromText] = useState(parts[0])
+  const [toText, setToText] = useState(parts[1] || '')
+  const [amount, setAmount] = useState(expense.amount.toLocaleString())
+  const [date, setDate] = useState(expense.date)
   return (
-    <div className="p-4 bg-purple-50">
+    <div className="p-4" style={{ background: '#f5f3ff' }}>
       <div className="flex justify-between items-center mb-3">
-        <span className="text-xs font-semibold text-gray-500">{dayjs(expense.date).format('M월 D일')}</span>
+        <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: '#ede9fe', color: '#7c3aed' }}>🔄 이체</span>
         <button onClick={onCancel} className="text-xs text-gray-400">✕</button>
       </div>
-      <div className="bg-white rounded-xl p-3 mb-3 border border-purple-100">
-        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-600 font-semibold">🔄 이체</span>
-        <p className="text-sm font-semibold text-gray-800 mt-2">{from}{to ? ` → ${to}` : ''}</p>
-        <p className="text-base font-bold text-purple-600 mt-0.5">{expense.amount.toLocaleString()}원</p>
-        <p className="text-[11px] text-gray-400 mt-2">이체 항목은 지출 통계에서 제외됩니다</p>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <input value={fromText} onChange={e => setFromText(e.target.value)}
+            className="flex-1 text-sm px-3 py-2 rounded-xl bg-white outline-none" style={{ border: '1px solid #ddd6fe' }} placeholder="출금 계좌" />
+          <span className="text-gray-400 text-sm">→</span>
+          <input value={toText} onChange={e => setToText(e.target.value)}
+            className="flex-1 text-sm px-3 py-2 rounded-xl bg-white outline-none" style={{ border: '1px solid #ddd6fe' }} placeholder="입금 계좌" />
+        </div>
+        <input type="text" inputMode="numeric" value={amount}
+          onChange={e => { const n = e.target.value.replace(/[^0-9]/g, ''); setAmount(n ? Number(n).toLocaleString() : '') }}
+          className="w-full text-sm px-3 py-2 rounded-xl bg-white outline-none" style={{ border: '1px solid #ddd6fe' }} placeholder="금액" />
+        <input type="date" value={date} onChange={e => setDate(e.target.value)}
+          className="w-full text-sm px-3 py-2 rounded-xl bg-white outline-none" style={{ border: '1px solid #ddd6fe' }} />
+        <p className="text-[10px] text-gray-400">* 금액 수정 시 계좌 잔액은 자동 반영되지 않아요</p>
       </div>
-      <button onClick={onDelete} className="w-full py-2 rounded-xl text-sm font-semibold bg-rose-50 text-rose-400 border border-rose-100">
-        이체 기록 삭제
-      </button>
+      <div className="flex gap-2 mt-3">
+        <button onClick={() => onSave({
+          name: toText ? `${fromText} → ${toText}` : fromText,
+          amount: parseInt(amount.replace(/,/g, '')) || expense.amount,
+          date,
+        })} className="flex-1 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: '#7c3aed' }}>저장</button>
+        <button onClick={onDelete} className="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-50 text-rose-400 border border-rose-100">삭제</button>
+      </div>
     </div>
   )
 }
@@ -424,7 +469,7 @@ function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, to
               <div key={e.id}>
                 {editingId === e.id
                   ? ((e.type === 'savings' || e.type === 'transfer')
-                      ? <TransferEditRow expense={e} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />
+                      ? <TransferEditRow expense={e} onSave={u => onSave(e.id, u)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />
                       : <EditRow expense={e} onSave={u => onSave(e.id, u)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />)
                   : <ExpenseRow expense={e} onTap={() => onEdit(e.id)} />
                 }

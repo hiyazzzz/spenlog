@@ -24,7 +24,7 @@ export default async function AssetsPage() {
     supabase.from('accounts').select('*').eq('user_id', user.id),
     supabase.from('cards').select('*').eq('user_id', user.id),
     supabase.from('fixed_costs').select('*').eq('user_id', user.id),
-    supabase.from('expenses').select('id, name, amount, category, date, payment_method').eq('user_id', user.id)
+    supabase.from('expenses').select('id, name, amount, category, date, payment_method, type').eq('user_id', user.id)
       .gte('date', `${thisMonth}-01`).lt('date', `${nextMonth}-01`).order('date', { ascending: false }),
     supabase.from('budgets').select('*').eq('user_id', user.id).eq('month', thisMonth),
     supabase.from('categories').select('*').eq('user_id', user.id).order('sort_order'),
@@ -32,7 +32,9 @@ export default async function AssetsPage() {
 
   const categorySpent: Record<string, number> = {}
   expenses?.forEach(e => {
-    categorySpent[e.category] = (categorySpent[e.category] ?? 0) + e.amount
+    if (!e.type || e.type === 'expense') {
+      categorySpent[e.category] = (categorySpent[e.category] ?? 0) + e.amount
+    }
   })
 
   return (
@@ -43,7 +45,7 @@ export default async function AssetsPage() {
       cards={cards ?? []}
       fixedCosts={fixedCosts ?? []}
       budgets={budgets ?? []}
-      thisMonthSpent={expenses?.reduce((s, e) => s + e.amount, 0) ?? 0}
+      thisMonthSpent={expenses?.filter(e => !e.type || e.type === 'expense').reduce((s, e) => s + e.amount, 0) ?? 0}
       categorySpent={categorySpent}
       thisMonth={thisMonth}
       customCategories={customCategories ?? []}

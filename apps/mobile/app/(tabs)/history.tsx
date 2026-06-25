@@ -12,7 +12,7 @@ import type { Expense } from '@spenlog/types';
 
 type ViewMode = 'list' | 'calendar';
 type SortKey = 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc';
-type TypeFilter = '' | 'expense' | 'income' | 'savings';
+type TypeFilter = '' | 'expense' | 'income' | 'savings' | 'transfer';
 
 const PAYMENT_OPTIONS = ['카드', '현금', '카카오페이', '네이버페이', '토스', '계좌이체'];
 
@@ -257,7 +257,7 @@ export default function HistoryScreen() {
                     <View key={e.id}>
                       {editingId === e.id ? (
                         (e.type === 'savings' || e.type === 'transfer')
-                          ? <TransferEditRow expense={e} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
+                          ? <TransferEditRow expense={e} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
                           : <EditRow expense={e} categories={categories} themeColors={themeColors} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
                       ) : (
                         <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} />
@@ -301,7 +301,7 @@ export default function HistoryScreen() {
             <View key={e.id}>
               {editingId === e.id ? (
                 (e.type === 'savings' || e.type === 'transfer')
-                  ? <TransferEditRow expense={e} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
+                  ? <TransferEditRow expense={e} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
                   : <EditRow expense={e} categories={categories} themeColors={themeColors} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
               ) : (
                 <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} />
@@ -318,7 +318,29 @@ export default function HistoryScreen() {
 function ExpenseRow({ expense, onTap }: { expense: Expense; onTap: () => void }) {
   const expType = expense.type ?? 'expense';
   const isIncome = expType === 'income';
-  const isSavings = expType === 'savings' || expType === 'transfer';
+  const isTransfer = expType === 'savings' || expType === 'transfer';
+
+  if (isTransfer) {
+    const parts = expense.name.includes('→') ? expense.name.split('→').map(s => s.trim()) : [expense.name, ''];
+    const fromAcc = parts[0];
+    const toAcc = parts[1] || '';
+    return (
+      <TouchableOpacity style={[styles.row, { backgroundColor: '#f5f3ff' }]} onPress={onTap} activeOpacity={0.7}>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <View style={styles.savingsBadge}><Text style={styles.savingsBadgeText}>🔄 이체</Text></View>
+          </View>
+          <Text style={styles.rowName} numberOfLines={1}>
+            {fromAcc}{toAcc ? ` → ${toAcc}` : ''}
+          </Text>
+        </View>
+        <Text style={[styles.rowAmount, { color: '#7c3aed' }]}>
+          ⇔ {formatCurrency(expense.amount).replace('원', '')}원
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <TouchableOpacity style={styles.row} onPress={onTap} activeOpacity={0.7}>
       <View style={{ flex: 1 }}>
@@ -327,15 +349,12 @@ function ExpenseRow({ expense, onTap }: { expense: Expense; onTap: () => void })
           {isIncome && (
             <View style={styles.incomeBadge}><Text style={styles.incomeBadgeText}>수입</Text></View>
           )}
-          {isSavings && (
-            <View style={styles.savingsBadge}><Text style={styles.savingsBadgeText}>저축이체</Text></View>
-          )}
         </View>
         <Text style={styles.rowMeta}>
           {expense.category}{expense.payment_method ? ` · ${expense.payment_method}` : ''}
         </Text>
       </View>
-      <Text style={[styles.rowAmount, { color: isIncome ? COLORS.green : isSavings ? '#7c3aed' : COLORS.red }]}>
+      <Text style={[styles.rowAmount, { color: isIncome ? COLORS.green : COLORS.red }]}>
         {isIncome ? '+' : '-'}{formatCurrency(expense.amount).replace('원', '')}원
       </Text>
     </TouchableOpacity>
@@ -416,33 +435,54 @@ function EditRow({ expense, categories, themeColors, onSave, onDelete, onCancel 
   );
 }
 
-function TransferEditRow({ expense, onDelete, onCancel }: { expense: Expense; onDelete: () => void; onCancel: () => void }) {
+function TransferEditRow({ expense, onSave, onDelete, onCancel }: { expense: Expense; onSave: (u: Partial<Expense>) => void; onDelete: () => void; onCancel: () => void }) {
   const parts = expense.name.includes('→') ? expense.name.split('→').map(s => s.trim()) : [expense.name, ''];
-  const from = parts[0];
-  const to = parts[1] || '';
+  const [fromText, setFromText] = useState(parts[0]);
+  const [toText, setToText] = useState(parts[1] || '');
+  const [amount, setAmount] = useState(String(expense.amount));
   return (
-    <View style={styles.editBox}>
+    <View style={[styles.editBox, { backgroundColor: '#f5f3ff' }]}>
       <View style={styles.editHeaderRow}>
-        <Text style={styles.dateLabel}>{dayjs(expense.date).format('M월 D일')}</Text>
+        <View style={styles.savingsBadge}><Text style={styles.savingsBadgeText}>🔄 이체</Text></View>
         <TouchableOpacity onPress={onCancel}><Text style={{ color: COLORS.gray400 }}>✕</Text></TouchableOpacity>
       </View>
-      <View style={{ backgroundColor: '#f5f3ff', borderRadius: 12, padding: 12, marginBottom: 12 }}>
-        <View style={[styles.savingsBadge, { alignSelf: 'flex-start' as const }]}>
-          <Text style={styles.savingsBadgeText}>🔄 이체</Text>
-        </View>
-        <Text style={{ fontSize: 14, fontWeight: '700', color: '#374151', marginTop: 8 }}>
-          {from}{to ? ` → ${to}` : ''}
-        </Text>
-        <Text style={{ fontSize: 18, fontWeight: '800', color: '#7c3aed', marginTop: 4 }}>
-          {formatCurrency(expense.amount)}
-        </Text>
-        <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 8 }}>
-          이체 항목은 지출 통계에서 제외됩니다
-        </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+        <TextInput
+          style={[styles.editInput, { flex: 1, marginBottom: 0 }]}
+          value={fromText}
+          onChangeText={setFromText}
+          placeholder="출금 계좌"
+          placeholderTextColor={COLORS.gray400}
+        />
+        <Text style={{ color: COLORS.gray400, fontSize: 16 }}>→</Text>
+        <TextInput
+          style={[styles.editInput, { flex: 1, marginBottom: 0 }]}
+          value={toText}
+          onChangeText={setToText}
+          placeholder="입금 계좌"
+          placeholderTextColor={COLORS.gray400}
+        />
       </View>
-      <TouchableOpacity style={styles.deleteFormBtn} onPress={onDelete}>
-        <Text style={styles.deleteFormBtnText}>이체 기록 삭제</Text>
-      </TouchableOpacity>
+      <TextInput
+        style={styles.editInput}
+        value={amount ? Number(amount).toLocaleString() : ''}
+        onChangeText={v => setAmount(v.replace(/[^0-9]/g, ''))}
+        keyboardType="numeric"
+        placeholder="금액"
+        placeholderTextColor={COLORS.gray400}
+      />
+      <Text style={{ fontSize: 10, color: COLORS.gray400, marginBottom: 8 }}>* 금액 수정 시 계좌 잔액은 자동 반영되지 않아요</Text>
+      <View style={styles.formBtnRow}>
+        <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: '#7c3aed' }]} onPress={() => onSave({
+          name: toText ? `${fromText} → ${toText}` : fromText,
+          amount: parseInt(amount) || expense.amount,
+        })}>
+          <Text style={styles.confirmBtnText}>저장</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.deleteFormBtn} onPress={onDelete}>
+          <Text style={styles.deleteFormBtnText}>삭제</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }

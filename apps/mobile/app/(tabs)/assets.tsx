@@ -127,7 +127,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
   const [savingIncome, setSavingIncome] = useState(false);
 
   // 루틴 관리
-  const [routineExpanded, setRoutineExpanded] = useState(true);
+  const [routineExpanded, setRoutineExpanded] = useState(false);
   const [paidFixedCostIds, setPaidFixedCostIds] = useState<Set<string>>(new Set());
   const [paidCardIds, setPaidCardIds] = useState<Set<string>>(new Set());
   const [processingFixedId, setProcessingFixedId] = useState<string | null>(null);
@@ -577,7 +577,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
                   <TouchableOpacity style={[assetStyles.confirmBtn, { backgroundColor: themeColors.primary }]} onPress={handleUpdateAccount} disabled={savingEditAccount || !editAccName.trim()}>
                     <Text style={assetStyles.confirmBtnText}>{savingEditAccount ? '저장 중...' : '저장'}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={assetStyles.cancelBtn} onPress={() => setEditingAccountId(null)}>
+                  <TouchableOpacity style={assetStyles.cancelBtn} onPress={() => { setEditingAccountId(null); setEditAccName(acc.name); setEditAccBank(acc.bank); setEditAccType((acc.type || '입출금') as typeof ACCOUNT_TYPES[number]); setEditAccBalance(String(acc.balance ?? 0)); }}>
                     <Text style={assetStyles.cancelBtnText}>취소</Text>
                   </TouchableOpacity>
                 </View>

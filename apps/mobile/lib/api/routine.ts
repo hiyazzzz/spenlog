@@ -29,6 +29,16 @@ export async function recordFixedCostPayment(userId: string, fc: FixedCost, mont
     ? `${month}-${String(fc.due_day).padStart(2, '0')}`
     : new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0]
 
+  // 중복 기록 방지
+  const { data: existingPayment } = await supabase
+    .from('savings_payments')
+    .select('is_paid')
+    .eq('user_id', userId)
+    .eq('fixed_cost_id', fc.id)
+    .eq('year_month', month)
+    .maybeSingle()
+  const wasAlreadyPaid = existingPayment?.is_paid === true
+
   await supabase.from('savings_payments').upsert({
     user_id: userId,
     fixed_cost_id: fc.id,
@@ -59,17 +69,19 @@ export async function recordFixedCostPayment(userId: string, fc: FixedCost, mont
     ? (targetAccountName ? `[이체] ${targetAccountName}` : '고정 저축 이체')
     : '고정 지출 처리'
 
-  await supabase.from('expenses').insert({
-    user_id: userId,
-    name: fc.name,
-    amount: fc.amount,
-    category: '고정비',
-    date: expenseDate,
-    payment_method: paymentMethod,
-    type: isTransfer ? 'savings' : 'expense',
-    source: 'routine',
-    memo: expenseMemo,
-  })
+  if (!wasAlreadyPaid) {
+    await supabase.from('expenses').insert({
+      user_id: userId,
+      name: fc.name,
+      amount: fc.amount,
+      category: '고정비',
+      date: expenseDate,
+      payment_method: paymentMethod,
+      type: isTransfer ? 'savings' : 'expense',
+      source: 'routine',
+      memo: expenseMemo,
+    })
+  }
 
   const accountUpdates: AccountUpdate[] = []
   if (fc.linked_account_id) {

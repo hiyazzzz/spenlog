@@ -25,7 +25,7 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccount
   const [payments, setPayments] = useState<Record<string, boolean>>({})
   const [loadingPayments, setLoadingPayments] = useState(true)
   const [processing, setProcessing] = useState<string | null>(null)
-  const [expanded, setExpanded] = useState(fixedCosts.length > 0)
+  const [expanded, setExpanded] = useState(false)
   const [toast, setToast] = useState('')
 
   useEffect(() => {

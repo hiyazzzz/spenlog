@@ -31,11 +31,14 @@ export async function getBudgetData(userId: string): Promise<BudgetData> {
     supabase.from('budgets').select('*').eq('user_id', userId).eq('month', thisMonth),
     supabase.from('expenses').select('category, amount').eq('user_id', userId)
       .gte('date', `${thisMonth}-01`)
-      .lt('date', `${nextMonth}-01`),
+      .lt('date', `${nextMonth}-01`)
+      .neq('type', 'savings')
+      .neq('type', 'transfer'),
     supabase.from('users').select('income').eq('id', userId).single(),
     supabase.from('fixed_costs').select('amount, kind').eq('user_id', userId),
     supabase.from('expenses').select('category, amount, date').eq('user_id', userId)
       .neq('type', 'transfer')
+      .neq('type', 'savings')
       .gte('date', `${threeMonthsAgo}-01`)
       .lt('date', `${nextMonth}-01`),
     supabase.from('categories').select('name, is_hidden').eq('user_id', userId).order('sort_order'),
