@@ -223,11 +223,10 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
         .in('category', offCats)
     }
 
-    setLoading(false)
     setSavedAmounts({...amounts}) // ← 저장 직후 savedAmounts 갱신 (manual 탭 전환 시 반영)
+    setLoading(false)
     setSavedOk(true)
     setTimeout(() => setSavedOk(false), 2000)
-    router.refresh()
   }
 
   const displayAmounts = tab === 'ai' && selectedPreset ? aiAmounts : amounts

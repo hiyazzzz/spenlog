@@ -55,7 +55,6 @@ export default function FixedCostList({ initialItems, userId, accounts = [], car
     setSaving(true)
     const supabase = createClient()
     const selected = linkedOptions.find(o => o.id === linkedId)
-    // null 컬럼은 payload에서 제외 — DB에 해당 컬럼이 없으면 42703 에러 방지
     const insertPayload: Record<string, unknown> = {
       user_id: userId,
       name: name.trim(),
@@ -66,20 +65,28 @@ export default function FixedCostList({ initialItems, userId, accounts = [], car
     }
     if (selected?.type === 'account') insertPayload.linked_account_id = selected.id
     if (selected?.type === 'card') insertPayload.linked_card_id = selected.id
+
+    // Optimistic: 임시 아이템 즉시 추가
+    const tempId = 'temp_' + Date.now()
+    const tempItem = { ...insertPayload, id: tempId } as unknown as FixedCost
+    setItems(prev => [...prev, tempItem])
+    setName(''); setAmount(''); setDueDay(''); setType('월정액'); setKind(activeKind); setLinkedId('')
+    setShowForm(false)
+    setSaving(false)
+
     const { data: inserted, error } = await supabase
       .from('fixed_costs').insert(insertPayload).select().single()
     if (error) {
       console.error('[FixedCostList] insert error:', error.code, error.message, error.details)
+      // 실패 시 임시 아이템 제거
+      setItems(prev => prev.filter(i => i.id !== tempId))
       setAddError(`저장 실패: ${error.message} (${error.code})`)
-      setSaving(false)
-      return // 에러 시 form 유지
+      setShowForm(true)
+      return
     }
     setAddError(null)
-    // 로컬 state에 즉시 추가 (캐시/지연 이슈 방지)
-    if (inserted) setItems(prev => [...prev, inserted as FixedCost])
-    setName(''); setAmount(''); setDueDay(''); setType('월정액'); setKind(activeKind); setLinkedId('')
-    setShowForm(false)
-    setSaving(false)
+    // 임시 아이템을 실제 데이터로 교체
+    if (inserted) setItems(prev => prev.map(i => i.id === tempId ? inserted as FixedCost : i))
   }
 
   const handleDelete = async (id: string) => {

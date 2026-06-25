@@ -96,15 +96,27 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
   }, [expenses, calMonth])
 
   async function deleteExpense(id: string) {
-    await supabase.from('expenses').delete().eq('id', id)
+    // Optimistic: UI 먼저 업데이트
+    const prev = expenses.find(e => e.id === id)
     setExpenses(es => es.filter(e => e.id !== id))
     setEditingId(null)
+    const { error } = await supabase.from('expenses').delete().eq('id', id)
+    if (error && prev) {
+      // 실패 시 롤백
+      setExpenses(es => [...es, prev])
+    }
   }
 
   async function saveExpense(id: string, updates: Partial<Expense>) {
-    await supabase.from('expenses').update(updates).eq('id', id)
+    // Optimistic: UI 먼저 업데이트
+    const prev = expenses.find(e => e.id === id)
     setExpenses(es => es.map(e => e.id === id ? { ...e, ...updates } : e))
     setEditingId(null)
+    const { error } = await supabase.from('expenses').update(updates).eq('id', id)
+    if (error && prev) {
+      // 실패 시 롤백
+      setExpenses(es => es.map(e => e.id === id ? prev : e))
+    }
   }
 
   const today = dayjs().format('YYYY-MM-DD')
