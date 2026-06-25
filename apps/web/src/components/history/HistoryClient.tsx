@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ko'
@@ -34,6 +34,12 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
   const supabase = createClient()
 
   const [expenses, setExpenses] = useState(initialExpenses)
+  const [accounts, setAccounts] = useState<{id:string;name:string;balance:number}[]>([])
+
+  useEffect(() => {
+    supabase.from('accounts').select('id, name, balance').eq('user_id', userId).order('name')
+      .then(({ data }) => { if (data) setAccounts(data) })
+  }, [userId])
   const [view, setView] = useState<ViewMode>('list')
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState(initialCategory ?? '')
@@ -117,6 +123,32 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
       // 실패 시 롤백
       setExpenses(es => es.map(e => e.id === id ? prev : e))
     }
+  }
+
+  async function saveTransfer(id: string, updates: Partial<Expense>, oldFromName: string, oldToName: string, newFromName: string, newToName: string, oldAmt: number, newAmt: number) {
+    const prev = expenses.find(e => e.id === id)
+    setExpenses(es => es.map(e => e.id === id ? { ...e, ...updates } : e))
+    setEditingId(null)
+    const { error } = await supabase.from('expenses').update(updates).eq('id', id)
+    if (error && prev) {
+      setExpenses(es => es.map(e => e.id === id ? prev : e))
+      return
+    }
+    // 계좌 잔액 변동 계산 (롤백 + 신규 적용)
+    const delta: Record<string, number> = {}
+    const find = (name: string) => accounts.find(a => a.name === name)
+    const oldFrom = find(oldFromName); const oldTo = find(oldToName)
+    const newFrom = find(newFromName); const newTo = find(newToName)
+    if (oldFrom) delta[oldFrom.id] = (delta[oldFrom.id] ?? 0) + oldAmt   // 출금 롤백
+    if (oldTo)   delta[oldTo.id]   = (delta[oldTo.id]   ?? 0) - oldAmt   // 입금 롤백
+    if (newFrom) delta[newFrom.id] = (delta[newFrom.id] ?? 0) - newAmt   // 신규 출금
+    if (newTo)   delta[newTo.id]   = (delta[newTo.id]   ?? 0) + newAmt   // 신규 입금
+    for (const acc of accounts) {
+      if (delta[acc.id] !== undefined && delta[acc.id] !== 0) {
+        await supabase.from('accounts').update({ balance: (acc.balance ?? 0) + delta[acc.id] }).eq('id', acc.id)
+      }
+    }
+    setAccounts(prev => prev.map(a => delta[a.id] !== undefined ? { ...a, balance: (a.balance ?? 0) + delta[a.id] } : a))
   }
 
   const today = dayjs().format('YYYY-MM-DD')
@@ -221,7 +253,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
                     <div key={e.id}>
                       {editingId === e.id
                         ? ((e.type === 'savings' || e.type === 'transfer')
-                            ? <TransferEditRow expense={e} onSave={u => saveExpense(e.id, u)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} />
+                            ? <TransferEditRow expense={e} accounts={accounts} onSaveTransfer={(upd,of,ot,nf,nt,oa,na) => saveTransfer(e.id,upd,of,ot,nf,nt,oa,na)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} />
                             : <EditRow expense={e} onSave={u => saveExpense(e.id, u)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} />)
                         : <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} />
                       }
@@ -241,6 +273,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
           selectedDate={selectedDate} onSelectDate={d => setSelectedDate(selectedDate === d ? null : d)}
           expenses={expenses} editingId={editingId} onEdit={setEditingId}
           onSave={saveExpense} onDelete={deleteExpense} onCancelEdit={() => setEditingId(null)}
+          accounts={accounts} onSaveTransfer={(id,upd,of,ot,nf,nt,oa,na) => saveTransfer(id,upd,of,ot,nf,nt,oa,na)}
         />
       )}
     </div>
@@ -366,12 +399,33 @@ function EditRow({ expense, onSave, onDelete, onCancel, userCategories }: {
   )
 }
 
-function TransferEditRow({ expense, onSave, onDelete, onCancel }: { expense: Expense; onSave: (u: Partial<Expense>) => void; onDelete: () => void; onCancel: () => void }) {
+function TransferEditRow({ expense, accounts, onSaveTransfer, onDelete, onCancel }: {
+  expense: Expense
+  accounts: {id:string;name:string;balance:number}[]
+  onSaveTransfer: (upd: Partial<Expense>, oldFrom: string, oldTo: string, newFrom: string, newTo: string, oldAmt: number, newAmt: number) => void
+  onDelete: () => void
+  onCancel: () => void
+}) {
   const parts = expense.name.includes('→') ? expense.name.split('→').map((s: string) => s.trim()) : [expense.name, '']
-  const [fromText, setFromText] = useState(parts[0])
-  const [toText, setToText] = useState(parts[1] || '')
+  const origFrom = parts[0]
+  const origTo = parts[1] || expense.memo?.replace('[이체] ', '') || ''
+  const [fromAcc, setFromAcc] = useState(origFrom)
+  const [toAcc, setToAcc] = useState(origTo)
   const [amount, setAmount] = useState(expense.amount.toLocaleString())
   const [date, setDate] = useState(expense.date)
+
+  function handleSave() {
+    const newAmt = parseInt(amount.replace(/,/g, '')) || expense.amount
+    const newName = toAcc ? `${fromAcc} → ${toAcc}` : fromAcc
+    onSaveTransfer(
+      { name: newName, amount: newAmt, date, payment_method: fromAcc, memo: toAcc ? `[이체] ${toAcc}` : null },
+      origFrom, origTo, fromAcc, toAcc, expense.amount, newAmt
+    )
+  }
+
+  const accNames = accounts.map(a => a.name)
+  const selectStyle = { border: '1px solid #ddd6fe', background: 'white', borderRadius: 12, padding: '8px 12px', fontSize: 14, width: '100%', outline: 'none', appearance: 'none' as const, color: '#374151' }
+
   return (
     <div className="p-4" style={{ background: '#f5f3ff' }}>
       <div className="flex justify-between items-center mb-3">
@@ -380,25 +434,28 @@ function TransferEditRow({ expense, onSave, onDelete, onCancel }: { expense: Exp
       </div>
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <input value={fromText} onChange={e => setFromText(e.target.value)}
-            className="flex-1 text-sm px-3 py-2 rounded-xl bg-white outline-none" style={{ border: '1px solid #ddd6fe' }} placeholder="출금 계좌" />
-          <span className="text-gray-400 text-sm">→</span>
-          <input value={toText} onChange={e => setToText(e.target.value)}
-            className="flex-1 text-sm px-3 py-2 rounded-xl bg-white outline-none" style={{ border: '1px solid #ddd6fe' }} placeholder="입금 계좌" />
+          <div className="flex-1 relative">
+            <select value={fromAcc} onChange={e => setFromAcc(e.target.value)} style={selectStyle}>
+              {accNames.length === 0 && <option value={origFrom}>{origFrom}</option>}
+              {accNames.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+          <span className="text-gray-400 text-sm flex-shrink-0">→</span>
+          <div className="flex-1 relative">
+            <select value={toAcc} onChange={e => setToAcc(e.target.value)} style={selectStyle}>
+              {accNames.length === 0 && <option value={origTo}>{origTo}</option>}
+              {accNames.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
         </div>
         <input type="text" inputMode="numeric" value={amount}
           onChange={e => { const n = e.target.value.replace(/[^0-9]/g, ''); setAmount(n ? Number(n).toLocaleString() : '') }}
           className="w-full text-sm px-3 py-2 rounded-xl bg-white outline-none" style={{ border: '1px solid #ddd6fe' }} placeholder="금액" />
         <input type="date" value={date} onChange={e => setDate(e.target.value)}
           className="w-full text-sm px-3 py-2 rounded-xl bg-white outline-none" style={{ border: '1px solid #ddd6fe' }} />
-        <p className="text-[10px] text-gray-400">* 금액 수정 시 계좌 잔액은 자동 반영되지 않아요</p>
       </div>
       <div className="flex gap-2 mt-3">
-        <button onClick={() => onSave({
-          name: toText ? `${fromText} → ${toText}` : fromText,
-          amount: parseInt(amount.replace(/,/g, '')) || expense.amount,
-          date,
-        })} className="flex-1 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: '#7c3aed' }}>저장</button>
+        <button onClick={handleSave} className="flex-1 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: '#7c3aed' }}>저장</button>
         <button onClick={onDelete} className="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-50 text-rose-400 border border-rose-100">삭제</button>
       </div>
     </div>
@@ -406,11 +463,12 @@ function TransferEditRow({ expense, onSave, onDelete, onCancel }: { expense: Exp
 }
 
 
-function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, today, selectedDate, onSelectDate, expenses, editingId, onEdit, onSave, onDelete, onCancelEdit }: {
+function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, today, selectedDate, onSelectDate, expenses, editingId, onEdit, onSave, onDelete, onCancelEdit, accounts, onSaveTransfer }: {
   calMonth: string; onChangeMonth: (m: string) => void; calExpenseMap: Map<string, number>; calIncomeSet: Set<string>
   today: string; selectedDate: string | null; onSelectDate: (d: string) => void
   expenses: Expense[]; editingId: string | null; onEdit: (id: string) => void
   onSave: (id: string, u: Partial<Expense>) => void; onDelete: (id: string) => void; onCancelEdit: () => void
+  accounts: {id:string;name:string;balance:number}[]; onSaveTransfer: (id: string, upd: Partial<Expense>, of:string, ot:string, nf:string, nt:string, oa:number, na:number) => void
 }) {
   const startOfMonth = dayjs(calMonth).startOf('month')
   const daysInMonth = startOfMonth.daysInMonth()
@@ -482,7 +540,7 @@ function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, to
               <div key={e.id}>
                 {editingId === e.id
                   ? ((e.type === 'savings' || e.type === 'transfer')
-                      ? <TransferEditRow expense={e} onSave={u => onSave(e.id, u)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />
+                      ? <TransferEditRow expense={e} accounts={accounts} onSaveTransfer={(upd,of,ot,nf,nt,oa,na) => onSaveTransfer(e.id,upd,of,ot,nf,nt,oa,na)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />
                       : <EditRow expense={e} onSave={u => onSave(e.id, u)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />)
                   : <ExpenseRow expense={e} onTap={() => onEdit(e.id)} />
                 }
