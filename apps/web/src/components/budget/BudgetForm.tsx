@@ -82,6 +82,13 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
   // savedAmounts: DB 저장된 값 (탭 전환해도 유지)
   // savedAmounts: 저장된 값 (useState로 관리 — save 후 즉시 업데이트되어야 manual 탭 전환 시 반영됨)
   const [savedAmounts, setSavedAmounts] = useState<Record<string, string>>(() => getInitialAmounts(initialBudgets, allCategories))
+  const [savedEnabledCats, setSavedEnabledCats] = useState<Record<string, boolean>>(() => {
+    const map: Record<string, boolean> = {}
+    allCategories.forEach(cat => { map[cat] = initialBudgets.some(b => b.category === cat && b.amount > 0) })
+    const anyOn = Object.values(map).some(Boolean)
+    if (!anyOn) allCategories.slice(0, 3).forEach(cat => { map[cat] = true })
+    return map
+  })
 
   // amounts: 현재 입력 필드값 (manual 탭 전용)
   const [amounts, setAmounts] = useState<Record<string, string>>(savedAmounts)
@@ -223,13 +230,19 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
         .in('category', offCats)
     }
 
-    setSavedAmounts({...amounts}) // ← 저장 직후 savedAmounts 갱신 (manual 탭 전환 시 반영)
+    setSavedAmounts({...amounts}) // ← 저장 직후 savedAmounts 갱신
+    setSavedEnabledCats({...enabledCats})
     setLoading(false)
     setSavedOk(true)
     setTimeout(() => setSavedOk(false), 2000)
   }
 
   const displayAmounts = tab === 'ai' && selectedPreset ? aiAmounts : amounts
+  // dirty 감지: amounts 또는 enabledCats가 저장된 값과 다르면 true
+  const isDirty = allCategories.some(cat =>
+    (amounts[cat] || '') !== (savedAmounts[cat] || '') ||
+    enabledCats[cat] !== savedEnabledCats[cat]
+  )
   const totalBudget = allCategories.filter(c => enabledCats[c]).reduce((s, c) => s + (parseInt(displayAmounts[c] || '0') || 0), 0)
   // income · savings · transfer 제외 — 순수 지출만 예산 달성률 계산
   const spendOnly = expenses.filter(e => !e.type || e.type === 'expense')
@@ -397,6 +410,9 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
             }}>
               {loading ? TEXTS.budget.btnSavePlanSaving : savedOk ? TEXTS.budget.btnSavePlanSaved : TEXTS.budget.btnSavePlan}
             </button>
+            {savedOk && !isDirty && (
+              <p style={{ textAlign: 'center', fontSize: 12, color: '#6b7280', marginTop: 6 }}>저장 완료 ✓</p>
+            )}
           )}
         </div>
       )}
@@ -501,13 +517,14 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
             })}
           </div>
 
-          <button onClick={handleSave} disabled={loading} style={{
+          <button onClick={handleSave} disabled={loading || !isDirty} style={{
             width: '100%', padding: '14px', borderRadius: '16px',
-            background: savedOk ? '#2E7D52' : 'var(--color-primary)',
-            color: '#fff', fontSize: '14px', fontWeight: '600', border: 'none',
-            cursor: loading ? 'not-allowed' : 'pointer', transition: 'background 0.3s', fontFamily: 'inherit',
+            background: loading ? 'var(--color-primary)' : savedOk ? '#2E7D52' : isDirty ? 'var(--color-primary)' : '#d1d5db',
+            color: isDirty || savedOk ? '#fff' : '#9ca3af',
+            fontSize: '14px', fontWeight: '600', border: 'none',
+            cursor: (loading || !isDirty) ? 'not-allowed' : 'pointer', transition: 'background 0.3s', fontFamily: 'inherit',
           }}>
-            {loading ? TEXTS.budget.btnSaveManualSaving : savedOk ? TEXTS.budget.btnSaveManualSaved : TEXTS.budget.btnSaveManual}
+            {loading ? TEXTS.budget.btnSaveManualSaving : savedOk ? TEXTS.budget.btnSaveManualSaved : isDirty ? TEXTS.budget.btnSaveManual : '변경 사항 없음'}
           </button>
         </>
       )}

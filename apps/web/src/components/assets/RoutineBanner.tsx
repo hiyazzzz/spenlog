@@ -79,6 +79,12 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccount
   const allDone = pending.length === 0
   const doneCount = fixedCosts.length - pending.length
 
+  // 정렬: 미완료 → 출금일 오름차순, 완료 → 출금일 오름차순 (하단)
+  const sortedItems = [
+    ...fixedCosts.filter(f => !payments[f.id]).sort((a, b) => (a.due_day ?? 99) - (b.due_day ?? 99)),
+    ...fixedCosts.filter(f => payments[f.id]).sort((a, b) => (a.due_day ?? 99) - (b.due_day ?? 99)),
+  ]
+
   async function recordPayment(fc: FixedCost) {
     setProcessing(fc.id)
     try {
@@ -164,7 +170,7 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccount
                 {processing ? '기록 중...' : `전체 기록하기 (${pending.length}건)`}
               </button>
             )}
-            {fixedCosts.map(fc => {
+            {sortedItems.map(fc => {
               const paid = payments[fc.id]
               const paidDate = paymentDates[fc.id]
               const overdue = fc.due_day && today > fc.due_day
