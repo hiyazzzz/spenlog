@@ -6,6 +6,7 @@ import GuideOverlay from '@/components/onboarding/GuideOverlay'
 import OfflineBanner from '@/components/ui/OfflineBanner'
 import HomeFAB from '@/components/dashboard/HomeFAB'
 import EnsureUserRow from '@/components/auth/EnsureUserRow'
+import Prefetcher from '@/components/ui/Prefetcher'
 
 export default async function DashboardLayout({
   children,
@@ -42,6 +43,7 @@ export default async function DashboardLayout({
     <div className="min-h-screen flex flex-col justify-between" style={{ background: 'var(--color-bg)' }}>
       <ThemeProvider theme={theme} />
       <EnsureUserRow />
+      <Prefetcher userId={userId} />
       <main className="flex-1 w-full max-w-md mx-auto px-4 pt-14 pb-24">
         {children}
       </main>
