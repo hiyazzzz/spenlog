@@ -24,16 +24,22 @@ export async function recordFixedCostPayment(
   // (25일에 26일 출금 예정 항목을 기록해도 25일로 찍힌다)
   const expenseDate = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-  // 중복 기록 방지: 이미 처리된 항목인지 확인
-  const { data: existingPayment } = await supabase
-    .from('savings_payments')
-    .select('is_paid')
+  // 중복 기록 방지: expenses 기반으로 이미 처리 여부 확인 (savings_payments보다 신뢰성 높음)
+  const nextMonth = month >= '2026-12'
+    ? String(parseInt(month.slice(0, 4)) + 1) + '-01'
+    : month.slice(0, 5) + String(parseInt(month.slice(5)) + 1).padStart(2, '0')
+  const { data: existingExpense } = await supabase
+    .from('expenses')
+    .select('id')
     .eq('user_id', userId)
-    .eq('fixed_cost_id', fc.id)
-    .eq('year_month', month)
+    .eq('name', fc.name)
+    .eq('source', 'routine')
+    .gte('date', `${month}-01`)
+    .lt('date', `${nextMonth}-01`)
     .maybeSingle()
-  const wasAlreadyPaid = existingPayment?.is_paid === true
+  const wasAlreadyPaid = !!existingExpense
 
+  // savings_payments도 최선 노력으로 upsert (에러 무시)
   await supabase.from('savings_payments').upsert({
     user_id: userId,
     fixed_cost_id: fc.id,
@@ -41,7 +47,9 @@ export async function recordFixedCostPayment(
     is_paid: true,
     paid_amount: fc.amount,
     paid_at: new Date().toISOString(),
-  }, { onConflict: 'user_id,year_month,fixed_cost_id' })
+  }, { onConflict: 'user_id,year_month,fixed_cost_id' }).then(({ error }) => {
+    if (error) console.warn('[routine] savings_payments upsert 실패 (무시):', error.message)
+  })
 
   const isTransfer = fc.kind === '고정저축'
   let paymentMethod: string | null = null

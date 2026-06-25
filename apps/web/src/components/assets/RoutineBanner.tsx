@@ -31,16 +31,26 @@ export default function RoutineBanner({ userId, fixedCosts, thisMonth, onAccount
   useEffect(() => {
     async function loadPayments() {
       setLoadingPayments(true)
-      const { data } = await supabase
-        .from('savings_payments')
-        .select('fixed_cost_id, is_paid')
+      const nextMonth = thisMonth >= '2026-12'
+        ? String(parseInt(thisMonth.slice(0, 4)) + 1) + '-01'
+        : thisMonth.slice(0, 5) + String(parseInt(thisMonth.slice(5)) + 1).padStart(2, '0')
+
+      // expenses 테이블 기준으로 이번 달 루틴 기록 여부 확인
+      // (savings_payments upsert가 불안정한 경우에도 expenses는 항상 생성됨)
+      const { data: expData } = await supabase
+        .from('expenses')
+        .select('name')
         .eq('user_id', userId)
-        .eq('year_month', thisMonth)
-      if (data) {
-        const map: Record<string, boolean> = {}
-        data.forEach(p => { map[p.fixed_cost_id] = p.is_paid })
-        setPayments(map)
-      }
+        .eq('source', 'routine')
+        .gte('date', `${thisMonth}-01`)
+        .lt('date', `${nextMonth}-01`)
+
+      const paidNames = new Set((expData ?? []).map(e => e.name))
+      const map: Record<string, boolean> = {}
+      fixedCosts.forEach(fc => {
+        if (paidNames.has(fc.name)) map[fc.id] = true
+      })
+      setPayments(map)
       setLoadingPayments(false)
     }
     loadPayments()
