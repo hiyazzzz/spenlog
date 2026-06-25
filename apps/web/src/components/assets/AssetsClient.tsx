@@ -522,17 +522,31 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   }
 
   async function addFixed(vals: Record<string, string>, kind: '고정지출' | '고정저축') {
-    const rawLinked = vals.linked_account_id || ''
-    const linkedId = rawLinked.includes('|') ? rawLinked.split('|')[0] : rawLinked || null
-    const { data } = await supabase.from('fixed_costs').insert({
+    // linkedOptions 형식: "id|account|라벨" or "id|card|라벨"
+    const parseLinked = (raw: string): { accountId: string | null; cardId: string | null } => {
+      if (!raw) return { accountId: null, cardId: null }
+      const parts = raw.split('|')
+      const id = parts[0] || null
+      const type = parts[1]
+      if (type === 'card') return { accountId: null, cardId: id }
+      return { accountId: id, cardId: null }
+    }
+    const linked = parseLinked(vals.linked_account_id || '')
+    const linkedTarget = parseLinked(vals.linked_target_account_id || '')
+
+    const insertPayload: Record<string, unknown> = {
       user_id: userId, name: vals.name, amount: parse(vals.amount),
-      kind, due_day: parseInt(vals.due_day) || null,
-      linked_account_id: linkedId, type: '월정액',
-      linked_target_account_id: (() => {
-        const raw = vals.linked_target_account_id || ''
-        return raw.includes('|') ? raw.split('|')[0] : raw || null
-      })(),
-    }).select().single()
+      kind, due_day: parseInt(vals.due_day) || null, type: '월정액',
+      linked_account_id: linked.accountId,
+      linked_target_account_id: linkedTarget.accountId || null,
+    }
+    if (linked.cardId) insertPayload.linked_card_id = linked.cardId
+
+    const { data, error } = await supabase.from('fixed_costs').insert(insertPayload).select().single()
+    if (error) {
+      console.error('[addFixed] insert error:', error.code, error.message)
+      return
+    }
     if (data) setLocalFixed(f => [...f, data])
     setShowAddFixed(null)
   }
