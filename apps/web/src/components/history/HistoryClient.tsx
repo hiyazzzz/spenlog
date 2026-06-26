@@ -369,28 +369,45 @@ function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: ()
     )
   }
 
+  if (isCard) {
+    return (
+      <div className="w-full p-4" style={{ background: 'rgba(254,242,242,0.7)' }}>
+        <div className="flex items-start justify-between">
+          <button onClick={onTap} className="flex-1 text-left min-w-0">
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: '#fecaca', color: '#b91c1c' }}>💳 카드</span>
+            </div>
+            <p className="text-sm font-semibold text-gray-800">{expense.name}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{expense.category}{expense.payment_method && ` · ${expense.payment_method}`}</p>
+          </button>
+          <div className="flex flex-col items-end gap-1 flex-shrink-0 ml-2">
+            <span className="text-sm font-bold" style={{ color: '#f97316' }}>-{expense.amount.toLocaleString()}원</span>
+            {onPayCard && (
+              <button
+                onClick={e => { e.stopPropagation(); onPayCard(expense) }}
+                className="text-[10px] px-2 py-0.5 rounded-md font-semibold"
+                style={{ background: '#fed7aa', color: '#c2410c', border: '1px solid #fdba74' }}
+              >납부</button>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="w-full flex justify-between items-center p-4 hover:bg-gray-50 transition-colors">
-      <button onClick={onTap} className="flex-1 text-left min-w-0">
+    <button onClick={onTap} className="w-full flex justify-between items-center p-4 text-left hover:bg-gray-50 transition-colors">
+      <div>
         <div className="flex items-center gap-1.5">
           <p className="text-sm font-semibold text-gray-800">{expense.name}</p>
           {isIncome && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-semibold">수입</span>}
-          {isCard && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-400 font-semibold">💳</span>}
         </div>
         <p className="text-xs text-gray-400 mt-0.5">{expense.category}{expense.payment_method && ` · ${expense.payment_method}`}</p>
-      </button>
-      <div className="flex flex-col items-end gap-1 flex-shrink-0 ml-2">
-        <span className={`text-sm font-bold ${isIncome ? 'text-emerald-500' : isCard ? 'text-red-600' : 'text-rose-400'}`}>
-          {isIncome ? '+' : '-'}{expense.amount.toLocaleString()}원
-        </span>
-        {isCard && onPayCard && (
-          <button
-            onClick={e => { e.stopPropagation(); onPayCard(expense) }}
-            className="text-[10px] px-2 py-0.5 rounded-md bg-rose-50 text-red-600 font-semibold border border-rose-100 hover:bg-rose-100"
-          >납부</button>
-        )}
       </div>
-    </div>
+      <span className={`text-sm font-bold ${isIncome ? 'text-emerald-500' : 'text-red-500'}`}>
+        {isIncome ? '+' : '-'}{expense.amount.toLocaleString()}원
+      </span>
+    </button>
   )
 }
 

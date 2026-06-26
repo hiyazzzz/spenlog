@@ -414,6 +414,37 @@ function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: ()
     );
   }
 
+  if (isCard) {
+    return (
+      <TouchableOpacity style={[styles.row, { backgroundColor: 'rgba(254,242,242,0.7)' }]} onPress={onTap} activeOpacity={0.7}>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <View style={{ backgroundColor: '#fecaca', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 }}>
+              <Text style={{ fontSize: 10, color: '#b91c1c', fontWeight: '600' }}>💳 카드</Text>
+            </View>
+          </View>
+          <Text style={styles.rowName} numberOfLines={1}>{expense.name}</Text>
+          <Text style={styles.rowMeta}>
+            {expense.category}{expense.payment_method ? ` · ${expense.payment_method}` : ''}
+          </Text>
+        </View>
+        <View style={{ alignItems: 'flex-end', gap: 4 }}>
+          <Text style={[styles.rowAmount, { color: '#f97316' }]}>
+            -{formatCurrency(expense.amount).replace('원', '')}원
+          </Text>
+          {onPayCard && (
+            <TouchableOpacity
+              onPress={() => onPayCard(expense)}
+              style={{ backgroundColor: '#fed7aa', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}
+            >
+              <Text style={{ fontSize: 10, color: '#c2410c', fontWeight: '600' }}>납부</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <TouchableOpacity style={styles.row} onPress={onTap} activeOpacity={0.7}>
       <View style={{ flex: 1 }}>
@@ -422,27 +453,14 @@ function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: ()
           {isIncome && (
             <View style={styles.incomeBadge}><Text style={styles.incomeBadgeText}>수입</Text></View>
           )}
-          {isCard && (
-            <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>💳</Text></View>
-          )}
         </View>
         <Text style={styles.rowMeta}>
           {expense.category}{expense.payment_method ? ` · ${expense.payment_method}` : ''}
         </Text>
       </View>
-      <View style={{ alignItems: 'flex-end', gap: 4 }}>
-        <Text style={[styles.rowAmount, { color: isIncome ? COLORS.green : isCard ? '#dc2626' : COLORS.red }]}>
-          {isIncome ? '+' : '-'}{formatCurrency(expense.amount).replace('원', '')}원
-        </Text>
-        {isCard && onPayCard && (
-          <TouchableOpacity
-            onPress={() => onPayCard(expense)}
-            style={{ backgroundColor: '#fef2f2', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}
-          >
-            <Text style={{ fontSize: 10, color: '#dc2626', fontWeight: '600' }}>납부</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <Text style={[styles.rowAmount, { color: isIncome ? COLORS.green : '#ef4444' }]}>
+        {isIncome ? '+' : '-'}{formatCurrency(expense.amount).replace('원', '')}원
+      </Text>
     </TouchableOpacity>
   );
 }
