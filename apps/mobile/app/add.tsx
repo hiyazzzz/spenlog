@@ -7,6 +7,7 @@ import { COLORS, RADIUS } from '@/constants/theme';
 import { getCurrentUserId, supabase } from '@/lib/supabase';
 import { getAssetsData } from '@/lib/api/assets';
 import { addExpense } from '@/lib/api/expenses';
+import { useDataCache } from '@/store/dataCache';
 import { DEFAULT_CATEGORIES } from '@/lib/api/categories';
 
 const EXPENSE_METHODS = ['현금', '계좌이체', '카카오페이', '네이버페이', '토스페이', '제로페이'];
@@ -152,6 +153,7 @@ export default function AddExpenseScreen() {
 
         // 이체 계좌도 recency 저장
         await saveRecency([transferFrom, transferTo].filter(Boolean));
+        useDataCache.getState().setHistory(null);
         router.back();
         return;
       }
@@ -182,6 +184,7 @@ export default function AddExpenseScreen() {
       // 사용한 결제수단 recency 저장
       if (paymentMethod) await saveRecency([paymentMethod]);
 
+      useDataCache.getState().setHistory(null);
       router.back();
     } catch (err: any) {
       console.error('[add] save error:', JSON.stringify(err));

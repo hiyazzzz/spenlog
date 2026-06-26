@@ -134,6 +134,7 @@ export default function HomeScreen() {
       setShowConfirm(false);
       setConfirmItems([]);
       setAiInput('');
+      useDataCache.getState().setHistory(null);
       await load();
     } catch (e) {
       Alert.alert('오류', e instanceof Error ? e.message : '알 수 없는 오류가 발생했어요');
