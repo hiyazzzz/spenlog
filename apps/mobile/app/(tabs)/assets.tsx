@@ -427,7 +427,10 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
               <Text style={assetStyles.emptyText}>등록된 고정비/카드가 없어요</Text>
             ) : (
               <>
-                {fixedCosts.map(fc => {
+                {[
+                  ...fixedCosts.filter(fc => !paidFixedCostIds.has(fc.id)).sort((a, b) => (a.due_day ?? 99) - (b.due_day ?? 99)),
+                  ...fixedCosts.filter(fc => paidFixedCostIds.has(fc.id)).sort((a, b) => (a.due_day ?? 99) - (b.due_day ?? 99)),
+                ].map(fc => {
                   const paid = paidFixedCostIds.has(fc.id);
                   return (
                     <View key={fc.id} style={assetStyles.routineRow}>

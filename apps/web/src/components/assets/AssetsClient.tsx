@@ -93,13 +93,13 @@ function InlineForm({ fields, onSave, onCancel }: {
   )
 }
 
-function FixedRow({ item, accountName, targetAccountName, onDelete, onEdit, accounts = [], cards = [] }: {
+function FixedRow({ item, accountName, targetAccountName, onDelete, onEdit, isEditing, onStartEdit, onClose, accounts = [], cards = [] }: {
   item: FixedCost; accountName?: string; targetAccountName?: string
   onDelete: () => Promise<void>; onEdit: (updates: Record<string, unknown>) => Promise<void>
+  isEditing: boolean; onStartEdit: () => void; onClose: () => void
   accounts?: Account[]; cards?: Card[]
 }) {
-  const [editing, setEditing] = useState(false)
-  const [vals, setVals] = useState({ name: item.name, amount: String(item.amount), due_day: String((item as any).due_day ?? '') })
+  const [vals, setVals] = useState({ name: item.name, amount: fmt(String(item.amount)), due_day: String((item as any).due_day ?? '') })
   const kind = (item as any).kind ?? '고정지출'
   const isGreen = kind === '고정저축'
   const [editLinkedAccountId, setEditLinkedAccountId] = useState<string>((item as any).linked_account_id ?? '')
@@ -107,24 +107,46 @@ function FixedRow({ item, accountName, targetAccountName, onDelete, onEdit, acco
   const [editDebitAccountId, setEditDebitAccountId] = useState<string>((item as any).linked_account_id ?? '')
   const [editCreditAccountId, setEditCreditAccountId] = useState<string>((item as any).linked_target_account_id ?? '')
 
+  useEffect(() => {
+    if (isEditing) {
+      setVals({ name: item.name, amount: fmt(String(item.amount)), due_day: String((item as any).due_day ?? '') })
+      setEditLinkedAccountId((item as any).linked_account_id ?? '')
+      setEditLinkedCardId((item as any).linked_card_id ?? '')
+      setEditDebitAccountId((item as any).linked_account_id ?? '')
+      setEditCreditAccountId((item as any).linked_target_account_id ?? '')
+    }
+  }, [isEditing])
+
   const selStyle: React.CSSProperties = {
     width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb',
     fontSize: 13, outline: 'none', fontFamily: 'inherit', background: '#fafafa',
     boxSizing: 'border-box' as const,
   }
-  const labelStyle: React.CSSProperties = { fontSize: 11, color: '#9ca3af', display: 'block', marginTop: 2 }
+  const labelStyle: React.CSSProperties = { fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 3 }
+  const inpStyle: React.CSSProperties = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const }
 
-  if (editing) {
+  if (isEditing) {
     return (
       <div style={{ padding: '10px 0', borderBottom: '1px solid #f9fafb' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <input value={vals.name} onChange={e => setVals(p => ({ ...p, name: e.target.value }))}
-            style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit' }} placeholder="이름" />
+          <div>
+            <label style={labelStyle}>이름</label>
+            <input value={vals.name} onChange={e => setVals(p => ({ ...p, name: e.target.value }))}
+              style={inpStyle} placeholder="예) 넷플릭스" />
+          </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <input value={vals.amount} onChange={e => setVals(p => ({ ...p, amount: e.target.value }))} type="number"
-              style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit' }} placeholder="금액" />
-            <input value={vals.due_day} onChange={e => setVals(p => ({ ...p, due_day: e.target.value }))} type="number"
-              style={{ width: 60, padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit' }} placeholder="출금일" />
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>금액</label>
+              <input value={vals.amount} inputMode="numeric"
+                onChange={e => setVals(p => ({ ...p, amount: fmt(e.target.value) }))}
+                style={inpStyle} placeholder="0" />
+            </div>
+            <div style={{ width: 72 }}>
+              <label style={labelStyle}>출금일</label>
+              <input value={vals.due_day} inputMode="numeric"
+                onChange={e => setVals(p => ({ ...p, due_day: e.target.value.replace(/[^0-9]/g, '') }))}
+                style={inpStyle} placeholder="일" />
+            </div>
           </div>
           {isGreen ? (
             <>
@@ -162,7 +184,7 @@ function FixedRow({ item, accountName, targetAccountName, onDelete, onEdit, acco
             <button onClick={() => {
               const updates: Record<string, unknown> = {
                 name: vals.name,
-                amount: parseInt(vals.amount) || item.amount,
+                amount: parse(vals.amount),
                 due_day: parseInt(vals.due_day) || null,
               }
               if (isGreen) {
@@ -175,10 +197,10 @@ function FixedRow({ item, accountName, targetAccountName, onDelete, onEdit, acco
                 updates.linked_target_account_id = null
               }
               onEdit(updates)
-              setEditing(false)
+              onClose()
             }}
               style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', background: 'var(--color-primary)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>저장</button>
-            <button onClick={() => setEditing(false)}
+            <button onClick={onClose}
               style={{ flex: 1, padding: '8px', borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
           </div>
         </div>
@@ -196,7 +218,7 @@ function FixedRow({ item, accountName, targetAccountName, onDelete, onEdit, acco
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>{formatCurrency(item.amount)}</span>
-        <button onClick={() => { setVals({ name: item.name, amount: String(item.amount), due_day: String((item as any).due_day ?? '') }); setEditing(true); }} style={{ fontSize: 11, color: 'var(--color-primary-mid)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>수정</button>
+        <button onClick={onStartEdit} style={{ fontSize: 11, color: 'var(--color-primary-mid)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>수정</button>
         <button onClick={onDelete} style={{ fontSize: 11, color: '#ef4444', background: '#fef2f2', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
       </div>
     </div>
@@ -247,23 +269,30 @@ function BudgetRow({ category, budgetAmt, spent, onSave }: {
 }
 
 
-function AccountRow({ acc, sb, onDelete, onUpdated }: {
+function AccountRow({ acc, sb, onDelete, onUpdated, isEditing, onStartEdit, onClose }: {
   acc: Account
   sb: ReturnType<typeof createClient>
   onDelete: () => void
   onUpdated: (u: Account) => void
+  isEditing: boolean; onStartEdit: () => void; onClose: () => void
 }) {
   const ACCT_TYPES: AccountType[] = ['입출금', '적금', '투자', '기타']
-  const [editing, setEditing] = useState(false)
   const [vals, setVals] = useState({ name: acc.name, bank: acc.bank, type: acc.type ?? '입출금', balance: fmt(String(acc.balance ?? 0)) })
   const [sav, setSav] = useState(false)
-  const inp: React.CSSProperties = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const, marginBottom: 6 }
-  if (editing) return (
+  useEffect(() => {
+    if (isEditing) setVals({ name: acc.name, bank: acc.bank, type: acc.type ?? '입출금', balance: fmt(String(acc.balance ?? 0)) })
+  }, [isEditing])
+  const inp: React.CSSProperties = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const }
+  const lbl: React.CSSProperties = { fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 3, marginTop: 6 }
+  if (isEditing) return (
     <div style={{ padding: '10px 0', borderBottom: '1px solid #f9fafb' }}>
-      <input value={vals.name} onChange={e => setVals(p => ({ ...p, name: e.target.value }))} placeholder="계좌명" style={inp} />
-      <input value={vals.bank} onChange={e => setVals(p => ({ ...p, bank: e.target.value }))} placeholder="은행" style={inp} />
-      <input value={vals.balance} onChange={e => setVals(p => ({ ...p, balance: fmt(e.target.value) }))} inputMode="numeric" placeholder="잔액" style={inp} />
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 8 }}>
+      <label style={{ ...lbl, marginTop: 0 }}>계좌명</label>
+      <input value={vals.name} onChange={e => setVals(p => ({ ...p, name: e.target.value }))} placeholder="예) 국민 주거래통장" style={inp} />
+      <label style={lbl}>은행</label>
+      <input value={vals.bank} onChange={e => setVals(p => ({ ...p, bank: e.target.value }))} placeholder="예) KB국민" style={inp} />
+      <label style={lbl}>잔액</label>
+      <input value={vals.balance} onChange={e => setVals(p => ({ ...p, balance: fmt(e.target.value) }))} inputMode="numeric" placeholder="0" style={inp} />
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, margin: '8px 0' }}>
         {ACCT_TYPES.map(t => (
           <button key={t} onClick={() => setVals(p => ({ ...p, type: t as AccountType }))}
             style={{ padding: '4px 10px', borderRadius: 20, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12,
@@ -277,9 +306,9 @@ function AccountRow({ acc, sb, onDelete, onUpdated }: {
           setSav(true)
           const { error } = await sb.from('accounts').update({ name: vals.name.trim(), bank: vals.bank.trim(), type: vals.type, balance: parse(vals.balance) }).eq('id', acc.id)
           setSav(false)
-          if (!error) { onUpdated({ ...acc, name: vals.name.trim(), bank: vals.bank.trim(), type: vals.type as any, balance: parse(vals.balance) }); setEditing(false) }
+          if (!error) { onUpdated({ ...acc, name: vals.name.trim(), bank: vals.bank.trim(), type: vals.type as any, balance: parse(vals.balance) }); onClose() }
         }} style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', background: 'var(--color-primary)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{sav ? '저장 중...' : '저장'}</button>
-        <button onClick={() => setEditing(false)} style={{ flex: 1, padding: '8px', borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
+        <button onClick={onClose} style={{ flex: 1, padding: '8px', borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
       </div>
     </div>
   )
@@ -291,7 +320,7 @@ function AccountRow({ acc, sb, onDelete, onUpdated }: {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-accent)' }}>{formatCurrency(acc.balance ?? 0)}</span>
-        <button onClick={() => { setVals({ name: acc.name, bank: acc.bank, type: acc.type ?? '입출금', balance: fmt(String(acc.balance ?? 0)) }); setEditing(true); }} style={{ fontSize: 11, color: 'var(--color-primary-mid)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>수정</button>
+        <button onClick={onStartEdit} style={{ fontSize: 11, color: 'var(--color-primary-mid)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>수정</button>
         <button onClick={onDelete} style={{ fontSize: 11, color: '#ef4444', background: '#fef2f2', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
       </div>
     </div>
@@ -332,7 +361,9 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const [showAddCard, setShowAddCard] = useState(false)
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
   const [showAddFixed, setShowAddFixed] = useState<'expense' | 'saving' | null>(null)
-  const [editingIncome, setEditingIncome] = useState(false)
+  const [activeEditId, setActiveEditId] = useState<string | null>(null)
+  const editingIncome = activeEditId === 'income'
+  const editingCardId = activeEditId?.startsWith('card:') ? activeEditId.slice(5) : null
   // 카드 납부 기록 바텀시트
   const [cardPaySheet, setCardPaySheet] = useState<Card | null>(null)
   const [cardPayAmount, setCardPayAmount] = useState('')
@@ -342,8 +373,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const [cardPaySaving, setCardPaySaving] = useState(false)
   const [cardPaidIds, setCardPaidIds] = useState<Set<string>>(new Set())
   const [cardPayToast, setCardPayToast] = useState('')
-  // 카드 수정 인라인 상태
-  const [editingCardId, setEditingCardId] = useState<string | null>(null)
+  // 카드 수정 인라인 상태 (activeEditId로 통합 관리)
   const [cardEditName, setCardEditName] = useState('')
   const [cardEditBank, setCardEditBank] = useState('')
   const [cardEditDueDay, setCardEditDueDay] = useState('')
@@ -485,7 +515,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       setIncomeError('저장 실패: ' + error.message)
       return
     }
-    setEditingIncome(false)
+    setActiveEditId(null)
     router.refresh()
   }
 
@@ -640,7 +670,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
           <div>
             <p style={{ fontSize: 24, fontWeight: 800, color: 'var(--color-accent)', marginBottom: 8 }}>{formatCurrency(monthlyIncome)}</p>
             {profile?.saving_goal > 0 && <p style={{ fontSize: 12, color: '#6b7280' }}>저축 목표 {formatCurrency(Number(profile.saving_goal))}</p>}
-            <button onClick={() => setEditingIncome(true)} style={{ marginTop: 10, fontSize: 12, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>✏️ 수정</button>
+            <button onClick={() => setActiveEditId('income')} style={{ marginTop: 10, fontSize: 12, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>✏️ 수정</button>
           </div>
         ) : (
           <div>
@@ -665,7 +695,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             {incomeError && <p style={{ fontSize: 12, color: '#ef4444', marginBottom: 8 }}>{incomeError}</p>}
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={saveIncome} style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: 'var(--color-primary)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.assets.btnSave}</button>
-              <button onClick={() => setEditingIncome(false)} style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.assets.btnCancel}</button>
+              <button onClick={() => setActiveEditId(null)} style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>{TEXTS.assets.btnCancel}</button>
             </div>
           </div>
         )}
@@ -706,7 +736,10 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
         {localAccounts.map(acc => (
           <AccountRow key={acc.id} acc={acc} sb={supabase}
             onDelete={() => deleteAccount(acc.id)}
-            onUpdated={updated => setLocalAccounts(prev => prev.map(a => a.id === updated.id ? updated : a))} />
+            onUpdated={updated => setLocalAccounts(prev => prev.map(a => a.id === updated.id ? updated : a))}
+            isEditing={activeEditId === 'account:' + acc.id}
+            onStartEdit={() => setActiveEditId('account:' + acc.id)}
+            onClose={() => setActiveEditId(null)} />
         ))}
         {showCashForm ? (
           <div style={{ marginTop: 8, padding: '14px', background: '#f0fdf4', borderRadius: 12, border: '1px solid #bbf7d0' }}>
@@ -835,8 +868,8 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                     style={{ fontSize: 11, color: 'var(--color-primary)', background: 'var(--color-primary-light)', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}
                   >{isExpanded ? '접기' : `내역${cardTotal > 0 ? ' ' + formatCurrency(cardTotal) : ''}`}</button>
                   <button onClick={() => {
-                    if (editingCardId === card.id) { setEditingCardId(null); return }
-                    setEditingCardId(card.id); setCardEditName(card.name); setCardEditBank(card.bank); setCardEditDueDay(card.due_day ? String(card.due_day) : '')
+                    if (editingCardId === card.id) { setActiveEditId(null); return }
+                    setActiveEditId('card:' + card.id); setCardEditName(card.name); setCardEditBank(card.bank); setCardEditDueDay(card.due_day ? String(card.due_day) : '')
                   }} style={{ fontSize: 11, color: 'var(--color-primary-mid)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
                     {editingCardId === card.id ? '닫기' : '수정'}
                   </button>
@@ -845,14 +878,17 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
               </div>
               {editingCardId === card.id && (
                 <div style={{ background: '#f9fafb', borderRadius: 10, padding: 12, marginBottom: 6, border: '1px solid #e5e7eb' }}>
-                  {(['name:카드명', 'bank:카드사', 'dueDay:납부일(숫자)'] as const).map((f) => {
+                  {(['name:카드명', 'bank:카드사', 'dueDay:납부일'] as const).map((f) => {
                     const [key, label] = f.split(':') as [string, string]
                     const val = key === 'name' ? cardEditName : key === 'bank' ? cardEditBank : cardEditDueDay
                     const setter = key === 'name' ? setCardEditName : key === 'bank' ? setCardEditBank : setCardEditDueDay
                     return (
-                      <input key={key} value={val} onChange={e => setter(key === 'dueDay' ? e.target.value.replace(/[^0-9]/g, '') : e.target.value)}
-                        placeholder={label} inputMode={key === 'dueDay' ? 'numeric' : undefined}
-                        style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const, marginBottom: 6, display: 'block' }} />
+                      <div key={key} style={{ marginBottom: 6 }}>
+                        <label style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 3 }}>{label}</label>
+                        <input value={val} onChange={e => setter(key === 'dueDay' ? e.target.value.replace(/[^0-9]/g, '') : e.target.value)}
+                          placeholder={label} inputMode={key === 'dueDay' ? 'numeric' : undefined}
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const, display: 'block' }} />
+                      </div>
                     )
                   })}
                   <div style={{ display: 'flex', gap: 6 }}>
@@ -860,9 +896,9 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                       setCardEditSaving(true)
                       const { error } = await supabase.from('cards').update({ name: cardEditName.trim(), bank: cardEditBank.trim(), due_day: cardEditDueDay ? parseInt(cardEditDueDay) : null }).eq('id', card.id)
                       setCardEditSaving(false)
-                      if (!error) { setLocalCards(prev => prev.map(cd => cd.id === card.id ? { ...cd, name: cardEditName.trim(), bank: cardEditBank.trim(), due_day: cardEditDueDay ? parseInt(cardEditDueDay) : cd.due_day } : cd)); setEditingCardId(null) }
+                      if (!error) { setLocalCards(prev => prev.map(cd => cd.id === card.id ? { ...cd, name: cardEditName.trim(), bank: cardEditBank.trim(), due_day: cardEditDueDay ? parseInt(cardEditDueDay) : cd.due_day } : cd)); setActiveEditId(null) }
                     }} style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', background: 'var(--color-primary)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{cardEditSaving ? '저장 중...' : '저장'}</button>
-                    <button onClick={() => setEditingCardId(null)} style={{ flex: 1, padding: '8px', borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
+                    <button onClick={() => setActiveEditId(null)} style={{ flex: 1, padding: '8px', borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
                   </div>
                 </div>
               )}
@@ -917,6 +953,9 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             accountName={localAccounts.find(a => a.id === (f as any).linked_account_id)?.name}
             onDelete={() => deleteFixed(f.id)}
             onEdit={(u: Record<string, unknown>) => editFixed(f.id, u)}
+            isEditing={activeEditId === 'fixed:' + f.id}
+            onStartEdit={() => setActiveEditId('fixed:' + f.id)}
+            onClose={() => setActiveEditId(null)}
             accounts={localAccounts} cards={localCards} />)}
           <p style={{ fontSize: 12, color: '#6b7280', marginTop: 6, fontWeight: 600 }}>{TEXTS.assets.fixedSection.subtotal(fixedExpenseTotal)}</p>
         </div>
@@ -943,6 +982,9 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             targetAccountName={localAccounts.find(a => a.id === (f as any).linked_target_account_id)?.name}
             onDelete={() => deleteFixed(f.id)}
             onEdit={(u: Record<string, unknown>) => editFixed(f.id, u)}
+            isEditing={activeEditId === 'fixed:' + f.id}
+            onStartEdit={() => setActiveEditId('fixed:' + f.id)}
+            onClose={() => setActiveEditId(null)}
             accounts={localAccounts} cards={localCards} />)}
           <p style={{ fontSize: 12, color: '#059669', marginTop: 6, fontWeight: 600 }}>{TEXTS.assets.fixedSection.subtotalSaving(fixedSavingTotal)}</p>
         </div>

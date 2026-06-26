@@ -5,7 +5,8 @@ import { useDataCache } from '@/store/dataCache';
 import dayjs from 'dayjs';
 import { COLORS, RADIUS, formatCurrency, useThemeColors, getThemeColors, useAppTheme } from '@/constants/theme';
 import { DEFAULT_CATEGORIES } from '@/lib/api/categories';
-import { getCurrentUserId } from '@/lib/supabase';
+import { supabase, getCurrentUserId } from '@/lib/supabase';
+import { recordCardPayment } from '@/lib/api/routine';
 import { getHistoryData, updateExpense, type HistoryData } from '@/lib/api/history';
 import { deleteExpense } from '@/lib/api/expenses';
 import type { Expense } from '@spenlog/types';
@@ -126,6 +127,76 @@ export default function HistoryScreen() {
     await updateExpense(id, updates);
     setData(d => d ? { ...d, expenses: d.expenses.map(e => e.id === id ? { ...e, ...updates } : e) } : d);
     setEditingId(null);
+  }
+
+  async function handleCardPayment(expense: Expense) {
+    const userId = await getCurrentUserId();
+    if (!userId || !data) return;
+    const payMethod = expense.payment_method ?? '';
+    const thisMonth = dayjs().format('YYYY-MM');
+
+    // 이번 달 해당 카드 지출 합계
+    const monthTotal = data.expenses
+      .filter(e =>
+        (e.type ?? 'expense') === 'expense' &&
+        e.payment_method === payMethod &&
+        e.date.startsWith(thisMonth)
+      )
+      .reduce((sum, e) => sum + e.amount, 0);
+
+    // 이미 이번 달 납부한 금액 (카드 대금으로 기록된 것)
+    const alreadyPaid = data.expenses
+      .filter(e =>
+        e.name?.includes('카드 대금') &&
+        (e.payment_method === payMethod || e.name?.includes(payMethod)) &&
+        e.date.startsWith(thisMonth)
+      )
+      .reduce((sum, e) => sum + e.amount, 0);
+
+    const remaining = monthTotal - alreadyPaid;
+
+    // 연결 카드 조회
+    const { data: cards } = await supabase.from('cards').select('*').eq('user_id', userId);
+    const matchedCard = (cards ?? []).find((card: any) =>
+      payMethod.includes(card.name) || card.name.includes(payMethod) || card.name === payMethod
+    );
+
+    let accountName = '';
+    if (matchedCard?.linked_account_id) {
+      const { data: acc } = await supabase.from('accounts').select('name').eq('id', matchedCard.linked_account_id).single();
+      accountName = acc?.name ?? '';
+    }
+
+    if (remaining <= 0) {
+      Alert.alert('납부 완료', `${payMethod} 이번 달 납부할 잔액이 없어요.`);
+      return;
+    }
+
+    const lines = [
+      `이번 달 총 지출: ${formatCurrency(monthTotal)}`,
+      alreadyPaid > 0 ? `이미 납부: -${formatCurrency(alreadyPaid)}` : null,
+      alreadyPaid > 0 ? `납부 잔액: ${formatCurrency(remaining)}` : null,
+      accountName ? `
+[${accountName}]에서 차감됩니다.` : '
+연결 계좌를 자산 탭에서 설정해주세요.',
+    ].filter(Boolean).join('
+');
+
+    Alert.alert('💳 카드 납부', lines, [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '납부하기',
+        onPress: async () => {
+          if (!matchedCard) {
+            Alert.alert('카드 없음', '자산 탭에서 카드를 먼저 등록해주세요.');
+            return;
+          }
+          const today = dayjs().format('YYYY-MM-DD');
+          await recordCardPayment(userId, matchedCard, thisMonth, remaining, today, null);
+          await load();
+        },
+      },
+    ]);
   }
 
   if (loading) {
@@ -260,7 +331,7 @@ export default function HistoryScreen() {
                           ? <TransferEditRow expense={e} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
                           : <EditRow expense={e} categories={categories} themeColors={themeColors} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
                       ) : (
-                        <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} />
+                        <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} onPayCard={handleCardPayment} />
                       )}
                       {idx < items.length - 1 && <View style={styles.divider} />}
                     </View>
@@ -304,7 +375,7 @@ export default function HistoryScreen() {
                   ? <TransferEditRow expense={e} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
                   : <EditRow expense={e} categories={categories} themeColors={themeColors} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
               ) : (
-                <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} />
+                <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} onPayCard={handleCardPayment} />
               )}
               {idx < selectedItems.length - 1 && <View style={styles.divider} />}
             </View>
@@ -315,10 +386,11 @@ export default function HistoryScreen() {
   );
 }
 
-function ExpenseRow({ expense, onTap }: { expense: Expense; onTap: () => void }) {
+function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: () => void; onPayCard?: (e: Expense) => void }) {
   const expType = expense.type ?? 'expense';
   const isIncome = expType === 'income';
   const isTransfer = expType === 'savings' || expType === 'transfer';
+  const isCard = !isIncome && !isTransfer && (expense.payment_method ?? '').includes('카드');
 
   if (isTransfer) {
     const parts = expense.name.includes('→') ? expense.name.split('→').map(s => s.trim()) : [expense.name, ''];
@@ -349,14 +421,27 @@ function ExpenseRow({ expense, onTap }: { expense: Expense; onTap: () => void })
           {isIncome && (
             <View style={styles.incomeBadge}><Text style={styles.incomeBadgeText}>수입</Text></View>
           )}
+          {isCard && (
+            <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>💳</Text></View>
+          )}
         </View>
         <Text style={styles.rowMeta}>
           {expense.category}{expense.payment_method ? ` · ${expense.payment_method}` : ''}
         </Text>
       </View>
-      <Text style={[styles.rowAmount, { color: isIncome ? COLORS.green : COLORS.red }]}>
-        {isIncome ? '+' : '-'}{formatCurrency(expense.amount).replace('원', '')}원
-      </Text>
+      <View style={{ alignItems: 'flex-end', gap: 4 }}>
+        <Text style={[styles.rowAmount, { color: isIncome ? COLORS.green : isCard ? '#dc2626' : COLORS.red }]}>
+          {isIncome ? '+' : '-'}{formatCurrency(expense.amount).replace('원', '')}원
+        </Text>
+        {isCard && onPayCard && (
+          <TouchableOpacity
+            onPress={() => onPayCard(expense)}
+            style={{ backgroundColor: '#fef2f2', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}
+          >
+            <Text style={{ fontSize: 10, color: '#dc2626', fontWeight: '600' }}>납부</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </TouchableOpacity>
   );
 }
@@ -609,6 +694,8 @@ const styles = StyleSheet.create({
   rowMeta: { fontSize: 11, color: COLORS.gray400, marginTop: 2 },
   rowAmount: { fontSize: 14, fontWeight: '700', marginLeft: 12 },
   incomeBadge: { backgroundColor: COLORS.greenBg, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
+  cardBadge: { backgroundColor: '#fef2f2', borderRadius: 999, paddingHorizontal: 5, paddingVertical: 1 },
+  cardBadgeText: { fontSize: 10 },
   savingsBadge: { backgroundColor: '#ede9fe', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
   incomeBadgeText: { fontSize: 9, fontWeight: '700', color: COLORS.green },
   savingsBadgeText: { fontSize: 9, fontWeight: '700', color: '#7c3aed' },
