@@ -402,17 +402,19 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
           )}
 
           {(selectedPreset && income > 0) && (
-            <button onClick={handleSave} disabled={loading} style={{
-              width: '100%', marginTop: '4px', padding: '12px', borderRadius: '14px',
-              background: savedOk ? '#2E7D52' : 'var(--color-primary)',
-              color: '#fff', fontSize: '13px', fontWeight: '600', border: 'none',
-              cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-            }}>
-              {loading ? TEXTS.budget.btnSavePlanSaving : savedOk ? TEXTS.budget.btnSavePlanSaved : TEXTS.budget.btnSavePlan}
-            </button>
-            {savedOk && !isDirty && (
-              <p style={{ textAlign: 'center', fontSize: 12, color: '#6b7280', marginTop: 6 }}>저장 완료 ✓</p>
-            )}
+            <>
+              <button onClick={handleSave} disabled={loading} style={{
+                width: '100%', marginTop: '4px', padding: '12px', borderRadius: '14px',
+                background: savedOk ? '#2E7D52' : 'var(--color-primary)',
+                color: '#fff', fontSize: '13px', fontWeight: '600', border: 'none',
+                cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+              }}>
+                {loading ? TEXTS.budget.btnSavePlanSaving : savedOk ? TEXTS.budget.btnSavePlanSaved : TEXTS.budget.btnSavePlan}
+              </button>
+              {savedOk && !isDirty && (
+                <p style={{ textAlign: 'center', fontSize: 12, color: '#6b7280', marginTop: 6 }}>저장 완료 ✓</p>
+              )}
+            </>
           )}
         </div>
       )}
