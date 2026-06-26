@@ -177,14 +177,11 @@ export default function HistoryScreen() {
     }
 
     const lines = [
-      `이번 달 총 지출: ${formatCurrency(monthTotal)}`,
+      `이번 달 [${payMethod}] 총 지출: ${formatCurrency(monthTotal)}`,
       alreadyPaid > 0 ? `이미 납부: -${formatCurrency(alreadyPaid)}` : null,
       alreadyPaid > 0 ? `납부 잔액: ${formatCurrency(remaining)}` : null,
-      accountName ? `
-[${accountName}]에서 차감됩니다.` : '
-연결 계좌를 자산 탭에서 설정해주세요.',
-    ].filter(Boolean).join('
-');
+      accountName ? `[${accountName}]에서 금액이 차감됩니다.` : '연결 계좌를 자산 탭에서 먼저 설정해주세요.',
+    ].filter(Boolean).join('\n');
 
     Alert.alert('💳 카드 납부', lines, [
       { text: '취소', style: 'cancel' },

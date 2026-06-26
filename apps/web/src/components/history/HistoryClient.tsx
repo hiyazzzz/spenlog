@@ -127,10 +127,10 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
     }
 
     const lines = [
-      `이번 달 총 지출: ${monthTotal.toLocaleString()}원`,
+      `이번 달 [${payMethod}] 총 지출: ${monthTotal.toLocaleString()}원`,
       alreadyPaid > 0 ? `이미 납부: -${alreadyPaid.toLocaleString()}원` : null,
       alreadyPaid > 0 ? `납부 잔액: ${remaining.toLocaleString()}원` : null,
-      accountName ? `\n[${accountName}]에서 차감됩니다.` : '\n연결 계좌를 자산 탭에서 설정해주세요.',
+      accountName ? `[${accountName}]에서 금액이 차감됩니다.` : '연결 계좌를 자산 탭에서 먼저 설정해주세요.',
     ].filter(Boolean).join('\n')
 
     if (!confirm(`💳 카드 납부\n${lines}\n\n납부하시겠어요?`)) return
