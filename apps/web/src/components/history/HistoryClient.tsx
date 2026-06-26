@@ -535,7 +535,7 @@ function TransferEditRow({ expense, accounts, onSaveTransfer, onDelete, onCancel
 }
 
 
-function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, today, selectedDate, onSelectDate, expenses, editingId, onEdit, onSave, onDelete, onCancelEdit, accounts, onSaveTransfer }: {
+function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, today, selectedDate, onSelectDate, expenses, editingId, onEdit, onSave, onDelete, onCancelEdit, accounts, onSaveTransfer, onPayCard }: {
   calMonth: string; onChangeMonth: (m: string) => void; calExpenseMap: Map<string, number>; calIncomeSet: Set<string>
   today: string; selectedDate: string | null; onSelectDate: (d: string) => void
   expenses: Expense[]; editingId: string | null; onEdit: (id: string) => void
