@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard, Alert } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { useDataCache } from '@/store/dataCache';
 import dayjs from 'dayjs';
 import { COLORS, RADIUS, formatCurrency, useThemeColors, getThemeColors, useAppTheme } from '@/constants/theme';
@@ -27,7 +27,8 @@ export default function HistoryScreen() {
 
   const [view, setView] = useState<ViewMode>('list');
   const [search, setSearch] = useState('');
-  const [filterCat, setFilterCat] = useState('');
+  const params = useLocalSearchParams<{ category?: string }>();
+  const [filterCat, setFilterCat] = useState(params.category ?? '');
   const [filterPay, setFilterPay] = useState('');
   const [filterType, setFilterType] = useState<TypeFilter>('');
   const [sort, setSort] = useState<SortKey>('date_desc');
@@ -57,7 +58,10 @@ export default function HistoryScreen() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    load();
+    if (params.category) setFilterCat(params.category);
+  }, [load, params.category]));
 
   const expenses = data?.expenses ?? [];
 

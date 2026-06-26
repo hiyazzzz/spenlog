@@ -319,7 +319,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 key={cat}
                 style={styles.gridItem}
-                onPress={() => router.push('/budget')}
+                onPress={() => router.push({ pathname: '/(tabs)/history', params: { category: cat } })}
                 activeOpacity={0.8}
               >
                 {catImgUrl ? (
