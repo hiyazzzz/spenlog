@@ -101,6 +101,65 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
     return { calExpenseMap, calIncomeSet }
   }, [expenses, calMonth])
 
+  async function handleCardPayment(expense: Expense) {
+    const payMethod = expense.payment_method ?? ''
+    const thisMonth = dayjs().format('YYYY-MM')
+
+    const monthTotal = expenses
+      .filter(e => (e.type ?? 'expense') === 'expense' && e.payment_method === payMethod && e.date.startsWith(thisMonth))
+      .reduce((sum, e) => sum + e.amount, 0)
+
+    const alreadyPaid = expenses
+      .filter(e => (e.name?.includes('카드 대금') && (e.payment_method === payMethod || e.name?.includes(payMethod)) && e.date.startsWith(thisMonth)))
+      .reduce((sum, e) => sum + e.amount, 0)
+
+    const remaining = monthTotal - alreadyPaid
+    if (remaining <= 0) { alert(`${payMethod} 이번 달 납부할 잔액이 없어요.`); return }
+
+    const { data: cards } = await supabase.from('cards').select('*').eq('user_id', userId)
+    const matchedCard = (cards ?? []).find((card: any) =>
+      payMethod.includes(card.name) || card.name.includes(payMethod) || card.name === payMethod
+    )
+    let accountName = ''
+    if (matchedCard?.linked_account_id) {
+      const { data: acc } = await supabase.from('accounts').select('name').eq('id', matchedCard.linked_account_id).single()
+      accountName = acc?.name ?? ''
+    }
+
+    const lines = [
+      `이번 달 총 지출: ${monthTotal.toLocaleString()}원`,
+      alreadyPaid > 0 ? `이미 납부: -${alreadyPaid.toLocaleString()}원` : null,
+      alreadyPaid > 0 ? `납부 잔액: ${remaining.toLocaleString()}원` : null,
+      accountName ? `\n[${accountName}]에서 차감됩니다.` : '\n연결 계좌를 자산 탭에서 설정해주세요.',
+    ].filter(Boolean).join('\n')
+
+    if (!confirm(`💳 카드 납부\n${lines}\n\n납부하시겠어요?`)) return
+    if (!matchedCard) { alert('자산 탭에서 카드를 먼저 등록해주세요.'); return }
+
+    const today2 = dayjs().format('YYYY-MM-DD')
+    const { data: newExp, error } = await supabase.from('expenses').insert({
+      user_id: userId,
+      name: `${payMethod} 카드 대금`,
+      amount: remaining,
+      category: '고정비',
+      date: today2,
+      payment_method: accountName || null,
+      memo: `[카드납부] ${payMethod}`,
+      type: 'expense',
+      source: 'manual',
+    }).select().single()
+    if (error) { alert('납부 처리 중 오류가 발생했어요.'); return }
+    if (accountName) {
+      const acc = accounts.find(a => a.name === accountName)
+      if (acc) {
+        await supabase.from('accounts').update({ balance: (acc.balance ?? 0) - remaining }).eq('id', acc.id)
+        setAccounts(prev => prev.map(a => a.name === accountName ? { ...a, balance: (a.balance ?? 0) - remaining } : a))
+      }
+    }
+    if (newExp) setExpenses(prev => [newExp as Expense, ...prev])
+    try { sessionStorage.removeItem('sp_history_v2') } catch {}
+  }
+
   async function deleteExpense(id: string) {
     // Optimistic: UI 먼저 업데이트
     const prev = expenses.find(e => e.id === id)
@@ -257,7 +316,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
                         ? ((e.type === 'savings' || e.type === 'transfer')
                             ? <TransferEditRow expense={e} accounts={accounts} onSaveTransfer={(upd,of,ot,nf,nt,oa,na) => saveTransfer(e.id,upd,of,ot,nf,nt,oa,na)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} />
                             : <EditRow expense={e} onSave={u => saveExpense(e.id, u)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} />)
-                        : <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} />
+                        : <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} onPayCard={handleCardPayment} />
                       }
                       {idx < items.length - 1 && <div className="h-px bg-gray-50 mx-4" />}
                     </div>
@@ -276,16 +335,18 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
           expenses={expenses} editingId={editingId} onEdit={setEditingId}
           onSave={saveExpense} onDelete={deleteExpense} onCancelEdit={() => setEditingId(null)}
           accounts={accounts} onSaveTransfer={(id,upd,of,ot,nf,nt,oa,na) => saveTransfer(id,upd,of,ot,nf,nt,oa,na)}
+          onPayCard={handleCardPayment}
         />
       )}
     </div>
   )
 }
 
-function ExpenseRow({ expense, onTap }: { expense: Expense; onTap: () => void }) {
+function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: () => void; onPayCard?: (e: Expense) => void }) {
   const type = expense.type ?? 'expense'
   const isIncome = type === 'income'
   const isTransfer = type === 'transfer' || type === 'savings'
+  const isCard = !isIncome && !isTransfer && (expense.payment_method ?? '').includes('카드')
 
   if (isTransfer) {
     const parts = expense.name.includes('→') ? expense.name.split('→').map((s: string) => s.trim()) : [expense.name, '']
@@ -309,18 +370,27 @@ function ExpenseRow({ expense, onTap }: { expense: Expense; onTap: () => void })
   }
 
   return (
-    <button onClick={onTap} className="w-full flex justify-between items-center p-4 text-left hover:bg-gray-50 transition-colors">
-      <div>
+    <div className="w-full flex justify-between items-center p-4 hover:bg-gray-50 transition-colors">
+      <button onClick={onTap} className="flex-1 text-left min-w-0">
         <div className="flex items-center gap-1.5">
           <p className="text-sm font-semibold text-gray-800">{expense.name}</p>
           {isIncome && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-semibold">수입</span>}
+          {isCard && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-400 font-semibold">💳</span>}
         </div>
         <p className="text-xs text-gray-400 mt-0.5">{expense.category}{expense.payment_method && ` · ${expense.payment_method}`}</p>
+      </button>
+      <div className="flex flex-col items-end gap-1 flex-shrink-0 ml-2">
+        <span className={`text-sm font-bold ${isIncome ? 'text-emerald-500' : isCard ? 'text-red-600' : 'text-rose-400'}`}>
+          {isIncome ? '+' : '-'}{expense.amount.toLocaleString()}원
+        </span>
+        {isCard && onPayCard && (
+          <button
+            onClick={e => { e.stopPropagation(); onPayCard(expense) }}
+            className="text-[10px] px-2 py-0.5 rounded-md bg-rose-50 text-red-600 font-semibold border border-rose-100 hover:bg-rose-100"
+          >납부</button>
+        )}
       </div>
-      <span className={`text-sm font-bold ${isIncome ? 'text-emerald-500' : 'text-rose-400'}`}>
-        {isIncome ? '+' : '-'}{expense.amount.toLocaleString()}원
-      </span>
-    </button>
+    </div>
   )
 }
 
@@ -471,6 +541,7 @@ function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, to
   expenses: Expense[]; editingId: string | null; onEdit: (id: string) => void
   onSave: (id: string, u: Partial<Expense>) => void; onDelete: (id: string) => void; onCancelEdit: () => void
   accounts: {id:string;name:string;balance:number}[]; onSaveTransfer: (id: string, upd: Partial<Expense>, of:string, ot:string, nf:string, nt:string, oa:number, na:number) => void
+  onPayCard?: (e: Expense) => void
 }) {
   const startOfMonth = dayjs(calMonth).startOf('month')
   const daysInMonth = startOfMonth.daysInMonth()
@@ -544,7 +615,7 @@ function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, to
                   ? ((e.type === 'savings' || e.type === 'transfer')
                       ? <TransferEditRow expense={e} accounts={accounts} onSaveTransfer={(upd,of,ot,nf,nt,oa,na) => onSaveTransfer(e.id,upd,of,ot,nf,nt,oa,na)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />
                       : <EditRow expense={e} onSave={u => onSave(e.id, u)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />)
-                  : <ExpenseRow expense={e} onTap={() => onEdit(e.id)} />
+                  : <ExpenseRow expense={e} onTap={() => onEdit(e.id)} onPayCard={onPayCard} />
                 }
                 {idx < selectedItems.length - 1 && <div className="h-px bg-gray-50 mx-4" />}
               </div>
