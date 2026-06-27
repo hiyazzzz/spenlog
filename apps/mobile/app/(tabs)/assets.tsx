@@ -6,7 +6,7 @@ import { useDataCache } from '@/store/dataCache';
 import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, getThemeColors, useThemeColors, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
 import { monthString } from '@/lib/date';
-import { getAssetsData, addAccount, deleteAccount, addCard, deleteCard, updateIncome, updateAccount, updateCard, type AssetsData } from '@/lib/api/assets';
+import { getAssetsData, addAccount, deleteAccount, addCard, deleteCard, updateIncome, updateAccount, updateCard, getMonthExpensesTotal, type AssetsData } from '@/lib/api/assets';
 import { getFixedCostsData, addFixedCost, deleteFixedCost, type FixedCostsData } from '@/lib/api/fixed-costs';
 import { getBudgetData, saveBudgets, recommendBudget, type BudgetData } from '@/lib/api/budget';
 import { getPaidIds, recordFixedCostPayment, recordCardPayment } from '@/lib/api/routine';
@@ -138,6 +138,9 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
   const [cardPayAmount, setCardPayAmount] = useState('');
   const [cardPayMemo, setCardPayMemo] = useState('');
   const [cardPaySaving, setCardPaySaving] = useState(false);
+  const [cardPayMonth, setCardPayMonth] = useState('');
+  const [cardPayMonthTotal, setCardPayMonthTotal] = useState(0);
+  const [loadingMonthTotal, setLoadingMonthTotal] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -339,8 +342,26 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
 
   function openCardPaySheet(card: CardType) {
     setCardPaySheet(card);
-    setCardPayAmount('');
     setCardPayMemo('');
+    const now = new Date();
+    const pm = now.getMonth() === 0
+      ? `${now.getFullYear() - 1}-12`
+      : `${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`;
+    setCardPayMonth(pm);
+    setCardPayAmount('');
+    loadMonthTotal(pm);
+  }
+
+  async function loadMonthTotal(month: string) {
+    if (!userId) return;
+    setLoadingMonthTotal(true);
+    try {
+      const total = await getMonthExpensesTotal(userId, month);
+      setCardPayMonthTotal(total);
+      setCardPayAmount(total > 0 ? String(total) : '');
+    } finally {
+      setLoadingMonthTotal(false);
+    }
   }
 
   async function handleSaveCardPayment() {
@@ -768,6 +789,38 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
       <SlideUpModal visible={!!cardPaySheet} onRequestClose={() => setCardPaySheet(null)}>
         <View style={assetStyles.modalSheet}>
           <Text style={assetStyles.modalTitle}>{cardPaySheet?.name} 대금 납부 기록</Text>
+
+          <Text style={assetStyles.fieldLabel}>납부 대상 월</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+            {[-2, -1, 0].map(offset => {
+              const now = new Date();
+              const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+              const m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+              const label = `${d.getMonth() + 1}월분`;
+              const active = cardPayMonth === m;
+              return (
+                <TouchableOpacity
+                  key={m}
+                  style={{
+                    flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center',
+                    backgroundColor: active ? themeColors.primary : '#f3f4f6',
+                  }}
+                  onPress={() => {
+                    setCardPayMonth(m);
+                    loadMonthTotal(m);
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: active ? '#fff' : COLORS.gray500 }}>{label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {cardPayMonthTotal > 0 && (
+            <Text style={{ fontSize: 11, color: COLORS.gray400, marginBottom: 6 }}>
+              {loadingMonthTotal ? '계산 중...' : `${cardPayMonth.replace('-', '년 ')}월 지출 합계: ${formatCurrency(cardPayMonthTotal)} (참고)`}
+            </Text>
+          )}
+
           <Text style={assetStyles.fieldLabel}>납부 금액</Text>
           <TextInput
             style={assetStyles.input}
@@ -1711,30 +1764,4 @@ const budgetStyles = StyleSheet.create({
 
   aiResultBox: { marginTop: 12, padding: 12, borderRadius: RADIUS.md, backgroundColor: '#fafafa', borderWidth: 1, borderColor: COLORS.gray100 },
   aiReasonText: { fontSize: 12, color: COLORS.gray500, marginBottom: 8 },
-  aiResultRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  aiResultLabel: { fontSize: 13, fontWeight: '600', color: COLORS.accent },
-  aiResultValue: { fontSize: 13, fontWeight: '700', color: COLORS.gray700 },
-
-  progressHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  progressHeaderLabel: { fontSize: 12, fontWeight: '600', color: COLORS.gray500 },
-  progressHeaderPct: { fontSize: 12, fontWeight: '800' },
-  progressBg: { backgroundColor: COLORS.gray100, borderRadius: 99, height: 8, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 99 },
-  progressFooterRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  progressFooterText: { fontSize: 11, color: COLORS.gray400 },
-
-  budgetItem: { marginBottom: 4 },
-  budgetItemRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  budgetItemLabel: { fontSize: 13, fontWeight: '600', color: COLORS.accent, minWidth: 44 },
-  budgetInputBox: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#fff', borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border,
-    paddingHorizontal: 12, paddingVertical: 9,
-  },
-  budgetInput: { flex: 1, fontSize: 13, fontWeight: '600', color: COLORS.gray700, textAlign: 'right' },
-  budgetInputUnit: { fontSize: 12, color: COLORS.gray400 },
-  budgetProgressWrap: { paddingLeft: 52, paddingRight: 48, marginTop: 4 },
-  progressBgSmall: { backgroundColor: COLORS.gray100, borderRadius: 4, height: 4, overflow: 'hidden', marginBottom: 3 },
-  budgetProgressFooter: { flexDirection: 'row', justifyContent: 'space-between' },
-  budgetProgressText: { fontSize: 10, color: COLORS.gray400 },
-});
+  aiResultRow: { flexDirection
