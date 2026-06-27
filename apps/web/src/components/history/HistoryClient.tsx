@@ -346,6 +346,36 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
           onPayCard={handleCardPayment}
         />
       )}
+      {/* 커스텀 카드 납부 확인 모달 */}
+      {confirmModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '28px 24px 36px', width: '100%', maxWidth: 480, boxShadow: '0 -4px 32px rgba(0,0,0,0.15)' }}>
+            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 18, color: '#111827' }}>{confirmModal.title}</div>
+            <div style={{ marginBottom: 18, padding: '16px', background: '#f9fafb', borderRadius: 14 }}>
+              {confirmModal.lines.map((line, i) => (
+                <p key={i} style={{ fontSize: 14, color: '#374151', marginBottom: i < confirmModal.lines.length - 1 ? 6 : 0, lineHeight: 1.6 }}>{line}</p>
+              ))}
+            </div>
+            <p style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 20, textAlign: 'center' }}>납부하시겠어요?</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setConfirmModal(null)}
+                style={{ flex: 1, padding: '14px 0', borderRadius: 14, border: '1px solid #e5e7eb', background: '#f3f4f6', fontSize: 15, fontWeight: 600, color: '#6b7280', cursor: 'pointer' }}
+              >취소</button>
+              <button
+                onClick={() => confirmModal.onConfirm()}
+                style={{ flex: 1, padding: '14px 0', borderRadius: 14, border: 'none', background: 'var(--color-primary, #7c3aed)', fontSize: 15, fontWeight: 700, color: '#fff', cursor: 'pointer' }}
+              >납부</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 알림 토스트 */}
+      {alertMsg && (
+        <div style={{ position: 'fixed', bottom: 88, left: '50%', transform: 'translateX(-50%)', background: '#1f2937', color: '#fff', padding: '11px 22px', borderRadius: 999, fontSize: 13, fontWeight: 500, zIndex: 9999, whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+          {alertMsg}
+        </div>
+      )}
     </div>
   )
 }
@@ -555,37 +585,6 @@ function TransferEditRow({ expense, accounts, onSaveTransfer, onDelete, onCancel
         <button onClick={handleSave} className="flex-1 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: '#7c3aed' }}>저장</button>
         <button onClick={onDelete} className="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-50 text-rose-400 border border-rose-100">삭제</button>
       </div>
-      {/* 커스텀 카드 납부 확인 모달 */}
-      {confirmModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '28px 24px 36px', width: '100%', maxWidth: 480, boxShadow: '0 -4px 32px rgba(0,0,0,0.15)' }}>
-            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 18, color: '#111827' }}>{confirmModal.title}</div>
-            <div style={{ marginBottom: 18, padding: '16px', background: '#f9fafb', borderRadius: 14 }}>
-              {confirmModal.lines.map((line, i) => (
-                <p key={i} style={{ fontSize: 14, color: '#374151', marginBottom: i < confirmModal.lines.length - 1 ? 6 : 0, lineHeight: 1.6 }}>{line}</p>
-              ))}
-            </div>
-            <p style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 20, textAlign: 'center' }}>납부하시겠어요?</p>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => setConfirmModal(null)}
-                style={{ flex: 1, padding: '14px 0', borderRadius: 14, border: '1px solid #e5e7eb', background: '#f3f4f6', fontSize: 15, fontWeight: 600, color: '#6b7280', cursor: 'pointer' }}
-              >취소</button>
-              <button
-                onClick={() => confirmModal.onConfirm()}
-                style={{ flex: 1, padding: '14px 0', borderRadius: 14, border: 'none', background: 'var(--color-primary, #7c3aed)', fontSize: 15, fontWeight: 700, color: '#fff', cursor: 'pointer' }}
-              >납부</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 알림 토스트 */}
-      {alertMsg && (
-        <div style={{ position: 'fixed', bottom: 88, left: '50%', transform: 'translateX(-50%)', background: '#1f2937', color: '#fff', padding: '11px 22px', borderRadius: 999, fontSize: 13, fontWeight: 500, zIndex: 9999, whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
-          {alertMsg}
-        </div>
-      )}
     </div>
   )
 }
