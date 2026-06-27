@@ -433,7 +433,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
       {fixedCosts.length > 0 && (
         <View style={assetStyles.section}>
           <TouchableOpacity style={assetStyles.sectionHeader} onPress={() => setRoutineExpanded(o => !o)} activeOpacity={0.7}>
-            <Text style={assetStyles.sectionTitle}>이번 달 루틴</Text>
+            <Text style={assetStyles.sectionTitle}>이번 달 정기 기록</Text>
             <View style={assetStyles.sectionHeaderRight}>
               <Text style={assetStyles.sectionSummary}>{routineDone}/{routineTotal} 완료</Text>
               <Text style={[assetStyles.sectionChevron, routineExpanded && { transform: [{ rotate: '180deg' }] }]}>▼</Text>

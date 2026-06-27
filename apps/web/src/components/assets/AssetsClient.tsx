@@ -729,7 +729,6 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                 </div>
               )
             })}
-            )}
           </div>
         )
       })()}
