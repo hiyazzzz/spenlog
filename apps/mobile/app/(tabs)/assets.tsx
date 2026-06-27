@@ -128,6 +128,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
 
   // 루틴 관리
   const [routineExpanded, setRoutineExpanded] = useState(false);
+  const [cardSectionExpanded, setCardSectionExpanded] = useState(false);
   const [paidFixedCostIds, setPaidFixedCostIds] = useState<Set<string>>(new Set());
   const [paidCardIds, setPaidCardIds] = useState<Set<string>>(new Set());
   const [processingFixedId, setProcessingFixedId] = useState<string | null>(null);
@@ -478,11 +479,14 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
       {/* 0-1. 이번 달 카드 납부 */}
       {cards.length > 0 && (
         <View style={assetStyles.section}>
-          <View style={assetStyles.sectionHeader}>
+          <TouchableOpacity style={assetStyles.sectionHeader} onPress={() => setCardSectionExpanded(o => !o)} activeOpacity={0.7}>
             <Text style={assetStyles.sectionTitle}>이번 달 카드 납부</Text>
-            <Text style={assetStyles.sectionSummary}>{cardsDone}/{cards.length} 완료</Text>
-          </View>
-          <View style={assetStyles.sectionBody}>
+            <View style={assetStyles.sectionHeaderRight}>
+              <Text style={assetStyles.sectionSummary}>{cardsDone}/{cards.length} 완료</Text>
+              <Text style={[assetStyles.sectionChevron, cardSectionExpanded && { transform: [{ rotate: '180deg' }] }]}>▼</Text>
+            </View>
+          </TouchableOpacity>
+          {cardSectionExpanded && <View style={assetStyles.sectionBody}>
             {!!routineToast && !fixedCosts.length && (
               <View style={assetStyles.toast}>
                 <Text style={assetStyles.toastText}>{routineToast}</Text>
@@ -510,7 +514,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
                 </View>
               );
             })}
-          </View>
+          </View>}
         </View>
       )}
 

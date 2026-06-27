@@ -366,6 +366,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const editingCardId = activeEditId?.startsWith('card:') ? activeEditId.slice(5) : null
   // 카드 납부 기록 바텀시트
   const [cardPaySheet, setCardPaySheet] = useState<Card | null>(null)
+  const [cardSectionExpanded, setCardSectionExpanded] = useState(false)
   const [cardPayAmount, setCardPayAmount] = useState('')
   const [cardPayDate, setCardPayDate] = useState('')
   const [cardPayMemo, setCardPayMemo] = useState('')
@@ -691,11 +692,14 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             borderRadius: 16, padding: '14px 16px', marginBottom: 12,
             boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <button onClick={() => setCardSectionExpanded(e => !e)} style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', marginBottom: cardSectionExpanded ? 10 : 0 }}>
               <p style={{ fontSize: 14, fontWeight: 700, color: '#1f2937' }}>이번 달 카드 납부</p>
-              <p style={{ fontSize: 12, color: '#9ca3af' }}>{cardsDone}/{localCards.length} 완료</p>
-            </div>
-            {localCards.map(card => {
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <p style={{ fontSize: 12, color: '#9ca3af' }}>{cardsDone}/{localCards.length} 완료</p>
+                <span style={{ fontSize: 14, color: '#9ca3af', transform: cardSectionExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', display: 'inline-block' }}>▼</span>
+              </div>
+            </button>
+            {cardSectionExpanded && localCards.map(card => {
               const payStatus = getCardPayStatus(card)
               const paid = cardPaidIds.has(card.id)
               return (
@@ -725,6 +729,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                 </div>
               )
             })}
+            )}
           </div>
         )
       })()}
