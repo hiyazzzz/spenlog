@@ -9,7 +9,7 @@ import { monthString } from '@/lib/date';
 import { getAssetsData, addAccount, deleteAccount, addCard, deleteCard, updateIncome, updateAccount, updateCard, getMonthExpensesTotal, type AssetsData } from '@/lib/api/assets';
 import { getFixedCostsData, addFixedCost, deleteFixedCost, type FixedCostsData } from '@/lib/api/fixed-costs';
 import { getBudgetData, saveBudgets, recommendBudget, type BudgetData } from '@/lib/api/budget';
-import { getPaidIds, recordFixedCostPayment, recordCardPayment } from '@/lib/api/routine';
+import { getPaidFixedCostNames, getPaidCardIds, recordFixedCostPayment, recordCardPayment } from '@/lib/api/routine';
 import type { Card as CardType, FixedCost } from '@spenlog/types';
 
 const ACCOUNT_TYPES = ['입출금', '파킹', 'CMA', '현금'] as const;
@@ -162,9 +162,16 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
       setIncome(result.profile?.income ? Number(result.profile.income).toLocaleString() : '');
       setSavingGoal(result.profile?.saving_goal ? Number(result.profile.saving_goal).toLocaleString() : '');
 
-      const { fixedCostIds, cardIds } = await getPaidIds(uid, monthString());
+      const [paidNames, paidCards] = await Promise.all([
+        getPaidFixedCostNames(uid, monthString()),
+        getPaidCardIds(uid, monthString()),
+      ]);
+      // 이름 → ID 변환 (expenses 테이블 name 기준, 웹 RoutineBanner와 동일 방식)
+      const fixedCostIds = new Set<string>(
+        result.fixedCosts.filter((fc: any) => paidNames.has(fc.name)).map((fc: any) => fc.id)
+      );
       setPaidFixedCostIds(fixedCostIds);
-      setPaidCardIds(cardIds);
+      setPaidCardIds(paidCards);
     } catch (e) {
       setError(e instanceof Error ? e.message : '데이터를 불러오지 못했어요');
     } finally {
@@ -350,14 +357,14 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
       : `${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`;
     setCardPayMonth(pm);
     setCardPayAmount('');
-    loadMonthTotal(pm);
+    loadMonthTotal(pm, card.name);
   }
 
-  async function loadMonthTotal(month: string) {
+  async function loadMonthTotal(month: string, cardName?: string) {
     if (!userId) return;
     setLoadingMonthTotal(true);
     try {
-      const total = await getMonthExpensesTotal(userId, month);
+      const total = await getMonthExpensesTotal(userId, month, cardName);
       setCardPayMonthTotal(total);
       setCardPayAmount(total > 0 ? String(total) : '');
     } finally {
@@ -451,10 +458,15 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
                 ...fixedCosts.filter(fc => paidFixedCostIds.has(fc.id)).sort((a, b) => (a.due_day ?? 99) - (b.due_day ?? 99)),
               ].map(fc => {
                 const paid = paidFixedCostIds.has(fc.id);
+                const todayDay = new Date(Date.now() + 9*60*60*1000).getDate();
+                const overdue = !paid && fc.due_day != null && todayDay > fc.due_day;
                 return (
                   <View key={fc.id} style={assetStyles.routineRow}>
                     <View style={{ flex: 1 }}>
-                      <Text style={assetStyles.rowTitle}>{fc.name}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <Text style={assetStyles.rowTitle}>{fc.name}</Text>
+                        {overdue && <Text style={assetStyles.overdueBadge}> ⚠️ 출금일 지남</Text>}
+                      </View>
                       <Text style={assetStyles.rowSubtitle}>{fc.kind} · {formatCurrency(fc.amount)} · 매월 {fc.due_day}일</Text>
                     </View>
                     {paid ? (
@@ -821,7 +833,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
                   style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center',
                     backgroundColor: active ? themeColors.primary : '#f3f4f6',
                     borderWidth: active ? 0 : 1, borderColor: '#e5e7eb' }}
-                  onPress={() => { setCardPayMonth(m); loadMonthTotal(m); }}
+                  onPress={() => { setCardPayMonth(m); loadMonthTotal(m, cardPaySheet?.name); }}
                 >
                   <Text style={{ fontSize: 13, fontWeight: '600', color: active ? '#fff' : COLORS.gray500 }}>{label}</Text>
                 </TouchableOpacity>

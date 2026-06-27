@@ -98,16 +98,20 @@ export async function updateCard(id: string, updates: {
   return supabase.from('cards').update(updates).eq('id', id)
 }
 
-export async function getMonthExpensesTotal(userId: string, month: string): Promise<number> {
+export async function getMonthExpensesTotal(userId: string, month: string, paymentMethod?: string): Promise<number> {
   const [y, m] = month.split('-').map(Number)
   const nextY = m === 12 ? y + 1 : y
   const nextM = m === 12 ? 1 : m + 1
   const nextMonth = `${nextY}-${String(nextM).padStart(2, '0')}`
-  const { data } = await supabase.from('expenses')
+  let query = supabase.from('expenses')
     .select('amount')
     .eq('user_id', userId)
     .gte('date', `${month}-01`)
     .lt('date', `${nextMonth}-01`)
     .or('type.is.null,and(type.neq.savings,type.neq.transfer)')
+  if (paymentMethod) {
+    query = query.eq('payment_method', paymentMethod)
+  }
+  const { data } = await query
   return (data ?? []).reduce((s, e) => s + e.amount, 0)
 }

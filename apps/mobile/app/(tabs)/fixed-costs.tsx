@@ -6,7 +6,7 @@ import { useDataCache } from '@/store/dataCache';
 import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, useThemeColors, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
 import { getFixedCostsData, addFixedCost, editFixedCost, deleteFixedCost, type FixedCostsData } from '@/lib/api/fixed-costs';
-import { getPaidIds, recordFixedCostPayment } from '@/lib/api/routine';
+import { getPaidFixedCostNames, recordFixedCostPayment } from '@/lib/api/routine';
 import { monthString } from '@/lib/date';
 
 const TYPES = ['월정액', '연정액', '기타'] as const;
@@ -117,12 +117,16 @@ export default function FixedCostsScreen() {
       const cached = useDataCache.getState().fixedCosts;
       if (cached) { setData(cached); setLoading(false); }
 
-      const [fcData, { fixedCostIds }] = await Promise.all([
+      const [fcData, paidNames] = await Promise.all([
         getFixedCostsData(userId),
-        getPaidIds(userId, monthString()),
+        getPaidFixedCostNames(userId, monthString()),
       ]);
       useDataCache.getState().setFixedCosts(fcData);
       setData(fcData);
+      // 이름 → ID 변환 (expenses.source='routine' 기준)
+      const fixedCostIds = new Set<string>(
+        (fcData.fixedCosts ?? []).filter((fc: any) => paidNames.has(fc.name)).map((fc: any) => fc.id)
+      );
       setPaidIds(fixedCostIds);
     } catch (e) {
       setError(e instanceof Error ? e.message : '데이터를 불러오지 못했어요');

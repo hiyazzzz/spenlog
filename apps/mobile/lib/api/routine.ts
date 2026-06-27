@@ -7,20 +7,58 @@ export interface AccountUpdate {
 }
 
 export async function getPaidIds(userId: string, month: string): Promise<{ fixedCostIds: Set<string>; cardIds: Set<string> }> {
-  const { data } = await supabase
+  const [y, m] = month.split('-').map(Number)
+  const nextY = m === 12 ? y + 1 : y
+  const nextM = m === 12 ? 1 : m + 1
+  const nextMonth = `${nextY}-${String(nextM).padStart(2, '0')}`
+
+  // 고정비: expenses 테이블 source='routine' 기준 (웹 RoutineBanner와 동일한 신뢰성 높은 소스)
+  const { data: expData } = await supabase
+    .from('expenses')
+    .select('name, date')
+    .eq('user_id', userId)
+    .eq('source', 'routine')
+    .gte('date', `${month}-01`)
+    .lt('date', `${nextMonth}-01`)
+
+  // 카드: savings_payments 기준
+  const { data: cardData } = await supabase
     .from('savings_payments')
-    .select('fixed_cost_id, card_id')
+    .select('card_id')
     .eq('user_id', userId)
     .eq('year_month', month)
     .eq('is_paid', true)
+    .not('card_id', 'is', null)
 
-  const fixedCostIds = new Set<string>()
-  const cardIds = new Set<string>()
-  ;(data ?? []).forEach((p: { fixed_cost_id: string | null; card_id: string | null }) => {
-    if (p.fixed_cost_id) fixedCostIds.add(p.fixed_cost_id)
-    if (p.card_id) cardIds.add(p.card_id)
-  })
-  return { fixedCostIds, cardIds }
+  return { fixedCostIds: new Set<string>(), cardIds: new Set<string>() }
+  // NOTE: fixedCostIds는 이름 기반이라 여기서는 name 목록만 반환 — caller에서 처리
+}
+
+// expenses 기반 고정비 완료 이름 목록
+export async function getPaidFixedCostNames(userId: string, month: string): Promise<Set<string>> {
+  const [y, m] = month.split('-').map(Number)
+  const nextY = m === 12 ? y + 1 : y
+  const nextM = m === 12 ? 1 : m + 1
+  const nextMonth = `${nextY}-${String(nextM).padStart(2, '0')}`
+  const { data } = await supabase
+    .from('expenses')
+    .select('name')
+    .eq('user_id', userId)
+    .eq('source', 'routine')
+    .gte('date', `${month}-01`)
+    .lt('date', `${nextMonth}-01`)
+  return new Set((data ?? []).map((e: { name: string }) => e.name))
+}
+
+export async function getPaidCardIds(userId: string, month: string): Promise<Set<string>> {
+  const { data } = await supabase
+    .from('savings_payments')
+    .select('card_id')
+    .eq('user_id', userId)
+    .eq('year_month', month)
+    .eq('is_paid', true)
+    .not('card_id', 'is', null)
+  return new Set((data ?? []).map((p: { card_id: string }) => p.card_id).filter(Boolean))
 }
 
 export async function recordFixedCostPayment(userId: string, fc: FixedCost, month: string): Promise<{ accountUpdates: AccountUpdate[] }> {
