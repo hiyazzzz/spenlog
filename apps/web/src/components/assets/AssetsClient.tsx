@@ -1055,25 +1055,31 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
           <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 20 }}>
             매월 {cardPaySheet.due_day}일 납부
           </p>
-          {/* 월 선택 칩 */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 8, fontWeight: 600 }}>납부 월 선택</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {[-2, -1, 0].map(offset => {
-                const d = new Date(); d.setMonth(d.getMonth() + offset)
-                const m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-                const label = `${d.getMonth() + 1}월`
-                const active = cardPayMonth === m
-                return (
-                  <button key={m} onClick={() => selectCardPayMonth(cardPaySheet!, m)} style={{
-                    flex: 1, padding: '8px 0', borderRadius: 10, fontSize: 13, fontWeight: active ? 700 : 500,
-                    border: `1.5px solid ${active ? 'var(--color-accent, #6366f1)' : '#e5e7eb'}`,
-                    background: active ? 'var(--color-accent, #6366f1)' : '#fff',
-                    color: active ? '#fff' : '#6b7280', cursor: 'pointer',
-                  }}>{label}</button>
-                )
-              })}
-            </div>
+          {/* 월 화살표 선택 */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 16 }}>
+            <button onClick={() => {
+              const [y, m] = cardPayMonth.split('-').map(Number)
+              const prev = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`
+              selectCardPayMonth(cardPaySheet!, prev)
+            }} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#6b7280', padding: '4px 10px', lineHeight: 1 }}>&lsaquo;</button>
+            <span style={{ fontSize: 15, fontWeight: 700, color: '#1f2937', minWidth: 90, textAlign: 'center' }}>
+              {cardPayMonth ? `${cardPayMonth.split('-')[0]}년 ${parseInt(cardPayMonth.split('-')[1])}월` : ''}
+            </span>
+            <button onClick={() => {
+              const [y, m] = cardPayMonth.split('-').map(Number)
+              const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`
+              const now = new Date()
+              const thisM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+              if (next <= thisM) selectCardPayMonth(cardPaySheet!, next)
+            }} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', padding: '4px 10px', lineHeight: 1,
+              color: (() => {
+                const [y, m] = cardPayMonth.split('-').map(Number)
+                const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`
+                const now = new Date()
+                const thisM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+                return next <= thisM ? '#6b7280' : '#d1d5db'
+              })()
+            }}>&rsaquo;</button>
           </div>
           <div style={{ background: '#fefce8', borderRadius: 12, padding: '10px 14px', marginBottom: 20, border: '1px solid #fde68a' }}>
             <p style={{ fontSize: 12, color: '#92400e' }}>
