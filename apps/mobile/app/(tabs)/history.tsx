@@ -222,6 +222,7 @@ export default function HistoryScreen() {
   const selectedItems = selectedDate ? expenses.filter(e => e.date === selectedDate) : [];
 
   return (
+    <>
     <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" onScrollBeginDrag={Keyboard.dismiss}>
       <View style={styles.headerRow}>
         <Text style={[styles.pageTitle, { color: themeColors.accent }]}>내역</Text>
@@ -488,6 +489,7 @@ export default function HistoryScreen() {
         </View>
       </Modal>
     )}
+    </>
   );
 }
 
