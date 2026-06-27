@@ -681,6 +681,54 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
         }}
       />
 
+      {/* 0-1. 이번 달 카드 납부 */}
+      {localCards.length > 0 && (() => {
+        const cardsDone = localCards.filter(c => cardPaidIds.has(c.id)).length
+        return (
+          <div style={{
+            background: '#fff',
+            border: '1px solid #f3f4f6',
+            borderRadius: 16, padding: '14px 16px', marginBottom: 12,
+            boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <p style={{ fontSize: 14, fontWeight: 700, color: '#1f2937' }}>이번 달 카드 납부</p>
+              <p style={{ fontSize: 12, color: '#9ca3af' }}>{cardsDone}/{localCards.length} 완료</p>
+            </div>
+            {localCards.map(card => {
+              const payStatus = getCardPayStatus(card)
+              const paid = cardPaidIds.has(card.id)
+              return (
+                <div key={card.id} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '10px 0', borderBottom: '1px solid #f3f4f6',
+                }}>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: paid ? '#9ca3af' : '#1f2937' }}>{card.name}</p>
+                    <p style={{ fontSize: 11, color: '#9ca3af' }}>
+                      {card.bank}{card.due_day ? ' · 납부일 매월 ' + card.due_day + '일' : ''}
+                    </p>
+                    {payStatus.label && (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: payStatus.color, background: payStatus.color + '18', padding: '2px 7px', borderRadius: 10, display: 'inline-block', marginTop: 2 }}>
+                        {payStatus.label}
+                      </span>
+                    )}
+                  </div>
+                  {paid ? (
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#10b981' }}>✓ 완료</span>
+                  ) : (
+                    <button
+                      onClick={() => openCardPaySheet(card)}
+                      style={{ fontSize: 11, color: payStatus.isToday ? '#f59e0b' : '#6b7280', background: payStatus.isToday ? '#fffbeb' : '#f9fafb', border: `1px solid ${payStatus.isToday ? '#fde68a' : '#e5e7eb'}`, padding: '5px 12px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}
+                    >납부 기록</button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )
+      })()}
+
       {/* 1. 월 수입 */}
       <Section icon="" title="월 수입" summary={monthlyIncome > 0 ? formatCurrency(monthlyIncome) : '미설정'} defaultOpen={!monthlyIncome}>
         {!editingIncome ? (
@@ -874,12 +922,6 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                   )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {card.due_day && !cardPaidIds.has(card.id) && (
-                    <button
-                      onClick={() => openCardPaySheet(card)}
-                      style={{ fontSize: 11, color: payStatus.isToday ? '#f59e0b' : '#6b7280', background: payStatus.isToday ? '#fffbeb' : '#f9fafb', border: `1px solid ${payStatus.isToday ? '#fde68a' : '#e5e7eb'}`, padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}
-                    >납부 기록</button>
-                  )}
                   <button
                     onClick={() => setExpandedCardId(isExpanded ? null : card.id)}
                     style={{ fontSize: 11, color: 'var(--color-primary)', background: 'var(--color-primary-light)', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}

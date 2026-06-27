@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard, Alert } from 'react-native';
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { useDataCache } from '@/store/dataCache';
@@ -35,6 +35,13 @@ export default function HistoryScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [calMonth, setCalMonth] = useState(dayjs().format('YYYY-MM'));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [filterMonth, setFilterMonth] = useState('');
+  const [activeDropdown, setActiveDropdown] = useState<'type' | 'cat' | 'pay' | 'sort' | null>(null);
+  const [cardPayModal, setCardPayModal] = useState<{
+    payMethod: string; monthTotal: number; alreadyPaid: number; remaining: number;
+    accountName: string; matchedCard: any; thisMonth: string; userId: string; refreshFn: () => void;
+  } | null>(null);
+  const appliedCategoryRef = useRef<string>('');
 
   const load = useCallback(async () => {
     try {
@@ -60,7 +67,10 @@ export default function HistoryScreen() {
 
   useFocusEffect(useCallback(() => {
     load();
-    if (params.category) setFilterCat(params.category);
+    if (params.category && params.category !== appliedCategoryRef.current) {
+      setFilterCat(params.category);
+      appliedCategoryRef.current = params.category;
+    }
   }, [load, params.category]));
 
   const expenses = data?.expenses ?? [];
@@ -68,6 +78,7 @@ export default function HistoryScreen() {
   const filtered = useMemo(() => {
     let list = expenses.filter(e => {
       if (search && !e.name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (filterMonth && !e.date.startsWith(filterMonth)) return false;
       if (filterCat && e.category !== filterCat) return false;
       if (filterPay && e.payment_method !== filterPay) return false;
       if (filterType === 'savings') {
@@ -84,7 +95,7 @@ export default function HistoryScreen() {
       case 'amount_asc': return [...list].sort((a, b) => a.amount - b.amount);
       default: return [...list].sort((a, b) => b.date.localeCompare(a.date));
     }
-  }, [expenses, search, filterCat, filterPay, filterType, sort]);
+  }, [expenses, search, filterCat, filterPay, filterType, filterMonth, sort]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, Expense[]>();
@@ -176,28 +187,17 @@ export default function HistoryScreen() {
       return;
     }
 
-    const lines = [
-      `이번 달 [${payMethod}] 총 지출: ${formatCurrency(monthTotal)}`,
-      alreadyPaid > 0 ? `이미 납부: -${formatCurrency(alreadyPaid)}` : null,
-      alreadyPaid > 0 ? `납부 잔액: ${formatCurrency(remaining)}` : null,
-      accountName ? `[${accountName}]에서 금액이 차감됩니다.` : '연결 계좌를 자산 탭에서 먼저 설정해주세요.',
-    ].filter(Boolean).join('\n');
-
-    Alert.alert('💳 카드 납부', lines, [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '납부하기',
-        onPress: async () => {
-          if (!matchedCard) {
-            Alert.alert('카드 없음', '자산 탭에서 카드를 먼저 등록해주세요.');
-            return;
-          }
-          const today = dayjs().format('YYYY-MM-DD');
-          await recordCardPayment(userId, matchedCard, thisMonth, remaining, today, null);
-          await load();
-        },
-      },
-    ]);
+    setCardPayModal({
+      payMethod,
+      monthTotal,
+      alreadyPaid,
+      remaining,
+      accountName,
+      matchedCard: matchedCard ?? null,
+      thisMonth,
+      userId,
+      refreshFn: load,
+    });
   }
 
   if (loading) {
@@ -217,7 +217,7 @@ export default function HistoryScreen() {
   }
 
   const today = dayjs().format('YYYY-MM-DD');
-  const hasFilter = !!(search || filterCat || filterPay || filterType);
+  const hasFilter = !!(search || filterCat || filterPay || filterType || filterMonth);
   const categories = data.userCategories.length > 0 ? data.userCategories : DEFAULT_CATEGORIES;
   const selectedItems = selectedDate ? expenses.filter(e => e.date === selectedDate) : [];
 
@@ -262,41 +262,88 @@ export default function HistoryScreen() {
         )}
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={{ gap: 6 }}>
-        {(['', 'expense', 'income', 'savings'] as TypeFilter[]).map(t => (
-          <TouchableOpacity key={t} style={[styles.filterChip, filterType === t && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]} onPress={() => setFilterType(t)}>
-            <Text style={[styles.filterChipText, filterType === t && styles.filterChipTextActive]}>
-              {t === '' ? '전체' : t === 'expense' ? '지출' : t === 'income' ? '수입' : '저축이체'}
-            </Text>
-          </TouchableOpacity>
-        ))}
-        <TouchableOpacity style={[styles.filterChip, filterCat === '' && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]} onPress={() => setFilterCat('')}>
-          <Text style={[styles.filterChipText, filterCat === '' && styles.filterChipTextActive]}>카테고리 전체</Text>
-        </TouchableOpacity>
-        {categories.map(c => (
-          <TouchableOpacity key={c} style={[styles.filterChip, filterCat === c && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]} onPress={() => setFilterCat(filterCat === c ? '' : c)}>
-            <Text style={[styles.filterChipText, filterCat === c && styles.filterChipTextActive]}>{c}</Text>
-          </TouchableOpacity>
-        ))}
-        {hasFilter && (
-          <TouchableOpacity style={styles.resetChip} onPress={() => { setSearch(''); setFilterCat(''); setFilterPay(''); setFilterType(''); }}>
-            <Text style={styles.resetChipText}>초기화 ✕</Text>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
+      {/* 월 선택기 */}
+      <View style={styles.monthChipRow}>
+        {([['', '전체'], [-2, ''], [-1, ''], [0, '']] as [number|string, string][]).map(([offset, lbl]) => {
+          if (offset === '') {
+            return (
+              <TouchableOpacity key="all" style={[styles.monthChip, filterMonth === '' && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]} onPress={() => setFilterMonth('')}>
+                <Text style={[styles.monthChipText, filterMonth === '' && styles.monthChipTextActive]}>전체</Text>
+              </TouchableOpacity>
+            );
+          }
+          const d = dayjs().add(Number(offset), 'month');
+          const m = d.format('YYYY-MM');
+          const label = `${d.month() + 1}월`;
+          return (
+            <TouchableOpacity key={m} style={[styles.monthChip, filterMonth === m && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]} onPress={() => setFilterMonth(filterMonth === m ? '' : m)}>
+              <Text style={[styles.monthChipText, filterMonth === m && styles.monthChipTextActive]}>{label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
-      <View style={styles.sortRow}>
+      {/* 필터 드롭다운 4개 */}
+      <View style={styles.filterRow}>
         {([
-          { key: 'date_desc', label: '최신순' },
-          { key: 'date_asc', label: '오래된순' },
-          { key: 'amount_desc', label: '금액↓' },
-          { key: 'amount_asc', label: '금액↑' },
-        ] as { key: SortKey; label: string }[]).map(s => (
-          <TouchableOpacity key={s.key} style={[styles.sortChip, sort === s.key && { backgroundColor: themeColors.primaryLight, borderColor: themeColors.primary }]} onPress={() => setSort(s.key)}>
-            <Text style={[styles.sortChipText, sort === s.key && { color: themeColors.primary, fontWeight: '700' }]}>{s.label}</Text>
+          { key: 'type' as const, label: filterType === '' ? '유형' : filterType === 'expense' ? '지출' : filterType === 'income' ? '수입' : '저축이체', active: filterType !== '' },
+          { key: 'cat' as const, label: filterCat === '' ? '카테고리' : filterCat, active: filterCat !== '' },
+          { key: 'pay' as const, label: filterPay === '' ? '결제수단' : filterPay, active: filterPay !== '' },
+          { key: 'sort' as const, label: sort === 'date_desc' ? '최신순' : sort === 'date_asc' ? '오래된순' : sort === 'amount_desc' ? '금액↓' : '금액↑', active: sort !== 'date_desc' },
+        ]).map(d => (
+          <TouchableOpacity
+            key={d.key}
+            style={[styles.dropdownBtn, (d.active || activeDropdown === d.key) && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
+            onPress={() => setActiveDropdown(prev => prev === d.key ? null : d.key)}
+          >
+            <Text style={[styles.dropdownBtnText, (d.active || activeDropdown === d.key) && { color: '#fff' }]} numberOfLines={1}>{d.label}</Text>
+            <Text style={[styles.dropdownArrow, (d.active || activeDropdown === d.key) && { color: '#fff' }]}>▾</Text>
           </TouchableOpacity>
         ))}
       </View>
+      {hasFilter && (
+        <TouchableOpacity style={[styles.resetChip, { marginBottom: 8, alignSelf: 'flex-start' }]} onPress={() => { setSearch(''); setFilterCat(''); setFilterPay(''); setFilterType(''); setFilterMonth(''); setActiveDropdown(null); }}>
+          <Text style={styles.resetChipText}>초기화 ✕</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* 드롭다운 패널 */}
+      {activeDropdown === 'type' && (
+        <View style={styles.dropdownPanel}>
+          {([['', '전체'], ['expense', '지출'], ['income', '수입'], ['savings', '저축이체']] as [TypeFilter, string][]).map(([v, l]) => (
+            <TouchableOpacity key={v} style={[styles.dropdownOpt, filterType === v && { backgroundColor: themeColors.primaryLight }]} onPress={() => { setFilterType(v); setActiveDropdown(null); }}>
+              <Text style={[styles.dropdownOptText, filterType === v && { color: themeColors.primary, fontWeight: '700' }]}>{l}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+      {activeDropdown === 'cat' && (
+        <View style={styles.dropdownPanel}>
+          {([['', '카테고리 전체'], ...categories.map(c => [c, c])] as [string, string][]).map(([v, l]) => (
+            <TouchableOpacity key={v} style={[styles.dropdownOpt, filterCat === v && { backgroundColor: themeColors.primaryLight }]} onPress={() => { setFilterCat(v as any); setActiveDropdown(null); }}>
+              <Text style={[styles.dropdownOptText, filterCat === v && { color: themeColors.primary, fontWeight: '700' }]}>{l}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+      {activeDropdown === 'pay' && (
+        <View style={styles.dropdownPanel}>
+          {([['', '결제수단 전체'], ...PAYMENT_OPTIONS.map(p => [p, p])] as [string, string][]).map(([v, l]) => (
+            <TouchableOpacity key={v} style={[styles.dropdownOpt, filterPay === v && { backgroundColor: themeColors.primaryLight }]} onPress={() => { setFilterPay(v); setActiveDropdown(null); }}>
+              <Text style={[styles.dropdownOptText, filterPay === v && { color: themeColors.primary, fontWeight: '700' }]}>{l}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+      {activeDropdown === 'sort' && (
+        <View style={styles.dropdownPanel}>
+          {([['date_desc', '최신순'], ['date_asc', '오래된순'], ['amount_desc', '금액 높은순'], ['amount_asc', '금액 낮은순']] as [SortKey, string][]).map(([v, l]) => (
+            <TouchableOpacity key={v} style={[styles.dropdownOpt, sort === v && { backgroundColor: themeColors.primaryLight }]} onPress={() => { setSort(v); setActiveDropdown(null); }}>
+              <Text style={[styles.dropdownOptText, sort === v && { color: themeColors.primary, fontWeight: '700' }]}>{l}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
 
       {view === 'list' && (
         <View>
@@ -384,6 +431,63 @@ export default function HistoryScreen() {
         </View>
       )}
     </ScrollView>
+
+    {/* 카드 납부 커스텀 모달 */}
+    {cardPayModal && (
+      <Modal visible transparent animationType="slide" onRequestClose={() => setCardPayModal(null)}>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setCardPayModal(null)} />
+          <View style={styles.cardPaySheet}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>💳 {cardPayModal.payMethod} 카드 납부</Text>
+            <View style={styles.cardPayInfoBox}>
+              <View style={styles.cardPayInfoRow}>
+                <Text style={styles.cardPayInfoLabel}>이번 달 총 지출</Text>
+                <Text style={styles.cardPayInfoValue}>{formatCurrency(cardPayModal.monthTotal)}</Text>
+              </View>
+              {cardPayModal.alreadyPaid > 0 && (
+                <>
+                  <View style={styles.cardPayInfoRow}>
+                    <Text style={styles.cardPayInfoLabel}>이미 납부</Text>
+                    <Text style={[styles.cardPayInfoValue, { color: COLORS.green }]}>-{formatCurrency(cardPayModal.alreadyPaid)}</Text>
+                  </View>
+                  <View style={[styles.cardPayInfoRow, { borderTopWidth: 1, borderTopColor: COLORS.gray100, paddingTop: 8, marginTop: 4 }]}>
+                    <Text style={[styles.cardPayInfoLabel, { fontWeight: '700' }]}>납부 잔액</Text>
+                    <Text style={[styles.cardPayInfoValue, { fontWeight: '800', color: COLORS.red }]}>{formatCurrency(cardPayModal.remaining)}</Text>
+                  </View>
+                </>
+              )}
+              {cardPayModal.accountName ? (
+                <Text style={styles.cardPayAccountNote}>[{cardPayModal.accountName}]에서 차감됩니다</Text>
+              ) : (
+                <Text style={[styles.cardPayAccountNote, { color: '#d97706' }]}>연결 계좌를 자산 탭에서 먼저 설정해주세요</Text>
+              )}
+            </View>
+            <View style={styles.formBtnRow}>
+              <TouchableOpacity style={styles.deleteFormBtn} onPress={() => setCardPayModal(null)}>
+                <Text style={styles.deleteFormBtnText}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmBtn, { flex: 2, backgroundColor: themeColors.primary }]}
+                onPress={async () => {
+                  if (!cardPayModal.matchedCard) {
+                    setCardPayModal(null);
+                    Alert.alert('카드 없음', '자산 탭에서 카드를 먼저 등록해주세요.');
+                    return;
+                  }
+                  const today = dayjs().format('YYYY-MM-DD');
+                  await recordCardPayment(cardPayModal.userId, cardPayModal.matchedCard, cardPayModal.thisMonth, cardPayModal.remaining, today, null);
+                  setCardPayModal(null);
+                  await cardPayModal.refreshFn();
+                }}
+              >
+                <Text style={styles.confirmBtnText}>납부하기</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    )}
   );
 }
 
@@ -759,4 +863,27 @@ const styles = StyleSheet.create({
   calDayText: { fontSize: 12, fontWeight: '500', color: COLORS.gray700 },
   calAmount: { fontSize: 9, fontWeight: '700', color: COLORS.red },
   calIncomeDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: COLORS.green },
+
+  monthChipRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
+  monthChip: { flex: 1, paddingVertical: 7, alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: COLORS.gray200, backgroundColor: '#fff' },
+  monthChipText: { fontSize: 12, fontWeight: '600', color: COLORS.gray500 },
+  monthChipTextActive: { color: '#fff' },
+
+  filterRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
+  dropdownBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 8, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.gray200, backgroundColor: '#fff' },
+  dropdownBtnText: { fontSize: 11, fontWeight: '600', color: COLORS.gray600, flexShrink: 1 },
+  dropdownArrow: { fontSize: 9, color: COLORS.gray400 },
+  dropdownPanel: { backgroundColor: '#fff', borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.gray100, marginBottom: 8, overflow: 'hidden' },
+  dropdownOpt: { paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: COLORS.gray50 },
+  dropdownOptText: { fontSize: 13, color: COLORS.gray700 },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  cardPaySheet: { backgroundColor: '#fff', borderRadius: 20, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: 24, paddingBottom: 40 },
+  modalHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 20 },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: COLORS.gray800, marginBottom: 20 },
+  cardPayInfoBox: { backgroundColor: '#fafafa', borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.gray100, padding: 14, marginBottom: 20 },
+  cardPayInfoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
+  cardPayInfoLabel: { fontSize: 13, color: COLORS.gray500 },
+  cardPayInfoValue: { fontSize: 13, fontWeight: '700', color: COLORS.gray800 },
+  cardPayAccountNote: { fontSize: 11, color: COLORS.gray400, marginTop: 8, textAlign: 'center' },
 });

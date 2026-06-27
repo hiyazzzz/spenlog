@@ -526,7 +526,7 @@ export default function BudgetForm({ userId, initialBudgets, expenses, thisMonth
             fontSize: '14px', fontWeight: '600', border: 'none',
             cursor: (loading || !isDirty) ? 'not-allowed' : 'pointer', transition: 'background 0.3s', fontFamily: 'inherit',
           }}>
-            {loading ? TEXTS.budget.btnSaveManualSaving : savedOk ? TEXTS.budget.btnSaveManualSaved : isDirty ? TEXTS.budget.btnSaveManual : '변경 사항 없음'}
+            {loading ? TEXTS.budget.btnSaveManualSaving : savedOk ? TEXTS.budget.btnSaveManualSaved : TEXTS.budget.btnSaveManual}
           </button>
         </>
       )}

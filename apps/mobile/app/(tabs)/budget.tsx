@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, ActivityIndicator, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useDataCache } from '@/store/dataCache';
@@ -43,6 +43,8 @@ export default function BudgetScreen() {
   const [enabledCats, setEnabledCats] = useState<Record<string, boolean>>({});
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const savedAmountsRef = useRef<Record<string, string>>({});
+  const savedEnabledRef = useRef<Record<string, boolean>>({});
   const [aiLoading, setAiLoading] = useState(false);
   const [aiAmounts, setAiAmounts] = useState<Record<string, number> | null>(null);
   const [aiReason, setAiReason] = useState<string | null>(null);
@@ -68,7 +70,11 @@ export default function BudgetScreen() {
       // 저장된 예산 행이 있으면 해당 카테고리만 ON, 없으면 전체 ON (최초 설정)
       const hasSavedBudgets = result.budgets.length > 0;
       setEnabledCats(Object.fromEntries(result.customCategories.map(c => [c, hasSavedBudgets ? (c in budgetMap) : true])));
-      setAmounts(Object.fromEntries(result.customCategories.map(c => [c, String(budgetMap[c] ?? '')])));
+      const initAmounts = Object.fromEntries(result.customCategories.map(c => [c, String(budgetMap[c] ?? '')]));
+      setAmounts(initAmounts);
+      savedAmountsRef.current = initAmounts;
+      const hasSavedBudgets2 = result.budgets.length > 0;
+      savedEnabledRef.current = Object.fromEntries(result.customCategories.map(c => [c, hasSavedBudgets2 ? (c in budgetMap) : true]));
     } catch (e) {
       setError(e instanceof Error ? e.message : '데이터를 불러오지 못했어요');
     } finally {
@@ -172,6 +178,10 @@ export default function BudgetScreen() {
     }
   }
 
+  const isDirty = categories.some(cat =>
+    amounts[cat] !== savedAmountsRef.current[cat] ||
+    enabledCats[cat] !== savedEnabledRef.current[cat]
+  );
   const totalBudget = categories.filter(c => enabledCats[c]).reduce((s, c) => s + (parseInt(amounts[c] || '0') || 0), 0);
   const totalSpent = expenses.reduce((s, e) => s + e.amount, 0);
   const overallPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
@@ -403,7 +413,7 @@ export default function BudgetScreen() {
             )}
           </View>
 
-          <TouchableOpacity style={[styles.saveBtn, { marginTop: 20 }]} onPress={handleSave} disabled={saving}>
+          <TouchableOpacity style={[styles.saveBtn, { marginTop: 20, opacity: (saving || !isDirty) ? 0.55 : 1 }]} onPress={handleSave} disabled={saving || !isDirty}>
             <Text style={styles.saveBtnText}>{saving ? '저장 중...' : '저장하기'}</Text>
           </TouchableOpacity>
         </>

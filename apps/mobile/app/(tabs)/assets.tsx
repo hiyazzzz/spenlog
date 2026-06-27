@@ -402,9 +402,9 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
     return { label: `D-${diff}`, color: COLORS.gray400 };
   }
 
-  const routineTotal = fixedCosts.length + cards.length;
-  const routineDone = fixedCosts.filter(fc => paidFixedCostIds.has(fc.id)).length
-    + cards.filter(c => paidCardIds.has(c.id)).length;
+  const routineTotal = fixedCosts.length;
+  const routineDone = fixedCosts.filter(fc => paidFixedCostIds.has(fc.id)).length;
+  const cardsDone = cards.filter(c => paidCardIds.has(c.id)).length;
 
   // 자산/카드/고정비 중 하나도 없으면 초기 설정 가이드 배너 표시
   const showSetupBanner = accounts.length === 0 && cards.length === 0 && fixedCosts.length === 0;
@@ -428,78 +428,91 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
         </View>
       )}
 
-      {/* 0. 이번 달 처리 현황 */}
-      <View style={assetStyles.section}>
-        <TouchableOpacity style={assetStyles.sectionHeader} onPress={() => setRoutineExpanded(o => !o)} activeOpacity={0.7}>
-          <Text style={assetStyles.sectionTitle}>이번 달 처리 현황</Text>
-          <View style={assetStyles.sectionHeaderRight}>
-            <Text style={assetStyles.sectionSummary}>{routineDone}/{routineTotal} 완료</Text>
-            <Text style={[assetStyles.sectionChevron, routineExpanded && { transform: [{ rotate: '180deg' }] }]}>▼</Text>
+      {/* 0. 이번 달 루틴 (고정비만) */}
+      {fixedCosts.length > 0 && (
+        <View style={assetStyles.section}>
+          <TouchableOpacity style={assetStyles.sectionHeader} onPress={() => setRoutineExpanded(o => !o)} activeOpacity={0.7}>
+            <Text style={assetStyles.sectionTitle}>이번 달 루틴</Text>
+            <View style={assetStyles.sectionHeaderRight}>
+              <Text style={assetStyles.sectionSummary}>{routineDone}/{routineTotal} 완료</Text>
+              <Text style={[assetStyles.sectionChevron, routineExpanded && { transform: [{ rotate: '180deg' }] }]}>▼</Text>
+            </View>
+          </TouchableOpacity>
+          {routineExpanded && (
+            <View style={assetStyles.sectionBody}>
+              {!!routineToast && (
+                <View style={assetStyles.toast}>
+                  <Text style={assetStyles.toastText}>{routineToast}</Text>
+                </View>
+              )}
+              {[
+                ...fixedCosts.filter(fc => !paidFixedCostIds.has(fc.id)).sort((a, b) => (a.due_day ?? 99) - (b.due_day ?? 99)),
+                ...fixedCosts.filter(fc => paidFixedCostIds.has(fc.id)).sort((a, b) => (a.due_day ?? 99) - (b.due_day ?? 99)),
+              ].map(fc => {
+                const paid = paidFixedCostIds.has(fc.id);
+                return (
+                  <View key={fc.id} style={assetStyles.routineRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={assetStyles.rowTitle}>{fc.name}</Text>
+                      <Text style={assetStyles.rowSubtitle}>{fc.kind} · {formatCurrency(fc.amount)} · 매월 {fc.due_day}일</Text>
+                    </View>
+                    {paid ? (
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.green }}>✓ 완료</Text>
+                    ) : (
+                      <TouchableOpacity
+                        style={[assetStyles.recordBtn, { backgroundColor: themeColors.primary }]}
+                        onPress={() => handleRecordFixedCost(fc)}
+                        disabled={processingFixedId === fc.id}
+                      >
+                        <Text style={assetStyles.recordBtnText}>{processingFixedId === fc.id ? '처리 중...' : '기록'}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* 0-1. 이번 달 카드 납부 */}
+      {cards.length > 0 && (
+        <View style={assetStyles.section}>
+          <View style={assetStyles.sectionHeader}>
+            <Text style={assetStyles.sectionTitle}>이번 달 카드 납부</Text>
+            <Text style={assetStyles.sectionSummary}>{cardsDone}/{cards.length} 완료</Text>
           </View>
-        </TouchableOpacity>
-        {routineExpanded && (
           <View style={assetStyles.sectionBody}>
-            {!!routineToast && (
+            {!!routineToast && !fixedCosts.length && (
               <View style={assetStyles.toast}>
                 <Text style={assetStyles.toastText}>{routineToast}</Text>
               </View>
             )}
-            {routineTotal === 0 ? (
-              <Text style={assetStyles.emptyText}>등록된 고정비/카드가 없어요</Text>
-            ) : (
-              <>
-                {[
-                  ...fixedCosts.filter(fc => !paidFixedCostIds.has(fc.id)).sort((a, b) => (a.due_day ?? 99) - (b.due_day ?? 99)),
-                  ...fixedCosts.filter(fc => paidFixedCostIds.has(fc.id)).sort((a, b) => (a.due_day ?? 99) - (b.due_day ?? 99)),
-                ].map(fc => {
-                  const paid = paidFixedCostIds.has(fc.id);
-                  return (
-                    <View key={fc.id} style={assetStyles.routineRow}>
-                      <View>
-                        <Text style={assetStyles.rowTitle}>{fc.name}</Text>
-                        <Text style={assetStyles.rowSubtitle}>{fc.kind} · {formatCurrency(fc.amount)} · 매월 {fc.due_day}일</Text>
-                      </View>
-                      {paid ? (
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.green }}>✓ 완료</Text>
-                      ) : (
-                        <TouchableOpacity
-                          style={[assetStyles.recordBtn, { backgroundColor: themeColors.primary }]}
-                          onPress={() => handleRecordFixedCost(fc)}
-                          disabled={processingFixedId === fc.id}
-                        >
-                          <Text style={assetStyles.recordBtnText}>{processingFixedId === fc.id ? '처리 중...' : '기록'}</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  );
-                })}
-                {cards.map(card => {
-                  const paid = paidCardIds.has(card.id);
-                  const status = getCardPayStatus(card);
-                  return (
-                    <View key={card.id} style={assetStyles.routineRow}>
-                      <View>
-                        <Text style={assetStyles.rowTitle}>{card.name}</Text>
-                        <Text style={assetStyles.rowSubtitle}>{card.bank} · 납부일 매월 {card.due_day}일</Text>
-                        {!!status.label && (
-                          <Text style={[assetStyles.cardStatusBadge, { color: status.color }]}>{status.label}</Text>
-                        )}
-                      </View>
-                      {paid ? (
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.green }}>✓ 완료</Text>
-                      ) : (
-                        <TouchableOpacity style={[assetStyles.recordBtn, { backgroundColor: themeColors.primary }]} onPress={() => openCardPaySheet(card)}>
-                          <Text style={assetStyles.recordBtnText}>납부 기록</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  );
-                })}
-              </>
-            )}
+            {cards.map(card => {
+              const paid = paidCardIds.has(card.id);
+              const status = getCardPayStatus(card);
+              return (
+                <View key={card.id} style={assetStyles.routineRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={assetStyles.rowTitle}>{card.name}</Text>
+                    <Text style={assetStyles.rowSubtitle}>{card.bank} · 납부일 매월 {card.due_day}일</Text>
+                    {!!status.label && (
+                      <Text style={[assetStyles.cardStatusBadge, { color: status.color }]}>{status.label}</Text>
+                    )}
+                  </View>
+                  {paid ? (
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.green }}>✓ 완료</Text>
+                  ) : (
+                    <TouchableOpacity style={[assetStyles.recordBtn, { backgroundColor: themeColors.primary }]} onPress={() => openCardPaySheet(card)}>
+                      <Text style={assetStyles.recordBtnText}>납부 기록</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              );
+            })}
           </View>
-        )}
-      </View>
+        </View>
+      )}
 
       {/* 1. 월 수입 */}
       <Section title="월 수입" summary={formatCurrency(monthlyIncome)}>
@@ -589,7 +602,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
               <View style={assetStyles.inlineEditForm}>
                 <TextInput style={assetStyles.input} value={editAccName} onChangeText={setEditAccName} placeholder="계좌명" placeholderTextColor={COLORS.gray400} />
                 <TextInput style={[assetStyles.input, { marginTop: 8 }]} value={editAccBank} onChangeText={setEditAccBank} placeholder="은행" placeholderTextColor={COLORS.gray400} />
-                <TextInput style={[assetStyles.input, { marginTop: 8 }]} value={editAccBalance} onChangeText={v => setEditAccBalance(v.replace(/[^0-9]/g, ''))} keyboardType="numeric" placeholder="잔액" placeholderTextColor={COLORS.gray400} />
+                <TextInput style={[assetStyles.input, { marginTop: 8 }]} value={editAccBalance ? Number(editAccBalance).toLocaleString() : ''} onChangeText={v => setEditAccBalance(v.replace(/[^0-9]/g, ''))} keyboardType="numeric" placeholder="잔액" placeholderTextColor={COLORS.gray400} />
                 <View style={[assetStyles.chipRow, { marginTop: 8 }]}>
                   {ACCOUNT_TYPES.map(t => (
                     <TouchableOpacity key={t} style={[assetStyles.typeChip, editAccType === t && assetStyles.typeChipActive, { borderColor: themeColors.primary }]} onPress={() => setEditAccType(t)}>
@@ -665,9 +678,6 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
                   )}
                 </View>
                 <View style={assetStyles.rowRight}>
-                  <TouchableOpacity style={[assetStyles.recordBtn, { backgroundColor: themeColors.primary }]} onPress={() => openCardPaySheet(card)}>
-                    <Text style={assetStyles.recordBtnText}>납부 기록</Text>
-                  </TouchableOpacity>
                   <TouchableOpacity style={assetStyles.editBtn} onPress={() => {
                     if (editingCardId === card.id) { setEditingCardId(null); return; }
                     setEditingCardId(card.id);
