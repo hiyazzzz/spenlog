@@ -4,6 +4,8 @@ import { useEffect } from 'react'
 const ENDPOINTS = [
   { url: '/api/assets-data', key: 'sp_assets_v2' },
   { url: '/api/history-data', key: 'sp_history_v2' },
+  { url: '/api/home-data', key: 'sp_home_v1' },
+  { url: '/api/settings-data', key: 'sp_settings_v1' },
 ]
 const CACHE_TTL = 5 * 60 * 1000
 
