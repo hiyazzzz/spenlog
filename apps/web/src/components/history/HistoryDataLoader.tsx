@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import HistoryClient from './HistoryClient'
 
 const CACHE_KEY = 'sp_history_v2'
-const CACHE_TTL = 60 * 1000
+const CACHE_TTL = 5 * 60 * 1000
 
 interface HistoryData {
   expenses: any[]

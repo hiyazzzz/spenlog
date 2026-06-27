@@ -1,10 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import AssetsDataLoader from '@/components/assets/AssetsDataLoader'
-
-export default async function AssetsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-  return <AssetsDataLoader userId={user.id} />
+// 자산 탭 콘텐츠는 layout의 TabShell에서 미리 마운트됨 → 서버 왕복 없이 즉각 표시
+export default function AssetsPage() {
+  return null
 }

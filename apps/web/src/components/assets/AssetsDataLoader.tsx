@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import AssetsClient from './AssetsClient'
 
 const CACHE_KEY = 'sp_assets_v2'
-const CACHE_TTL = 60 * 1000 // 60초
+const CACHE_TTL = 5 * 60 * 1000 // 60초
 
 interface AssetsData {
   profile: any; accounts: any[]; cards: any[]; fixedCosts: any[]

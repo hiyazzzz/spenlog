@@ -5,7 +5,7 @@ const ENDPOINTS = [
   { url: '/api/assets-data', key: 'sp_assets_v2' },
   { url: '/api/history-data', key: 'sp_history_v2' },
 ]
-const CACHE_TTL = 60 * 1000
+const CACHE_TTL = 5 * 60 * 1000
 
 export default function Prefetcher({ userId }: { userId: string }) {
   useEffect(() => {

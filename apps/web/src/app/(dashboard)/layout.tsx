@@ -7,6 +7,7 @@ import OfflineBanner from '@/components/ui/OfflineBanner'
 import HomeFAB from '@/components/dashboard/HomeFAB'
 import EnsureUserRow from '@/components/auth/EnsureUserRow'
 import Prefetcher from '@/components/ui/Prefetcher'
+import TabShell from '@/components/ui/TabShell'
 
 export default async function DashboardLayout({
   children,
@@ -46,6 +47,7 @@ export default async function DashboardLayout({
       <Prefetcher userId={userId} />
       <main className="flex-1 w-full max-w-md mx-auto px-4 pt-14 pb-24">
         {children}
+        {userId && <TabShell userId={userId} />}
       </main>
       <BottomNav />
       <OfflineBanner />

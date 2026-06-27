@@ -1,15 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { Suspense } from 'react'
-import HistoryDataLoader from '@/components/history/HistoryDataLoader'
-
-export default async function HistoryPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-  return (
-    <Suspense>
-      <HistoryDataLoader userId={user.id} />
-    </Suspense>
-  )
+// 내역 탭 콘텐츠는 layout의 TabShell에서 미리 마운트됨 → 서버 왕복 없이 즉각 표시
+export default function HistoryPage() {
+  return null
 }
