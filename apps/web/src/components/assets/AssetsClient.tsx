@@ -371,6 +371,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const [cardPayMemo, setCardPayMemo] = useState('')
   const [cardPayAmountErr, setCardPayAmountErr] = useState(false)
   const [cardPaySaving, setCardPaySaving] = useState(false)
+  const [cardPayMonth, setCardPayMonth] = useState('')
   const [cardPaidIds, setCardPaidIds] = useState<Set<string>>(new Set())
   const [cardPayToast, setCardPayToast] = useState('')
   // 카드 수정 인라인 상태 (activeEditId로 통합 관리)
@@ -445,11 +446,25 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
     const yyyy = today.getFullYear()
     const mm = String(today.getMonth() + 1).padStart(2, '0')
     const dd = String(today.getDate()).padStart(2, '0')
+    // 기본: 전월 (7월 3일에 6월 카드값 납부하는 케이스)
+    const prevMonth = today.getMonth() === 0
+      ? `${today.getFullYear() - 1}-12`
+      : `${today.getFullYear()}-${String(today.getMonth()).padStart(2, '0')}`
     setCardPaySheet(card)
+    setCardPayMonth(prevMonth)
     setCardPayDate(`${yyyy}-${mm}-${dd}`)
     setCardPayMemo('')
     setCardPayAmountErr(false)
-    const billingPeriod = getCardBillingPeriod(card, thisMonth)
+    const billingPeriod = getCardBillingPeriod(card, prevMonth)
+    const total = expenses
+      .filter(e => e.payment_method === card.name && e.date >= billingPeriod.start && e.date <= billingPeriod.end)
+      .reduce((s, e) => s + Number(e.amount), 0)
+    setCardPayAmount(total > 0 ? String(total) : '')
+  }
+
+  function selectCardPayMonth(card: Card, month: string) {
+    setCardPayMonth(month)
+    const billingPeriod = getCardBillingPeriod(card, month)
     const total = expenses
       .filter(e => e.payment_method === card.name && e.date >= billingPeriod.start && e.date <= billingPeriod.end)
       .reduce((s, e) => s + Number(e.amount), 0)
@@ -494,7 +509,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       user_id: userId,
       fixed_cost_id: null,
       card_id: cardPaySheet.id,
-      year_month: thisMonth,
+      year_month: cardPayMonth || thisMonth,
       amount: amount,
       is_paid: true,
       paid_at: new Date().toISOString(),
@@ -1040,9 +1055,29 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
           <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 20 }}>
             매월 {cardPaySheet.due_day}일 납부
           </p>
+          {/* 월 선택 칩 */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 8, fontWeight: 600 }}>납부 월 선택</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[-2, -1, 0].map(offset => {
+                const d = new Date(); d.setMonth(d.getMonth() + offset)
+                const m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+                const label = `${d.getMonth() + 1}월`
+                const active = cardPayMonth === m
+                return (
+                  <button key={m} onClick={() => selectCardPayMonth(cardPaySheet!, m)} style={{
+                    flex: 1, padding: '8px 0', borderRadius: 10, fontSize: 13, fontWeight: active ? 700 : 500,
+                    border: `1.5px solid ${active ? 'var(--color-accent, #6366f1)' : '#e5e7eb'}`,
+                    background: active ? 'var(--color-accent, #6366f1)' : '#fff',
+                    color: active ? '#fff' : '#6b7280', cursor: 'pointer',
+                  }}>{label}</button>
+                )
+              })}
+            </div>
+          </div>
           <div style={{ background: '#fefce8', borderRadius: 12, padding: '10px 14px', marginBottom: 20, border: '1px solid #fde68a' }}>
             <p style={{ fontSize: 12, color: '#92400e' }}>
-              💡 카드사 앱에서 이번 달 청구 금액을 확인해보세요
+              💡 카드사 앱에서 {cardPayMonth ? `${parseInt(cardPayMonth.split('-')[1])}월` : '이번 달'} 청구 금액을 확인해보세요
             </p>
           </div>
           <div style={{ marginBottom: 14 }}>
