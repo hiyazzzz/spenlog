@@ -1154,10 +1154,17 @@ function FixedCostsPanel({ themeColors }: { themeColors: ReturnType<typeof getTh
               </View>
               {editingId === item.id && (
                 <View style={fixedStyles.addForm}>
+                  <Text style={fixedStyles.fieldLabel}>항목 이름</Text>
                   <TextInput style={fixedStyles.input} placeholder="항목 이름" placeholderTextColor={COLORS.gray400} value={editName} onChangeText={setEditName} />
                   <View style={fixedStyles.inputRow}>
-                    <TextInput style={[fixedStyles.input, { flex: 1 }]} placeholder="금액" keyboardType="numeric" placeholderTextColor={COLORS.gray400} value={editAmount} onChangeText={v => setEditAmount(fmt(v))} />
-                    <TextInput style={[fixedStyles.input, { width: 100 }]} placeholder="빠져나가는 날" keyboardType="numeric" placeholderTextColor={COLORS.gray400} value={editDueDay} onChangeText={v => setEditDueDay(v.replace(/[^0-9]/g, ''))} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={fixedStyles.fieldLabel}>금액</Text>
+                      <TextInput style={fixedStyles.input} placeholder="금액" keyboardType="numeric" placeholderTextColor={COLORS.gray400} value={editAmount} onChangeText={v => setEditAmount(fmt(v))} />
+                    </View>
+                    <View style={{ width: 100 }}>
+                      <Text style={fixedStyles.fieldLabel}>출금일</Text>
+                      <TextInput style={[fixedStyles.input, { width: 100 }]} placeholder="출금일" keyboardType="numeric" placeholderTextColor={COLORS.gray400} value={editDueDay} onChangeText={v => setEditDueDay(v.replace(/[^0-9]/g, ''))} />
+                    </View>
                   </View>
                   <FixedSelectField label="연결 계좌/카드" placeholder="선택 안 함"
                     value={editLinkedCardId ? selectedLabel(linkedOptions, editLinkedCardId) : editLinkedAccountId ? selectedLabel(accountOptions, editLinkedAccountId) : null}
@@ -1540,6 +1547,51 @@ function BudgetPanel({ themeColors }: { themeColors: ReturnType<typeof getThemeC
               <Text style={budgetStyles.aiRecommendBtnText}>✨ 내 소비 패턴으로 AI 추천받기</Text>
             )}
           </TouchableOpacity>
+
+          {selectedPreset && !aiAmounts && (() => {
+            const preset = PRESETS.find(p => p.key === selectedPreset);
+            if (!preset) return null;
+            const targetSave = Math.round(income * preset.savingRate);
+            const addSave = Math.max(0, targetSave - (data?.fixedSavings ?? 0));
+            return (
+              <View style={budgetStyles.savingAnalysisBox}>
+                <Text style={budgetStyles.savingAnalysisTitle}>💰 저축 플랜</Text>
+                <View style={budgetStyles.savingAnalysisRow}>
+                  <Text style={budgetStyles.savingAnalysisLabel}>목표 저축</Text>
+                  <Text style={[budgetStyles.savingAnalysisValue, { color: COLORS.green }]}>{formatCurrency(targetSave)}</Text>
+                </View>
+                {(data?.fixedSavings ?? 0) > 0 && (
+                  <View style={budgetStyles.savingAnalysisRow}>
+                    <Text style={budgetStyles.savingAnalysisLabel}>고정저축 (확보됨)</Text>
+                    <Text style={budgetStyles.savingAnalysisMuted}>{formatCurrency(data!.fixedSavings)}</Text>
+                  </View>
+                )}
+                <View style={[budgetStyles.savingAnalysisRow, budgetStyles.savingAnalysisDivider]}>
+                  <Text style={budgetStyles.savingAnalysisLabel}>추가 저축 필요</Text>
+                  <Text style={[budgetStyles.savingAnalysisValue, { color: COLORS.green, fontWeight: '800' }]}>{formatCurrency(addSave)}</Text>
+                </View>
+              </View>
+            );
+          })()}
+
+          {selectedPreset && !aiAmounts && (() => {
+            const preset = PRESETS.find(p => p.key === selectedPreset);
+            if (!preset) return null;
+            const activeCats = categories.filter(c => c !== '수입' && enabledCats[c]);
+            const plan = presetAmounts(income, activeCats, preset);
+            if (activeCats.length === 0) return null;
+            return (
+              <View style={budgetStyles.aiResultBox}>
+                <Text style={budgetStyles.savingAnalysisTitle}>📊 지출 예산 배분</Text>
+                {activeCats.map(cat => (
+                  <View key={cat} style={budgetStyles.aiResultRow}>
+                    <Text style={[budgetStyles.aiResultLabel, { color: themeColors.accent }]}>{cat}</Text>
+                    <Text style={budgetStyles.aiResultValue}>{formatCurrency(plan[cat] ?? 0)}</Text>
+                  </View>
+                ))}
+              </View>
+            );
+          })()}
 
           {aiAmounts && (
             <View style={budgetStyles.aiResultBox}>
@@ -1938,6 +1990,14 @@ const budgetStyles = StyleSheet.create({
   aiResultBox: { marginTop: 12, padding: 12, borderRadius: RADIUS.md, backgroundColor: '#fafafa', borderWidth: 1, borderColor: COLORS.gray100 },
   aiReasonText: { fontSize: 12, color: COLORS.gray500, marginBottom: 8 },
   aiResultRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
+
+  savingAnalysisBox: { marginTop: 12, padding: 12, borderRadius: RADIUS.md, backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#bbf7d0' },
+  savingAnalysisTitle: { fontSize: 13, fontWeight: '700', color: COLORS.gray800, marginBottom: 8 },
+  savingAnalysisRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
+  savingAnalysisLabel: { fontSize: 12, color: COLORS.gray500 },
+  savingAnalysisValue: { fontSize: 12, fontWeight: '700', color: COLORS.gray800 },
+  savingAnalysisMuted: { fontSize: 12, color: COLORS.gray400 },
+  savingAnalysisDivider: { borderTopWidth: 1, borderTopColor: 'rgba(16,185,129,0.2)', marginTop: 4, paddingTop: 6 },
   aiResultLabel: { fontSize: 13, fontWeight: '600', color: COLORS.accent },
   aiResultValue: { fontSize: 13, fontWeight: '700', color: COLORS.gray700 },
 
