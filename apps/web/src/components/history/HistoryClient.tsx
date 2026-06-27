@@ -49,6 +49,8 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [calMonth, setCalMonth] = useState(dayjs().format('YYYY-MM'))
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [confirmModal, setConfirmModal] = useState<{ title: string; lines: string[]; onConfirm: () => void } | null>(null)
+  const [alertMsg, setAlertMsg] = useState('')
 
   const filtered = useMemo(() => {
     let list = expenses.filter(e => {
@@ -114,7 +116,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
       .reduce((sum, e) => sum + e.amount, 0)
 
     const remaining = monthTotal - alreadyPaid
-    if (remaining <= 0) { alert(`${payMethod} 이번 달 납부할 잔액이 없어요.`); return }
+    if (remaining <= 0) { setAlertMsg(`${payMethod} 이번 달 납부할 잔액이 없어요.`); setTimeout(() => setAlertMsg(''), 3000); return }
 
     const { data: cards } = await supabase.from('cards').select('*').eq('user_id', userId)
     const matchedCard = (cards ?? []).find((card: any) =>
@@ -126,15 +128,19 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
       accountName = acc?.name ?? ''
     }
 
-    const lines = [
+    const infoLines = [
       `이번 달 [${payMethod}] 총 지출: ${monthTotal.toLocaleString()}원`,
       alreadyPaid > 0 ? `이미 납부: -${alreadyPaid.toLocaleString()}원` : null,
       alreadyPaid > 0 ? `납부 잔액: ${remaining.toLocaleString()}원` : null,
       accountName ? `[${accountName}]에서 금액이 차감됩니다.` : '연결 계좌를 자산 탭에서 먼저 설정해주세요.',
-    ].filter(Boolean).join('\n')
+    ].filter(Boolean) as string[]
 
-    if (!confirm(`💳 카드 납부\n${lines}\n\n납부하시겠어요?`)) return
-    if (!matchedCard) { alert('자산 탭에서 카드를 먼저 등록해주세요.'); return }
+    setConfirmModal({
+      title: '💳 카드 납부',
+      lines: infoLines,
+      onConfirm: async () => {
+        setConfirmModal(null)
+        if (!matchedCard) { setAlertMsg('자산 탭에서 카드를 먼저 등록해주세요.'); setTimeout(() => setAlertMsg(''), 3000); return }
 
     const today2 = dayjs().format('YYYY-MM-DD')
     const { data: newExp, error } = await supabase.from('expenses').insert({
@@ -148,16 +154,18 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
       type: 'expense',
       source: 'manual',
     }).select().single()
-    if (error) { alert('납부 처리 중 오류가 발생했어요.'); return }
-    if (accountName) {
-      const acc = accounts.find(a => a.name === accountName)
-      if (acc) {
-        await supabase.from('accounts').update({ balance: (acc.balance ?? 0) - remaining }).eq('id', acc.id)
-        setAccounts(prev => prev.map(a => a.name === accountName ? { ...a, balance: (a.balance ?? 0) - remaining } : a))
+        if (error) { setAlertMsg('납부 처리 중 오류가 발생했어요.'); setTimeout(() => setAlertMsg(''), 3000); return }
+        if (accountName) {
+          const acc = accounts.find(a => a.name === accountName)
+          if (acc) {
+            await supabase.from('accounts').update({ balance: (acc.balance ?? 0) - remaining }).eq('id', acc.id)
+            setAccounts(prev => prev.map(a => a.name === accountName ? { ...a, balance: (a.balance ?? 0) - remaining } : a))
+          }
+        }
+        if (newExp) setExpenses(prev => [newExp as Expense, ...prev])
+        try { sessionStorage.removeItem('sp_history_v2') } catch {}
       }
-    }
-    if (newExp) setExpenses(prev => [newExp as Expense, ...prev])
-    try { sessionStorage.removeItem('sp_history_v2') } catch {}
+    })
   }
 
   async function deleteExpense(id: string) {
@@ -547,6 +555,37 @@ function TransferEditRow({ expense, accounts, onSaveTransfer, onDelete, onCancel
         <button onClick={handleSave} className="flex-1 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: '#7c3aed' }}>저장</button>
         <button onClick={onDelete} className="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-50 text-rose-400 border border-rose-100">삭제</button>
       </div>
+      {/* 커스텀 카드 납부 확인 모달 */}
+      {confirmModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '28px 24px 36px', width: '100%', maxWidth: 480, boxShadow: '0 -4px 32px rgba(0,0,0,0.15)' }}>
+            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 18, color: '#111827' }}>{confirmModal.title}</div>
+            <div style={{ marginBottom: 18, padding: '16px', background: '#f9fafb', borderRadius: 14 }}>
+              {confirmModal.lines.map((line, i) => (
+                <p key={i} style={{ fontSize: 14, color: '#374151', marginBottom: i < confirmModal.lines.length - 1 ? 6 : 0, lineHeight: 1.6 }}>{line}</p>
+              ))}
+            </div>
+            <p style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 20, textAlign: 'center' }}>납부하시겠어요?</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setConfirmModal(null)}
+                style={{ flex: 1, padding: '14px 0', borderRadius: 14, border: '1px solid #e5e7eb', background: '#f3f4f6', fontSize: 15, fontWeight: 600, color: '#6b7280', cursor: 'pointer' }}
+              >취소</button>
+              <button
+                onClick={() => confirmModal.onConfirm()}
+                style={{ flex: 1, padding: '14px 0', borderRadius: 14, border: 'none', background: 'var(--color-primary, #7c3aed)', fontSize: 15, fontWeight: 700, color: '#fff', cursor: 'pointer' }}
+              >납부</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 알림 토스트 */}
+      {alertMsg && (
+        <div style={{ position: 'fixed', bottom: 88, left: '50%', transform: 'translateX(-50%)', background: '#1f2937', color: '#fff', padding: '11px 22px', borderRadius: 999, fontSize: 13, fontWeight: 500, zIndex: 9999, whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+          {alertMsg}
+        </div>
+      )}
     </div>
   )
 }
@@ -557,89 +596,4 @@ function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, to
   today: string; selectedDate: string | null; onSelectDate: (d: string) => void
   expenses: Expense[]; editingId: string | null; onEdit: (id: string) => void
   onSave: (id: string, u: Partial<Expense>) => void; onDelete: (id: string) => void; onCancelEdit: () => void
-  accounts: {id:string;name:string;balance:number}[]; onSaveTransfer: (id: string, upd: Partial<Expense>, of:string, ot:string, nf:string, nt:string, oa:number, na:number) => void
-  onPayCard?: (e: Expense) => void
-}) {
-  const startOfMonth = dayjs(calMonth).startOf('month')
-  const daysInMonth = startOfMonth.daysInMonth()
-  const firstDow = startOfMonth.day()
-  const weeks: (string | null)[][] = []
-  let week: (string | null)[] = Array(firstDow).fill(null)
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateStr = `${calMonth}-${String(d).padStart(2, '0')}`
-    week.push(dateStr)
-    if (week.length === 7) { weeks.push(week); week = [] }
-  }
-  if (week.length > 0) weeks.push([...week, ...Array(7 - week.length).fill(null)])
-  const selectedItems = selectedDate ? expenses.filter(e => e.date === selectedDate) : []
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={() => onChangeMonth(dayjs(calMonth).subtract(1, 'month').format('YYYY-MM'))}
-          className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-600">‹</button>
-        <span className="text-sm font-bold text-gray-800">{dayjs(calMonth).format('YYYY년 M월')}</span>
-        <button onClick={() => onChangeMonth(dayjs(calMonth).add(1, 'month').format('YYYY-MM'))}
-          className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-600">›</button>
-      </div>
-      <div className="grid grid-cols-7 mb-1">
-        {['일','월','화','수','목','금','토'].map((d, i) => (
-          <div key={d} className="text-center text-xs text-gray-400 py-1"
-            style={{ color: i === 0 ? '#ef4444' : i === 6 ? '#3b82f6' : undefined }}>{d}</div>
-        ))}
-      </div>
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        {weeks.map((week, wi) => (
-          <div key={wi} className="grid grid-cols-7">
-            {week.map((date, di) => {
-              if (!date) return <div key={di} className="h-14" />
-              const amt = calExpenseMap.get(date)
-              const hasIncome = calIncomeSet.has(date)
-              const isToday = date === today
-              const isSelected = date === selectedDate
-              const dow = new Date(date).getDay()
-              return (
-                <button key={date} onClick={() => onSelectDate(date)}
-                  className="h-14 flex flex-col items-center justify-center gap-0.5 transition-colors"
-                  style={{ background: isSelected ? 'var(--color-primary-light)' : undefined }}>
-                  <span className="text-xs font-medium flex items-center justify-center"
-                    style={{ color: isToday ? 'white' : dow === 0 ? '#ef4444' : dow === 6 ? '#3b82f6' : '#374151', background: isToday ? 'var(--color-primary)' : undefined, width: 22, height: 22, borderRadius: '50%' }}>
-                    {parseInt(date.split('-')[2])}
-                  </span>
-                  {amt ? <span className="text-[9px] font-bold text-rose-400">-{amt >= 1000000 ? `${(amt/1000000).toFixed(1)}M` : amt >= 10000 ? `${Math.round(amt/1000)}k` : amt.toLocaleString()}</span> : null}
-                  {hasIncome && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />}
-                </button>
-              )
-            })}
-          </div>
-        ))}
-      </div>
-      {selectedDate && (
-        <div className="mt-4 bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="flex justify-between items-center p-4 border-b border-gray-50">
-            <span className="text-sm font-bold text-gray-700">{dayjs(selectedDate).format('M월 D일 (ddd)')}</span>
-            <span className="text-sm font-bold text-rose-400">
-              {selectedItems.filter(e => (e.type ?? 'expense') !== 'income').length > 0
-                ? `-${selectedItems.filter(e => (e.type ?? 'expense') !== 'income').reduce((s, e) => s + e.amount, 0).toLocaleString()}원`
-                : ''}
-            </span>
-          </div>
-          {selectedItems.length === 0
-            ? <p className="text-center text-sm text-gray-400 py-8">이날은 내역이 없었어요 🌿</p>
-            : selectedItems.map((e, idx) => (
-              <div key={e.id}>
-                {editingId === e.id
-                  ? ((e.type === 'savings' || e.type === 'transfer')
-                      ? <TransferEditRow expense={e} accounts={accounts} onSaveTransfer={(upd,of,ot,nf,nt,oa,na) => onSaveTransfer(e.id,upd,of,ot,nf,nt,oa,na)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />
-                      : <EditRow expense={e} onSave={u => onSave(e.id, u)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />)
-                  : <ExpenseRow expense={e} onTap={() => onEdit(e.id)} onPayCard={onPayCard} />
-                }
-                {idx < selectedItems.length - 1 && <div className="h-px bg-gray-50 mx-4" />}
-              </div>
-            ))
-          }
-        </div>
-      )}
-    </div>
-  )
-}
+  accounts: {id:string;name:string;balance:number}[]; onSaveTransfer: (id: string, upd: Partial<Expense>, of:string, ot:string, nf:string, nt:string
