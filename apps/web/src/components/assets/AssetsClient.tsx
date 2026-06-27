@@ -1083,40 +1083,27 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             </p>
           </div>
           <div style={{ marginBottom: 14 }}>
-            {/* 금액 디스플레이 */}
-            <div style={{ textAlign: 'center', padding: '14px 12px 10px', borderRadius: 14, background: '#fafafa', border: `1.5px solid ${cardPayAmountErr ? '#ef4444' : '#e5e7eb'}`, marginBottom: 4 }}>
-              <span style={{ fontSize: 26, fontWeight: 700, color: cardPayAmount ? '#111827' : '#d1d5db', letterSpacing: '-0.5px' }}>
-                {cardPayAmount ? `${cardPayAmount}원` : '금액을 입력하세요'}
-              </span>
-            </div>
-            {cardPayAmountErr && <p style={{ fontSize: 11, color: '#ef4444', marginBottom: 6, textAlign: 'center' }}>{TEXTS.assets.cardPaySheet.errAmount}</p>}
-            {/* 커스텀 숫자 키패드 */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginTop: 8 }}>
-              {['1','2','3','4','5','6','7','8','9','00','0','⌫'].map(k => (
-                <button key={k} onClick={() => {
+            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6, fontWeight: 600 }}>{TEXTS.assets.cardPaySheet.labelAmount}</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14, color: '#6b7280' }}>납부금액</span>
+              <input
+                type="text" inputMode="numeric" placeholder={TEXTS.assets.cardPaySheet.amountPh}
+                value={cardPayAmount}
+                onChange={e => {
+                  const n = e.target.value.replace(/[^0-9]/g, '')
+                  setCardPayAmount(n ? Number(n).toLocaleString() : '')
                   setCardPayAmountErr(false)
-                  setCardPayAmount(prev => {
-                    const raw = prev.replace(/,/g, '')
-                    if (k === '⌫') {
-                      const next = raw.slice(0, -1)
-                      return next ? Number(next).toLocaleString() : ''
-                    }
-                    const next = raw + k
-                    if (next.length > 9) return prev
-                    return Number(next).toLocaleString()
-                  })
                 }}
+                autoFocus
                 style={{
-                  padding: '14px 0', borderRadius: 12, border: 'none',
-                  background: k === '⌫' ? '#fee2e2' : '#f3f4f6',
-                  fontSize: k === '⌫' ? 20 : 17, fontWeight: 600,
-                  color: k === '⌫' ? '#ef4444' : '#111827',
-                  cursor: 'pointer', fontFamily: 'inherit',
-                }}>
-                  {k}
-                </button>
-              ))}
+                  flex: 1, padding: '12px', borderRadius: 12,
+                  border: `1.5px solid ${cardPayAmountErr ? '#ef4444' : '#e5e7eb'}`,
+                  fontSize: 16, fontWeight: 600, outline: 'none',
+                  fontFamily: 'inherit', background: '#fafafa',
+                }}
+              />
             </div>
+            {cardPayAmountErr && <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{TEXTS.assets.cardPaySheet.errAmount}</p>}
           </div>
           <div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 6, fontWeight: 600 }}>{TEXTS.assets.cardPaySheet.labelDate}</label>
