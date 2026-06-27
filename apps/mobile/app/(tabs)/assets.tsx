@@ -790,33 +790,29 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
         <View style={assetStyles.modalSheet}>
           <Text style={assetStyles.modalTitle}>{cardPaySheet?.name} 대금 납부 기록</Text>
 
-          {/* 월 화살표 선택 */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 14, gap: 16 }}>
-            <TouchableOpacity onPress={() => {
-              const [y, m] = cardPayMonth.split('-').map(Number);
-              const prev = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
-              setCardPayMonth(prev); loadMonthTotal(prev);
-            }} style={{ padding: 8 }}>
-              <Text style={{ fontSize: 24, color: colors.text, fontWeight: '300' }}>‹</Text>
-            </TouchableOpacity>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text, minWidth: 90, textAlign: 'center' }}>
-              {cardPayMonth ? `${cardPayMonth.split('-')[0]}년 ${parseInt(cardPayMonth.split('-')[1])}월` : ''}
-            </Text>
-            <TouchableOpacity onPress={() => {
-              const [y, m] = cardPayMonth.split('-').map(Number);
-              const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+          {/* 납부 월 안내 */}
+          <Text style={{ fontSize: 12, color: COLORS.gray400, marginBottom: 10, textAlign: 'center' }}>
+            최근 3개월 내역을 확인하고 납부 기록할 수 있어요
+          </Text>
+          {/* 월 칩 선택 */}
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+            {[-2, -1, 0].map(offset => {
               const now = new Date();
-              const thisM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-              if (next <= thisM) { setCardPayMonth(next); loadMonthTotal(next); }
-            }} style={{ padding: 8 }}>
-              <Text style={{ fontSize: 24, fontWeight: '300', color: (() => {
-                const [y, m] = cardPayMonth.split('-').map(Number);
-                const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
-                const now = new Date();
-                const thisM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-                return next <= thisM ? colors.text : colors.gray400;
-              })() }}>›</Text>
-            </TouchableOpacity>
+              const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+              const m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+              const label = `${d.getMonth() + 1}월분`;
+              const active = cardPayMonth === m;
+              return (
+                <TouchableOpacity key={m}
+                  style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center',
+                    backgroundColor: active ? themeColors.primary : '#f3f4f6',
+                    borderWidth: active ? 0 : 1, borderColor: '#e5e7eb' }}
+                  onPress={() => { setCardPayMonth(m); loadMonthTotal(m); }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: active ? '#fff' : COLORS.gray500 }}>{label}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
           {cardPayMonthTotal > 0 && (
             <Text style={{ fontSize: 11, color: COLORS.gray400, marginBottom: 6 }}>
