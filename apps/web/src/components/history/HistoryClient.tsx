@@ -596,4 +596,89 @@ function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, to
   today: string; selectedDate: string | null; onSelectDate: (d: string) => void
   expenses: Expense[]; editingId: string | null; onEdit: (id: string) => void
   onSave: (id: string, u: Partial<Expense>) => void; onDelete: (id: string) => void; onCancelEdit: () => void
-  accounts: {id:string;name:string;balance:number}[]; onSaveTransfer: (id: string, upd: Partial<Expense>, of:string, ot:string, nf:string, nt:string
+  accounts: {id:string;name:string;balance:number}[]; onSaveTransfer: (id: string, upd: Partial<Expense>, of:string, ot:string, nf:string, nt:string, oa:number, na:number) => void
+  onPayCard?: (e: Expense) => void
+}) {
+  const startOfMonth = dayjs(calMonth).startOf('month')
+  const daysInMonth = startOfMonth.daysInMonth()
+  const firstDow = startOfMonth.day()
+  const weeks: (string | null)[][] = []
+  let week: (string | null)[] = Array(firstDow).fill(null)
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${calMonth}-${String(d).padStart(2, '0')}`
+    week.push(dateStr)
+    if (week.length === 7) { weeks.push(week); week = [] }
+  }
+  if (week.length > 0) weeks.push([...week, ...Array(7 - week.length).fill(null)])
+  const selectedItems = selectedDate ? expenses.filter(e => e.date === selectedDate) : []
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <button onClick={() => onChangeMonth(dayjs(calMonth).subtract(1, 'month').format('YYYY-MM'))}
+          className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-600">‹</button>
+        <span className="text-sm font-bold text-gray-800">{dayjs(calMonth).format('YYYY년 M월')}</span>
+        <button onClick={() => onChangeMonth(dayjs(calMonth).add(1, 'month').format('YYYY-MM'))}
+          className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-600">›</button>
+      </div>
+      <div className="grid grid-cols-7 mb-1">
+        {['일','월','화','수','목','금','토'].map((d, i) => (
+          <div key={d} className="text-center text-xs text-gray-400 py-1"
+            style={{ color: i === 0 ? '#ef4444' : i === 6 ? '#3b82f6' : undefined }}>{d}</div>
+        ))}
+      </div>
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        {weeks.map((week, wi) => (
+          <div key={wi} className="grid grid-cols-7">
+            {week.map((date, di) => {
+              if (!date) return <div key={di} className="h-14" />
+              const amt = calExpenseMap.get(date)
+              const hasIncome = calIncomeSet.has(date)
+              const isToday = date === today
+              const isSelected = date === selectedDate
+              const dow = new Date(date).getDay()
+              return (
+                <button key={date} onClick={() => onSelectDate(date)}
+                  className="h-14 flex flex-col items-center justify-center gap-0.5 transition-colors"
+                  style={{ background: isSelected ? 'var(--color-primary-light)' : undefined }}>
+                  <span className="text-xs font-medium flex items-center justify-center"
+                    style={{ color: isToday ? 'white' : dow === 0 ? '#ef4444' : dow === 6 ? '#3b82f6' : '#374151', background: isToday ? 'var(--color-primary)' : undefined, width: 22, height: 22, borderRadius: '50%' }}>
+                    {parseInt(date.split('-')[2])}
+                  </span>
+                  {amt ? <span className="text-[9px] font-bold text-rose-400">-{amt >= 1000000 ? `${(amt/1000000).toFixed(1)}M` : amt >= 10000 ? `${Math.round(amt/1000)}k` : amt.toLocaleString()}</span> : null}
+                  {hasIncome && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />}
+                </button>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+      {selectedDate && (
+        <div className="mt-4 bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="flex justify-between items-center p-4 border-b border-gray-50">
+            <span className="text-sm font-bold text-gray-700">{dayjs(selectedDate).format('M월 D일 (ddd)')}</span>
+            <span className="text-sm font-bold text-rose-400">
+              {selectedItems.filter(e => (e.type ?? 'expense') !== 'income').length > 0
+                ? `-${selectedItems.filter(e => (e.type ?? 'expense') !== 'income').reduce((s, e) => s + e.amount, 0).toLocaleString()}원`
+                : ''}
+            </span>
+          </div>
+          {selectedItems.length === 0
+            ? <p className="text-center text-sm text-gray-400 py-8">이날은 내역이 없었어요 🌿</p>
+            : selectedItems.map((e, idx) => (
+              <div key={e.id}>
+                {editingId === e.id
+                  ? ((e.type === 'savings' || e.type === 'transfer')
+                      ? <TransferEditRow expense={e} accounts={accounts} onSaveTransfer={(upd,of,ot,nf,nt,oa,na) => onSaveTransfer(e.id,upd,of,ot,nf,nt,oa,na)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />
+                      : <EditRow expense={e} onSave={u => onSave(e.id, u)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />)
+                  : <ExpenseRow expense={e} onTap={() => onEdit(e.id)} onPayCard={onPayCard} />
+                }
+                {idx < selectedItems.length - 1 && <div className="h-px bg-gray-50 mx-4" />}
+              </div>
+            ))
+          }
+        </div>
+      )}
+    </div>
+  )
+}
