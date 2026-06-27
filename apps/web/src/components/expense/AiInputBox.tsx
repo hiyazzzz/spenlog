@@ -115,6 +115,8 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
       setText('')
       setEditingIdx(null)
       setSaveFailCount(0)
+      try { sessionStorage.removeItem('sp_history_v2') } catch {}
+      try { sessionStorage.removeItem('sp_home_v1') } catch {}
       router.push('/history')
     } catch {
       const newCount = saveFailCount + 1
@@ -144,6 +146,8 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
           setFailModal(false)
           setInlineSaved(false)
           setInlineForm({ name: '', amount: '', category: cats[0] ?? '생활비', payment_method: '카드' })
+          try { sessionStorage.removeItem('sp_history_v2') } catch {}
+          try { sessionStorage.removeItem('sp_home_v1') } catch {}
           router.push('/history')
         }, 1000)
       }
