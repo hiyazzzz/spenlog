@@ -237,7 +237,7 @@ export default function BudgetScreen() {
           </TouchableOpacity>
 
           {/* 저축 분석 — 프리셋 선택 시 */}
-          {selectedPreset && income > 0 && !aiAmounts && (() => {
+          {selectedPreset && !aiAmounts && (() => {
             const preset = PRESETS.find(p => p.key === selectedPreset);
             if (!preset) return null;
             const targetSave = Math.round(income * preset.savingRate);
@@ -264,7 +264,7 @@ export default function BudgetScreen() {
           })()}
 
           {/* 지출 예산 배분 미리보기 — 프리셋 선택 시 */}
-          {selectedPreset && income > 0 && !aiAmounts && (() => {
+          {selectedPreset && !aiAmounts && (() => {
             const preset = PRESETS.find(p => p.key === selectedPreset);
             if (!preset) return null;
             const activeCats = categories.filter(c => c !== '수입' && enabledCats[c]);
