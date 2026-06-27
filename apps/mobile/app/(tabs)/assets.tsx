@@ -371,7 +371,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
     setCardPaySaving(true);
     try {
       const today = new Date().toISOString().split('T')[0];
-      await recordCardPayment(userId, cardPaySheet, monthString(), amount, today, cardPayMemo.trim() || null);
+      await recordCardPayment(userId, cardPaySheet, cardPayMonth || monthString(), amount, today, cardPayMemo.trim() || null);
       setPaidCardIds(prev => new Set(prev).add(cardPaySheet.id));
       setCardPaySheet(null);
       setRoutineToast(`${cardPaySheet.name} 카드 대금 기록 완료 ✓`);
