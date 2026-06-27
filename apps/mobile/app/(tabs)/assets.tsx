@@ -7,12 +7,12 @@ import { COLORS, RADIUS, CARD_SHADOW, formatCurrency, getThemeColors, useThemeCo
 import { getCurrentUserId } from '@/lib/supabase';
 import { monthString } from '@/lib/date';
 import { getAssetsData, addAccount, deleteAccount, addCard, deleteCard, updateIncome, updateAccount, updateCard, getMonthExpensesTotal, type AssetsData } from '@/lib/api/assets';
-import { getFixedCostsData, addFixedCost, deleteFixedCost, type FixedCostsData } from '@/lib/api/fixed-costs';
+import { getFixedCostsData, addFixedCost, editFixedCost, deleteFixedCost, type FixedCostsData } from '@/lib/api/fixed-costs';
 import { getBudgetData, saveBudgets, recommendBudget, type BudgetData } from '@/lib/api/budget';
 import { getPaidFixedCostNames, getPaidCardIds, recordFixedCostPayment, recordCardPayment } from '@/lib/api/routine';
 import type { Card as CardType, FixedCost } from '@spenlog/types';
 
-const ACCOUNT_TYPES = ['입출금', '파킹', 'CMA', '현금'] as const;
+const ACCOUNT_TYPES = ['입출금', '적금', '투자', '기타'] as const;
 
 type SubTab = 'assets' | 'fixed' | 'budget';
 
@@ -118,6 +118,8 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
   const [editCardName, setEditCardName] = useState('');
   const [editCardBank, setEditCardBank] = useState('');
   const [editCardDueDay, setEditCardDueDay] = useState('');
+  const [editCardBillingStart, setEditCardBillingStart] = useState('');
+  const [editCardLinkedAccountId, setEditCardLinkedAccountId] = useState<string | null>(null);
   const [savingEditCard, setSavingEditCard] = useState(false);
 
   // 월 수입 수정
@@ -312,6 +314,8 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
       const { error: err } = await updateCard(editingCardId, {
         name: editCardName.trim(), bank: editCardBank.trim(),
         due_day: editCardDueDay ? parseInt(editCardDueDay) : null,
+        billing_start_day: editCardBillingStart ? parseInt(editCardBillingStart) : null,
+        linked_account_id: editCardLinkedAccountId ?? null,
       });
       if (err) { Alert.alert('수정 실패', err.message); return; }
       setEditingCardId(null);
@@ -366,7 +370,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
     try {
       const total = await getMonthExpensesTotal(userId, month, cardName);
       setCardPayMonthTotal(total);
-      setCardPayAmount(total > 0 ? String(total) : '');
+      setCardPayAmount(total > 0 ? fmt(String(total)) : '');
     } finally {
       setLoadingMonthTotal(false);
     }
@@ -616,10 +620,14 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
             </View>
             {editingAccountId === acc.id && (
               <View style={assetStyles.inlineEditForm}>
-                <TextInput style={assetStyles.input} value={editAccName} onChangeText={setEditAccName} placeholder="계좌명" placeholderTextColor={COLORS.gray400} />
-                <TextInput style={[assetStyles.input, { marginTop: 8 }]} value={editAccBank} onChangeText={setEditAccBank} placeholder="은행" placeholderTextColor={COLORS.gray400} />
-                <TextInput style={[assetStyles.input, { marginTop: 8 }]} value={editAccBalance ? Number(editAccBalance).toLocaleString() : ''} onChangeText={v => setEditAccBalance(v.replace(/[^0-9]/g, ''))} keyboardType="numeric" placeholder="잔액" placeholderTextColor={COLORS.gray400} />
-                <View style={[assetStyles.chipRow, { marginTop: 8 }]}>
+                <Text style={[assetStyles.fieldLabel, { marginBottom: 4 }]}>계좌명</Text>
+                <TextInput style={assetStyles.input} value={editAccName} onChangeText={setEditAccName} placeholder="예) 국민 주거래통장" placeholderTextColor={COLORS.gray400} />
+                <Text style={[assetStyles.fieldLabel, { marginTop: 10, marginBottom: 4 }]}>은행</Text>
+                <TextInput style={assetStyles.input} value={editAccBank} onChangeText={setEditAccBank} placeholder="예) KB국민" placeholderTextColor={COLORS.gray400} />
+                <Text style={[assetStyles.fieldLabel, { marginTop: 10, marginBottom: 4 }]}>잔액</Text>
+                <TextInput style={assetStyles.input} value={editAccBalance ? Number(editAccBalance).toLocaleString() : ''} onChangeText={v => setEditAccBalance(v.replace(/[^0-9]/g, ''))} keyboardType="numeric" placeholder="0" placeholderTextColor={COLORS.gray400} />
+                <Text style={[assetStyles.fieldLabel, { marginTop: 10, marginBottom: 6 }]}>유형</Text>
+                <View style={[assetStyles.chipRow, { marginBottom: 4 }]}>
                   {ACCOUNT_TYPES.map(t => (
                     <TouchableOpacity key={t} style={[assetStyles.typeChip, editAccType === t && assetStyles.typeChipActive, { borderColor: themeColors.primary }]} onPress={() => setEditAccType(t)}>
                       <Text style={[assetStyles.typeChipText, editAccType === t && { color: themeColors.primary }]}>{t}</Text>
@@ -700,6 +708,8 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
                     setEditCardName(card.name);
                     setEditCardBank(card.bank);
                     setEditCardDueDay(card.due_day ? String(card.due_day) : '');
+                    setEditCardBillingStart(card.billing_start_day ? String(card.billing_start_day) : '');
+                    setEditCardLinkedAccountId(card.linked_account_id ?? null);
                   }}>
                     <Text style={assetStyles.editBtnText}>{editingCardId === card.id ? '닫기' : '수정'}</Text>
                   </TouchableOpacity>
@@ -710,9 +720,29 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
               </View>
               {editingCardId === card.id && (
                 <View style={assetStyles.inlineEditForm}>
-                  <TextInput style={assetStyles.input} value={editCardName} onChangeText={setEditCardName} placeholder="카드명" placeholderTextColor={COLORS.gray400} />
-                  <TextInput style={[assetStyles.input, { marginTop: 8 }]} value={editCardBank} onChangeText={setEditCardBank} placeholder="카드사" placeholderTextColor={COLORS.gray400} />
-                  <TextInput style={[assetStyles.input, { marginTop: 8 }]} value={editCardDueDay} onChangeText={v => setEditCardDueDay(v.replace(/[^0-9]/g, ''))} keyboardType="numeric" placeholder="납부일 (예: 15)" placeholderTextColor={COLORS.gray400} />
+                  <Text style={[assetStyles.fieldLabel, { marginBottom: 4 }]}>카드명</Text>
+                  <TextInput style={assetStyles.input} value={editCardName} onChangeText={setEditCardName} placeholder="예) 신한카드" placeholderTextColor={COLORS.gray400} />
+                  <Text style={[assetStyles.fieldLabel, { marginTop: 10, marginBottom: 4 }]}>카드사</Text>
+                  <TextInput style={assetStyles.input} value={editCardBank} onChangeText={setEditCardBank} placeholder="예) 신한" placeholderTextColor={COLORS.gray400} />
+                  <Text style={[assetStyles.fieldLabel, { marginTop: 10, marginBottom: 4 }]}>대금 출금일</Text>
+                  <TextInput style={assetStyles.input} value={editCardDueDay} onChangeText={v => setEditCardDueDay(v.replace(/[^0-9]/g, ''))} keyboardType="numeric" placeholder="예) 15" placeholderTextColor={COLORS.gray400} />
+                  <Text style={[assetStyles.fieldLabel, { marginTop: 10, marginBottom: 4 }]}>청구 시작일 (선택)</Text>
+                  <TextInput style={assetStyles.input} value={editCardBillingStart} onChangeText={v => setEditCardBillingStart(v.replace(/[^0-9]/g, ''))} keyboardType="numeric" placeholder="미입력 시 매달 1일 기준" placeholderTextColor={COLORS.gray400} />
+                  <Text style={[assetStyles.fieldLabel, { marginTop: 10, marginBottom: 4 }]}>연결 계좌</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
+                    <TouchableOpacity
+                      style={[assetStyles.typeChip, editCardLinkedAccountId === null && assetStyles.typeChipActive, editCardLinkedAccountId === null && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
+                      onPress={() => setEditCardLinkedAccountId(null)}>
+                      <Text style={[assetStyles.typeChipText, editCardLinkedAccountId === null && assetStyles.typeChipTextActive]}>없음</Text>
+                    </TouchableOpacity>
+                    {accounts.map(acc => (
+                      <TouchableOpacity key={acc.id}
+                        style={[assetStyles.typeChip, editCardLinkedAccountId === acc.id && assetStyles.typeChipActive, editCardLinkedAccountId === acc.id && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
+                        onPress={() => setEditCardLinkedAccountId(acc.id)}>
+                        <Text style={[assetStyles.typeChipText, editCardLinkedAccountId === acc.id && assetStyles.typeChipTextActive]}>{acc.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                   <View style={assetStyles.formBtnRow}>
                     <TouchableOpacity style={[assetStyles.confirmBtn, { backgroundColor: themeColors.primary }]} onPress={handleUpdateCard} disabled={savingEditCard || !editCardName.trim()}>
                       <Text style={assetStyles.confirmBtnText}>{savingEditCard ? '저장 중...' : '저장'}</Text>
@@ -948,7 +978,63 @@ function FixedCostsPanel({ themeColors }: { themeColors: ReturnType<typeof getTh
   const [creditAccountId, setCreditAccountId] = useState<string | null>(null);
   const [savingSaving, setSavingSaving] = useState(false);
 
-  const [activePicker, setActivePicker] = useState<'linked' | 'debit' | 'credit' | null>(null);
+  const [activePicker, setActivePicker] = useState<'linked' | 'debit' | 'credit' | 'edit-linked' | 'edit-credit' | null>(null);
+
+  // 수정 상태
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editDueDay, setEditDueDay] = useState('');
+  const [editLinkedAccountId, setEditLinkedAccountId] = useState<string | null>(null);
+  const [editLinkedCardId, setEditLinkedCardId] = useState<string | null>(null);
+  const [editDebitAccountId, setEditDebitAccountId] = useState<string | null>(null);
+  const [editCreditAccountId, setEditCreditAccountId] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+
+  function openEdit(item: FixedCost) {
+    setEditingId(item.id);
+    setEditName(item.name);
+    setEditAmount(fmt(String(item.amount)));
+    setEditDueDay(item.due_day != null ? String(item.due_day) : '');
+    setEditLinkedAccountId((item as any).linked_account_id ?? null);
+    setEditLinkedCardId((item as any).linked_card_id ?? null);
+    setEditDebitAccountId((item as any).linked_account_id ?? null);
+    setEditCreditAccountId((item as any).linked_target_account_id ?? null);
+  }
+
+  async function handleEditSave() {
+    if (!editingId || editSaving) return;
+    const amt = parse(editAmount);
+    if (!editName.trim() || amt <= 0) return;
+    setEditSaving(true);
+    try {
+      const item = data?.fixedCosts.find(f => f.id === editingId);
+      const isTransfer = item?.kind === '고정저축';
+      const updates: Record<string, unknown> = {
+        name: editName.trim(),
+        amount: amt,
+        due_day: editDueDay ? parseInt(editDueDay) : null,
+      };
+      if (isTransfer) {
+        updates.linked_account_id = editDebitAccountId ?? null;
+        updates.linked_target_account_id = editCreditAccountId ?? null;
+        updates.linked_card_id = null;
+      } else {
+        if (editLinkedCardId) {
+          updates.linked_card_id = editLinkedCardId;
+          updates.linked_account_id = null;
+        } else {
+          updates.linked_account_id = editLinkedAccountId ?? null;
+          updates.linked_card_id = null;
+        }
+      }
+      await editFixedCost(editingId, updates);
+      setEditingId(null);
+      await load();
+    } finally {
+      setEditSaving(false);
+    }
+  }
 
   const load = useCallback(async () => {
     try {
@@ -1052,15 +1138,40 @@ function FixedCostsPanel({ themeColors }: { themeColors: ReturnType<typeof getTh
           <Text style={fixedStyles.emptyText}>등록된 고정 지출이 없어요</Text>
         ) : (
           expenseItems.map((item, i) => (
-            <View key={item.id} style={[fixedStyles.itemRow, i === 0 && { borderTopWidth: 0 }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={fixedStyles.itemName}>{item.name}</Text>
-                <Text style={fixedStyles.itemMeta}>{item.due_day != null ? `매월 ${item.due_day}일` : '-'}</Text>
+            <View key={item.id}>
+              <View style={[fixedStyles.itemRow, i === 0 && { borderTopWidth: 0 }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={fixedStyles.itemName}>{item.name}</Text>
+                  <Text style={fixedStyles.itemMeta}>{item.due_day != null ? `매월 ${item.due_day}일` : '-'}</Text>
+                </View>
+                <Text style={[fixedStyles.itemAmount, { color: themeColors.accent }]}>{formatCurrency(item.amount)}</Text>
+                <TouchableOpacity style={fixedStyles.editBtn} onPress={() => editingId === item.id ? setEditingId(null) : openEdit(item)}>
+                  <Text style={[fixedStyles.editBtnText, { color: themeColors.primary }]}>{editingId === item.id ? '닫기' : '수정'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={fixedStyles.deleteBtn} onPress={() => confirmDelete(item.id, item.name)}>
+                  <Text style={fixedStyles.deleteBtnText}>삭제</Text>
+                </TouchableOpacity>
               </View>
-              <Text style={[fixedStyles.itemAmount, { color: themeColors.accent }]}>{formatCurrency(item.amount)}</Text>
-              <TouchableOpacity style={fixedStyles.deleteBtn} onPress={() => confirmDelete(item.id, item.name)}>
-                <Text style={fixedStyles.deleteBtnText}>삭제</Text>
-              </TouchableOpacity>
+              {editingId === item.id && (
+                <View style={fixedStyles.addForm}>
+                  <TextInput style={fixedStyles.input} placeholder="항목 이름" placeholderTextColor={COLORS.gray400} value={editName} onChangeText={setEditName} />
+                  <View style={fixedStyles.inputRow}>
+                    <TextInput style={[fixedStyles.input, { flex: 1 }]} placeholder="금액" keyboardType="numeric" placeholderTextColor={COLORS.gray400} value={editAmount} onChangeText={v => setEditAmount(fmt(v))} />
+                    <TextInput style={[fixedStyles.input, { width: 100 }]} placeholder="빠져나가는 날" keyboardType="numeric" placeholderTextColor={COLORS.gray400} value={editDueDay} onChangeText={v => setEditDueDay(v.replace(/[^0-9]/g, ''))} />
+                  </View>
+                  <FixedSelectField label="연결 계좌/카드" placeholder="선택 안 함"
+                    value={editLinkedCardId ? selectedLabel(linkedOptions, editLinkedCardId) : editLinkedAccountId ? selectedLabel(accountOptions, editLinkedAccountId) : null}
+                    onPress={() => setActivePicker('edit-linked')} color={themeColors.accent} />
+                  <View style={fixedStyles.formBtnRow}>
+                    <TouchableOpacity style={fixedStyles.cancelBtn} onPress={() => setEditingId(null)}>
+                      <Text style={fixedStyles.cancelBtnText}>취소</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[fixedStyles.confirmBtn, { backgroundColor: themeColors.primary }, (!editName.trim() || !editAmount || editSaving) && { opacity: 0.5 }]} onPress={handleEditSave} disabled={!editName.trim() || !editAmount || editSaving}>
+                      <Text style={fixedStyles.confirmBtnText}>{editSaving ? '저장 중...' : '수정 저장'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             </View>
           ))
         )}
@@ -1123,15 +1234,43 @@ function FixedCostsPanel({ themeColors }: { themeColors: ReturnType<typeof getTh
           <Text style={fixedStyles.emptyText}>등록된 고정 저축이 없어요</Text>
         ) : (
           savingItems.map((item, i) => (
-            <View key={item.id} style={[fixedStyles.itemRow, i === 0 && { borderTopWidth: 0 }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={fixedStyles.itemName}>{item.name}</Text>
-                <Text style={fixedStyles.itemMeta}>{item.due_day != null ? `매월 ${item.due_day}일` : '-'}</Text>
+            <View key={item.id}>
+              <View style={[fixedStyles.itemRow, i === 0 && { borderTopWidth: 0 }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={fixedStyles.itemName}>{item.name}</Text>
+                  <Text style={fixedStyles.itemMeta}>{item.due_day != null ? `매월 ${item.due_day}일` : '-'}</Text>
+                </View>
+                <Text style={fixedStyles.itemAmountGreen}>{formatCurrency(item.amount)}</Text>
+                <TouchableOpacity style={fixedStyles.editBtn} onPress={() => editingId === item.id ? setEditingId(null) : openEdit(item)}>
+                  <Text style={[fixedStyles.editBtnText, { color: COLORS.green }]}>{editingId === item.id ? '닫기' : '수정'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={fixedStyles.deleteBtn} onPress={() => confirmDelete(item.id, item.name)}>
+                  <Text style={fixedStyles.deleteBtnText}>삭제</Text>
+                </TouchableOpacity>
               </View>
-              <Text style={fixedStyles.itemAmountGreen}>{formatCurrency(item.amount)}</Text>
-              <TouchableOpacity style={fixedStyles.deleteBtn} onPress={() => confirmDelete(item.id, item.name)}>
-                <Text style={fixedStyles.deleteBtnText}>삭제</Text>
-              </TouchableOpacity>
+              {editingId === item.id && (
+                <View style={fixedStyles.addForm}>
+                  <TextInput style={fixedStyles.input} placeholder="항목 이름" placeholderTextColor={COLORS.gray400} value={editName} onChangeText={setEditName} />
+                  <View style={fixedStyles.inputRow}>
+                    <TextInput style={[fixedStyles.input, { flex: 1 }]} placeholder="금액" keyboardType="numeric" placeholderTextColor={COLORS.gray400} value={editAmount} onChangeText={v => setEditAmount(fmt(v))} />
+                    <TextInput style={[fixedStyles.input, { width: 100 }]} placeholder="이체일" keyboardType="numeric" placeholderTextColor={COLORS.gray400} value={editDueDay} onChangeText={v => setEditDueDay(v.replace(/[^0-9]/g, ''))} />
+                  </View>
+                  <FixedSelectField label="출금 계좌" placeholder="선택 안 함"
+                    value={editDebitAccountId ? selectedLabel(accountOptions, editDebitAccountId) : null}
+                    onPress={() => setActivePicker('edit-debit')} color={themeColors.accent} />
+                  <FixedSelectField label="입금 계좌" placeholder="선택 안 함"
+                    value={editCreditAccountId ? selectedLabel(accountOptions, editCreditAccountId) : null}
+                    onPress={() => setActivePicker('edit-credit')} color={COLORS.green} />
+                  <View style={fixedStyles.formBtnRow}>
+                    <TouchableOpacity style={fixedStyles.cancelBtn} onPress={() => setEditingId(null)}>
+                      <Text style={fixedStyles.cancelBtnText}>취소</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[fixedStyles.confirmBtn, { backgroundColor: COLORS.green }, (!editName.trim() || !editAmount || editSaving) && { opacity: 0.5 }]} onPress={handleEditSave} disabled={!editName.trim() || !editAmount || editSaving}>
+                      <Text style={fixedStyles.confirmBtnText}>{editSaving ? '저장 중...' : '수정 저장'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             </View>
           ))
         )}
@@ -1189,6 +1328,13 @@ function FixedCostsPanel({ themeColors }: { themeColors: ReturnType<typeof getTh
         onSelect={opt => { setDebitAccountId(opt?.id ?? null); setActivePicker(null); }} onClose={() => setActivePicker(null)} />
       <FixedSelectModal visible={activePicker === 'credit'} title="입금 계좌 (적금 계좌)" options={accountOptions}
         onSelect={opt => { setCreditAccountId(opt?.id ?? null); setActivePicker(null); }} onClose={() => setActivePicker(null)} />
+      <FixedSelectModal visible={activePicker === 'edit-linked'} title="연결 계좌/카드" options={linkedOptions}
+        onSelect={opt => { setEditLinkedAccountId(opt?.type === 'account' ? opt.id : null); setEditLinkedCardId(opt?.type === 'card' ? opt.id : null); setActivePicker(null); }}
+        onClose={() => setActivePicker(null)} />
+      <FixedSelectModal visible={activePicker === 'edit-debit'} title="출금 계좌" options={accountOptions}
+        onSelect={opt => { setEditDebitAccountId(opt?.id ?? null); setActivePicker(null); }} onClose={() => setActivePicker(null)} />
+      <FixedSelectModal visible={activePicker === 'edit-credit'} title="입금 계좌" options={accountOptions}
+        onSelect={opt => { setEditCreditAccountId(opt?.id ?? null); setActivePicker(null); }} onClose={() => setActivePicker(null)} />
     </ScrollView>
   );
 }
@@ -1707,6 +1853,8 @@ const fixedStyles = StyleSheet.create({
   itemAmountGreen: { fontSize: 13, fontWeight: '700', color: COLORS.green },
   deleteBtn: { backgroundColor: COLORS.redBg, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
   deleteBtnText: { fontSize: 11, color: COLORS.red },
+  editBtn: { backgroundColor: '#eff6ff', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
+  editBtnText: { fontSize: 11, fontWeight: '600' },
 
   subtotalRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',

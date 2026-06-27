@@ -183,7 +183,8 @@ export default function BudgetScreen() {
     enabledCats[cat] !== savedEnabledRef.current[cat]
   );
   const totalBudget = categories.filter(c => enabledCats[c]).reduce((s, c) => s + (parseInt(amounts[c] || '0') || 0), 0);
-  const totalSpent = expenses.reduce((s, e) => s + e.amount, 0);
+  const spendOnlyExpenses = expenses.filter((e: any) => !e.type || e.type === 'expense');
+  const totalSpent = spendOnlyExpenses.reduce((s: number, e: any) => s + e.amount, 0);
   const overallPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
 
   return (
@@ -319,7 +320,7 @@ export default function BudgetScreen() {
           {totalBudget > 0 && (
             <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <View style={styles.progressHeaderRow}>
-                <Text style={styles.progressHeaderLabel}>전체 사용률</Text>
+                <Text style={styles.progressHeaderLabel}>전체 예산 달성률</Text>
                 <Text style={[
                   styles.progressHeaderPct,
                   { color: overallPct > 100 ? COLORS.red : overallPct >= 80 ? COLORS.amber : '#059669' },
@@ -344,7 +345,7 @@ export default function BudgetScreen() {
           <View style={{ gap: 12, marginTop: 12 }}>
             {/* ON 카테고리만 표시 */}
             {categories.filter(cat => enabledCats[cat]).map(cat => {
-              const spent = expenses.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0);
+              const spent = spendOnlyExpenses.filter((e: any) => e.category === cat).reduce((s: number, e: any) => s + e.amount, 0);
               const budget = parseInt(amounts[cat] || '0') || 0;
               const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0;
               const over = spent > budget && budget > 0;
