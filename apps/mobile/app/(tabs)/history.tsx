@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { useDataCache } from '@/store/dataCache';
 import dayjs from 'dayjs';
@@ -32,7 +32,7 @@ export default function HistoryScreen() {
   const [filterPay, setFilterPay] = useState('');
   const [filterType, setFilterType] = useState<TypeFilter>('');
   const [sort, setSort] = useState<SortKey>('date_desc');
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [calMonth, setCalMonth] = useState(dayjs().format('YYYY-MM'));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [filterMonth, setFilterMonth] = useState('');
@@ -132,7 +132,7 @@ export default function HistoryScreen() {
         { text: '삭제', style: 'destructive', onPress: async () => {
           await deleteExpense(expense);
           setData(d => d ? { ...d, expenses: d.expenses.filter(e => e.id !== expense.id) } : d);
-          setEditingId(null);
+          setEditingExpense(null);
         }},
       ]
     );
@@ -141,7 +141,7 @@ export default function HistoryScreen() {
   async function handleSave(id: string, updates: Partial<Expense>) {
     await updateExpense(id, updates);
     setData(d => d ? { ...d, expenses: d.expenses.map(e => e.id === id ? { ...e, ...updates } : e) } : d);
-    setEditingId(null);
+    setEditingExpense(null);
   }
 
   async function handleCardPayment(expense: Expense) {
@@ -375,13 +375,7 @@ export default function HistoryScreen() {
                 <View style={styles.card}>
                   {items.map((e, idx) => (
                     <View key={e.id}>
-                      {editingId === e.id ? (
-                        (e.type === 'savings' || e.type === 'transfer')
-                          ? <TransferEditRow expense={e} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
-                          : <EditRow expense={e} categories={categories} themeColors={themeColors} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
-                      ) : (
-                        <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} onPayCard={handleCardPayment} />
-                      )}
+                      <ExpenseRow expense={e} onTap={() => setEditingExpense(e)} onPayCard={handleCardPayment} />
                       {idx < items.length - 1 && <View style={styles.divider} />}
                     </View>
                   ))}
@@ -419,13 +413,7 @@ export default function HistoryScreen() {
             <Text style={[styles.emptyText, { paddingVertical: 24 }]}>이날은 내역이 없었어요 🌿</Text>
           ) : selectedItems.map((e, idx) => (
             <View key={e.id}>
-              {editingId === e.id ? (
-                (e.type === 'savings' || e.type === 'transfer')
-                  ? <TransferEditRow expense={e} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
-                  : <EditRow expense={e} categories={categories} themeColors={themeColors} onSave={u => handleSave(e.id, u)} onDelete={() => handleDelete(e)} onCancel={() => setEditingId(null)} />
-              ) : (
-                <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} onPayCard={handleCardPayment} />
-              )}
+              <ExpenseRow expense={e} onTap={() => setEditingExpense(e)} onPayCard={handleCardPayment} />
               {idx < selectedItems.length - 1 && <View style={styles.divider} />}
             </View>
           ))}
@@ -489,6 +477,36 @@ export default function HistoryScreen() {
         </View>
       </Modal>
     )}
+
+    {/* 수정 바텀시트 모달 */}
+    {editingExpense && (
+      <Modal visible transparent animationType="slide" onRequestClose={() => setEditingExpense(null)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setEditingExpense(null)} />
+            <View style={styles.editSheet}>
+              <View style={styles.modalHandle} />
+              {(editingExpense.type === 'savings' || editingExpense.type === 'transfer')
+                ? <TransferEditRow
+                    expense={editingExpense}
+                    onSave={u => handleSave(editingExpense.id, u)}
+                    onDelete={() => handleDelete(editingExpense)}
+                    onCancel={() => setEditingExpense(null)}
+                  />
+                : <EditRow
+                    expense={editingExpense}
+                    categories={categories}
+                    themeColors={themeColors}
+                    onSave={u => handleSave(editingExpense.id, u)}
+                    onDelete={() => handleDelete(editingExpense)}
+                    onCancel={() => setEditingExpense(null)}
+                  />
+              }
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    )}
     </>
   );
 }
@@ -507,7 +525,7 @@ function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: ()
       <TouchableOpacity style={[styles.row, { backgroundColor: '#f5f3ff' }]} onPress={onTap} activeOpacity={0.7}>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-            <View style={styles.savingsBadge}><Text style={styles.savingsBadgeText}>🔄 이체</Text></View>
+            <View style={styles.savingsBadge}><Text style={styles.savingsBadgeText}>이체</Text></View>
           </View>
           <Text style={styles.rowName} numberOfLines={1}>
             {fromAcc}{toAcc ? ` → ${toAcc}` : ''}
@@ -526,7 +544,7 @@ function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: ()
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
             <View style={{ backgroundColor: '#fecaca', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 }}>
-              <Text style={{ fontSize: 10, color: '#b91c1c', fontWeight: '600' }}>💳 카드</Text>
+              <Text style={{ fontSize: 9, color: '#666', fontWeight: '600', backgroundColor: 'rgba(0,0,0,0.07)', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999, overflow: 'hidden' }}>카드</Text>
             </View>
           </View>
           <Text style={styles.rowName} numberOfLines={1}>{expense.name}</Text>
@@ -651,9 +669,9 @@ function TransferEditRow({ expense, onSave, onDelete, onCancel }: { expense: Exp
   const [toText, setToText] = useState(parts[1] || '');
   const [amount, setAmount] = useState(String(expense.amount));
   return (
-    <View style={[styles.editBox, { backgroundColor: '#f5f3ff' }]}>
+    <View style={[styles.editBox, { backgroundColor: '#fafafa' }]}>
       <View style={styles.editHeaderRow}>
-        <View style={styles.savingsBadge}><Text style={styles.savingsBadgeText}>🔄 이체</Text></View>
+        <View style={styles.savingsBadge}><Text style={styles.savingsBadgeText}>이체</Text></View>
         <TouchableOpacity onPress={onCancel}><Text style={{ color: COLORS.gray400 }}>✕</Text></TouchableOpacity>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
@@ -776,7 +794,7 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 12, color: COLORS.gray400, textAlign: 'center' },
 
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  pageTitle: { fontSize: 18, fontWeight: '700', color: COLORS.accent },
+  pageTitle: { fontSize: 22, fontWeight: '700', color: COLORS.accent },
   addCircleBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
   addCircleBtnText: { color: '#fff', fontSize: 18, fontWeight: '700', lineHeight: 20 },
   viewToggleBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.gray200, alignItems: 'center', justifyContent: 'center' },
@@ -821,9 +839,9 @@ const styles = StyleSheet.create({
   incomeBadge: { backgroundColor: COLORS.greenBg, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
   cardBadge: { backgroundColor: '#fef2f2', borderRadius: 999, paddingHorizontal: 5, paddingVertical: 1 },
   cardBadgeText: { fontSize: 10 },
-  savingsBadge: { backgroundColor: '#ede9fe', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
+  savingsBadge: { backgroundColor: 'rgba(0,0,0,0.07)', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
   incomeBadgeText: { fontSize: 9, fontWeight: '700', color: COLORS.green },
-  savingsBadgeText: { fontSize: 9, fontWeight: '700', color: '#7c3aed' },
+  savingsBadgeText: { fontSize: 9, fontWeight: '600', color: '#666' },
   divider: { height: 1, backgroundColor: COLORS.gray50, marginHorizontal: 14 },
 
   selectedHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: COLORS.gray50 },
@@ -881,6 +899,7 @@ const styles = StyleSheet.create({
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   cardPaySheet: { backgroundColor: '#fff', borderRadius: 20, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: 24, paddingBottom: 40 },
+  editSheet: { backgroundColor: '#fff', borderRadius: 20, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: 20, paddingBottom: 40 },
   modalHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 20 },
   modalTitle: { fontSize: 17, fontWeight: '700', color: COLORS.gray800, marginBottom: 20 },
   cardPayInfoBox: { backgroundColor: '#fafafa', borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.gray100, padding: 14, marginBottom: 20 },

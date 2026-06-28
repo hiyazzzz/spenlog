@@ -1724,7 +1724,7 @@ const sharedStyles = StyleSheet.create({
   emptyText: { fontSize: 12, color: COLORS.gray400, textAlign: 'center', paddingVertical: 16 },
 
   headerWrap: { paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12, backgroundColor: COLORS.bg },
-  pageTitle: { fontSize: 18, fontWeight: '600', color: COLORS.accent, marginBottom: 12 },
+  pageTitle: { fontSize: 22, fontWeight: '700', color: COLORS.accent, marginBottom: 12 },
   subTabBar: { flexDirection: 'row', backgroundColor: '#F0EAEC', borderRadius: RADIUS.lg, padding: 4, gap: 4 },
   subTabBtn: { flex: 1, paddingVertical: 8, borderRadius: RADIUS.md, alignItems: 'center' },
   subTabBtnActive: { backgroundColor: COLORS.primary },
