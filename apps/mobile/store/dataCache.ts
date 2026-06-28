@@ -20,7 +20,7 @@ interface DataCacheState {
   setHome: (d: HomeData) => void
   setAssets: (d: AssetsData) => void
   setBudget: (d: BudgetData) => void
-  setHistory: (d: HistoryData) => void
+  setHistory: (d: HistoryData | null) => void
   setAnalytics: (d: AnalyticsData) => void
   setFixedCosts: (d: FixedCostsData) => void
   setReport: (d: ReportData, analytics: AnalyticsData) => void

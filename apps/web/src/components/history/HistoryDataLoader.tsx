@@ -77,6 +77,15 @@ export default function HistoryDataLoader({ userId }: { userId: string }) {
   const pathname = usePathname()
   useEffect(() => {
     if (pathname !== '/history') return
+    // 저장 직후 강제 새로고침 플래그 — Prefetcher race condition 완전 차단
+    try {
+      if (sessionStorage.getItem('sp_history_needs_refresh') === '1') {
+        sessionStorage.removeItem('sp_history_needs_refresh')
+        sessionStorage.removeItem(CACHE_KEY)
+        fetchHistory(true)
+        return
+      }
+    } catch {}
     // 10초 이내 데이터는 재요청 생략 (초기 로드 직후 이중 요청 방지)
     try {
       const cached = sessionStorage.getItem(CACHE_KEY)

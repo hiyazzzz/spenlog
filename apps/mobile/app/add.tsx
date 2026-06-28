@@ -7,6 +7,7 @@ import { COLORS, RADIUS } from '@/constants/theme';
 import { getCurrentUserId, supabase } from '@/lib/supabase';
 import { getAssetsData } from '@/lib/api/assets';
 import { addExpense } from '@/lib/api/expenses';
+import { getHistoryData } from '@/lib/api/history';
 import { useDataCache } from '@/store/dataCache';
 import { DEFAULT_CATEGORIES } from '@/lib/api/categories';
 
@@ -209,7 +210,10 @@ export default function AddExpenseScreen() {
           await supabase.from('accounts').update({ balance: (toAcc.balance ?? 0) + amt }).eq('id', toAcc.id);
         }
         await saveRecency([transferFrom, transferTo].filter(Boolean));
-        useDataCache.getState().setHistory(null);
+        // 저장 직후 fresh history prefetch → 캐시에 미리 채워서 내역탭 즉시 반영
+        getHistoryData(userId).then(fresh => {
+          useDataCache.getState().setHistory(fresh);
+        }).catch(() => { useDataCache.getState().setHistory(null); });
         triggerToastAndBack();
         return;
       }
@@ -239,7 +243,10 @@ export default function AddExpenseScreen() {
         await saveRecency([paymentMethod]);
       }
 
-      useDataCache.getState().setHistory(null);
+      // 저장 직후 fresh history prefetch → 캐시에 미리 채워서 내역탭 즉시 반영
+      getHistoryData(userId).then(fresh => {
+        useDataCache.getState().setHistory(fresh);
+      }).catch(() => { useDataCache.getState().setHistory(null); });
       triggerToastAndBack();
     } catch (err: any) {
       console.error('[add] save error:', JSON.stringify(err));
