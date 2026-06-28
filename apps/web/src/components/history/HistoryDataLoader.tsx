@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, usePathname } from 'next/navigation'
 import HistoryClient from './HistoryClient'
 
 const CACHE_KEY = 'sp_history_v2'
@@ -49,16 +49,17 @@ export default function HistoryDataLoader({ userId }: { userId: string }) {
   const searchParams = useSearchParams()
   const initialCategory = searchParams.get('category') ?? ''
 
-  useEffect(() => {
-    try {
-      const cached = sessionStorage.getItem(CACHE_KEY)
-      if (cached) {
-        const { d, ts } = JSON.parse(cached)
-        setData(d)
-        if (Date.now() - ts < CACHE_TTL) return
-      }
-    } catch {}
-
+  function fetchHistory(force = false) {
+    if (!force) {
+      try {
+        const cached = sessionStorage.getItem(CACHE_KEY)
+        if (cached) {
+          const { d, ts } = JSON.parse(cached)
+          setData(d)
+          if (Date.now() - ts < CACHE_TTL) return
+        }
+      } catch {}
+    }
     fetch('/api/history-data')
       .then(r => r.json())
       .then(fresh => {
@@ -67,7 +68,27 @@ export default function HistoryDataLoader({ userId }: { userId: string }) {
         try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ d: fresh, ts: Date.now() })) } catch {}
       })
       .catch(() => {})
-  }, [userId])
+  }
+
+  // 최초 마운트 시 로드
+  useEffect(() => { fetchHistory() }, [userId])
+
+  // /history 탭 진입 시마다 재확인 — TabShell이 모든 탭을 pre-mount하기 때문에 필요
+  const pathname = usePathname()
+  useEffect(() => {
+    if (pathname !== '/history') return
+    // 10초 이내 데이터는 재요청 생략 (초기 로드 직후 이중 요청 방지)
+    try {
+      const cached = sessionStorage.getItem(CACHE_KEY)
+      if (cached) {
+        const { ts } = JSON.parse(cached)
+        if (Date.now() - ts < 10000) return
+      }
+    } catch {}
+    // 캐시 삭제 후 재조회
+    try { sessionStorage.removeItem(CACHE_KEY) } catch {}
+    fetchHistory(true)
+  }, [pathname])
 
   if (!data) return <LoadingSkeleton />
 
