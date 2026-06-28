@@ -94,11 +94,7 @@ export default function HomeScreen() {
 
       useDataCache.getState().setHome(homeData);
       setData(homeData);
-      // AsyncStorage 로컬 테마 있으면 DB값으로 덮어쓰지 않음 (탭 이동 시 테마 원복 방지)
-      if (homeData?.profile?.theme) {
-        const localTheme = await AsyncStorage.getItem('@spenlog/theme');
-        if (!localTheme) setStoreTheme(homeData.profile.theme);
-      }
+      if (homeData?.profile?.theme) setStoreTheme(homeData.profile.theme);
     } catch (e) {
       setError(e instanceof Error ? e.message : '데이터를 불러오지 못했어요');
     } finally {
