@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { useDataCache } from '@/store/dataCache';
 import dayjs from 'dayjs';
@@ -522,47 +523,51 @@ function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: ()
     const fromAcc = parts[0];
     const toAcc = parts[1] || '';
     return (
-      <TouchableOpacity style={[styles.row, { backgroundColor: '#DDD6FE' }]} onPress={onTap} activeOpacity={0.7}>
-        <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-            <View style={styles.savingsBadge}><Text style={styles.savingsBadgeText}>이체</Text></View>
+      <TouchableOpacity onPress={onTap} activeOpacity={0.7} style={styles.rowWrap}>
+        <LinearGradient colors={['#DDD6FE', '#fff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              <View style={styles.savingsBadge}><Text style={styles.savingsBadgeText}>이체</Text></View>
+            </View>
+            <Text style={styles.rowName} numberOfLines={1}>
+              {fromAcc}{toAcc ? ` → ${toAcc}` : ''}
+            </Text>
           </View>
-          <Text style={styles.rowName} numberOfLines={1}>
-            {fromAcc}{toAcc ? ` → ${toAcc}` : ''}
+          <Text style={[styles.rowAmount, { color: '#7c3aed' }]}>
+            ⇔ {formatCurrency(expense.amount).replace('원', '')}원
           </Text>
-        </View>
-        <Text style={[styles.rowAmount, { color: '#7c3aed' }]}>
-          ⇔ {formatCurrency(expense.amount).replace('원', '')}원
-        </Text>
+        </LinearGradient>
       </TouchableOpacity>
     );
   }
 
   if (isCard) {
     return (
-      <TouchableOpacity style={[styles.row, { backgroundColor: '#FECACA' }]} onPress={onTap} activeOpacity={0.7}>
-        <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-            <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>카드</Text></View>
+      <TouchableOpacity onPress={onTap} activeOpacity={0.7} style={styles.rowWrap}>
+        <LinearGradient colors={['#FECACA', '#fff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>카드</Text></View>
+            </View>
+            <Text style={styles.rowName} numberOfLines={1}>{expense.name}</Text>
+            <Text style={styles.rowMeta}>
+              {expense.category}{expense.payment_method ? ` · ${expense.payment_method}` : ''}
+            </Text>
           </View>
-          <Text style={styles.rowName} numberOfLines={1}>{expense.name}</Text>
-          <Text style={styles.rowMeta}>
-            {expense.category}{expense.payment_method ? ` · ${expense.payment_method}` : ''}
-          </Text>
-        </View>
-        <View style={{ alignItems: 'flex-end', gap: 4 }}>
-          <Text style={[styles.rowAmount, { color: '#f97316' }]}>
-            -{formatCurrency(expense.amount).replace('원', '')}원
-          </Text>
-          {onPayCard && (
-            <TouchableOpacity
-              onPress={() => onPayCard(expense)}
-              style={{ backgroundColor: '#fed7aa', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}
-            >
-              <Text style={{ fontSize: 10, color: '#c2410c', fontWeight: '600' }}>납부</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+          <View style={{ alignItems: 'flex-end', gap: 4 }}>
+            <Text style={[styles.rowAmount, { color: '#f97316' }]}>
+              -{formatCurrency(expense.amount).replace('원', '')}원
+            </Text>
+            {onPayCard && (
+              <TouchableOpacity
+                onPress={() => onPayCard(expense)}
+                style={{ backgroundColor: '#fed7aa', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}
+              >
+                <Text style={{ fontSize: 10, color: '#c2410c', fontWeight: '600' }}>납부</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </LinearGradient>
       </TouchableOpacity>
     );
   }
@@ -830,6 +835,7 @@ const styles = StyleSheet.create({
   dateSum: { fontSize: 12, fontWeight: '800' },
 
   card: { backgroundColor: '#fff', borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.gray100, overflow: 'hidden' },
+  rowWrap: { overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, backgroundColor: '#fff' },
   rowName: { fontSize: 14, fontWeight: '600', color: COLORS.gray800 },
   rowMeta: { fontSize: 11, color: COLORS.gray400, marginTop: 2 },
