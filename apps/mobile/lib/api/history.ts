@@ -11,16 +11,19 @@ export interface HistoryData {
 export async function getHistoryData(userId: string): Promise<HistoryData> {
   const from = dayjs().subtract(2, 'month').startOf('month').format('YYYY-MM-DD')
 
-  const [{ data: expenses }, { data: categories }] = await Promise.all([
+  const [{ data: expenses }, { data: categories }, { data: cards }] = await Promise.all([
     supabase.from('expenses').select('*').eq('user_id', userId)
       .gte('date', from).order('date', { ascending: false }).order('created_at', { ascending: false }),
     supabase.from('categories').select('name').eq('user_id', userId).eq('is_hidden', false).order('sort_order'),
+    supabase.from('cards').select('name').eq('user_id', userId),
   ])
 
   const userCategories = (categories ?? []).map((c: { name: string }) => c.name)
-  const paymentMethods = [...new Set(
-    (expenses ?? []).map((e: Expense) => e.payment_method).filter(Boolean)
-  )] as string[]
+  const cardNames = (cards ?? []).map((c: { name: string }) => c.name)
+  const paymentMethods = [...new Set([
+    ...cardNames,
+    ...(expenses ?? []).map((e: Expense) => e.payment_method).filter(Boolean),
+  ])] as string[]
 
   return {
     expenses: ((expenses as Expense[]) ?? []).map(e => ({ ...e, type: e.type ?? 'expense' })),

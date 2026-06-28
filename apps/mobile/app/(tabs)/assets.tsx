@@ -363,9 +363,8 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
     setCardPaySheet(card);
     setCardPayMemo('');
     const now = new Date();
-    const pm = now.getMonth() === 0
-      ? `${now.getFullYear() - 1}-12`
-      : `${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`;
+    // 이번 달 기준으로 시작 (최근 입력한 카드 지출이 바로 보임)
+    const pm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     setCardPayMonth(pm);
     setCardPayAmount('');
     loadMonthTotal(pm, card.name);

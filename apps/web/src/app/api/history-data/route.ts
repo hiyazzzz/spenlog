@@ -17,7 +17,11 @@ export async function GET() {
   ])
 
   const normalizedExpenses = (expenses ?? []).map(e => ({ ...e, type: e.type ?? 'expense' }))
-  const paymentMethods = [...new Set(normalizedExpenses.map(e => e.payment_method).filter(Boolean))] as string[]
+  const cardNames = (cards ?? []).map(c => c.name)
+  const paymentMethods = [...new Set([
+    ...cardNames,
+    ...normalizedExpenses.map(e => e.payment_method).filter(Boolean),
+  ])] as string[]
   const userCategories = (categories ?? []).map(c => c.name)
 
   return NextResponse.json({ expenses: normalizedExpenses, paymentMethods, userCategories })
