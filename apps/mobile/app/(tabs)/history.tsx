@@ -522,7 +522,7 @@ function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: ()
     const fromAcc = parts[0];
     const toAcc = parts[1] || '';
     return (
-      <TouchableOpacity style={styles.row} onPress={onTap} activeOpacity={0.7}>
+      <TouchableOpacity style={[styles.row, { backgroundColor: '#DDD6FE' }]} onPress={onTap} activeOpacity={0.7}>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
             <View style={styles.savingsBadge}><Text style={styles.savingsBadgeText}>이체</Text></View>
@@ -540,7 +540,7 @@ function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: ()
 
   if (isCard) {
     return (
-      <TouchableOpacity style={styles.row} onPress={onTap} activeOpacity={0.7}>
+      <TouchableOpacity style={[styles.row, { backgroundColor: '#FECACA' }]} onPress={onTap} activeOpacity={0.7}>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
             <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>카드</Text></View>
