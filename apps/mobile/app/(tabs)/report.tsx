@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 12, color: COLORS.gray400, textAlign: 'center' },
 
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  pageTitle: { fontSize: 22, fontWeight: '700', color: COLORS.accent },
+  pageTitle: { fontSize: 18, fontWeight: '700', color: COLORS.accent },
   monthNavRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 12, borderRadius: RADIUS.lg, paddingVertical: 8 },
   navBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.gray200, alignItems: 'center', justifyContent: 'center' },
   navBtnDisabled: { borderColor: COLORS.gray100 },

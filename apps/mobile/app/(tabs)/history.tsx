@@ -522,7 +522,7 @@ function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: ()
     const fromAcc = parts[0];
     const toAcc = parts[1] || '';
     return (
-      <TouchableOpacity style={[styles.row, { backgroundColor: '#f5f3ff' }]} onPress={onTap} activeOpacity={0.7}>
+      <TouchableOpacity style={[styles.row, { backgroundColor: '#fff', borderLeftWidth: 3, borderLeftColor: '#7c3aed' }]} onPress={onTap} activeOpacity={0.7}>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
             <View style={styles.savingsBadge}><Text style={styles.savingsBadgeText}>이체</Text></View>
@@ -540,12 +540,10 @@ function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: ()
 
   if (isCard) {
     return (
-      <TouchableOpacity style={[styles.row, { backgroundColor: 'rgba(254,242,242,0.7)' }]} onPress={onTap} activeOpacity={0.7}>
+      <TouchableOpacity style={[styles.row, { backgroundColor: '#fff', borderLeftWidth: 3, borderLeftColor: '#ef4444' }]} onPress={onTap} activeOpacity={0.7}>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-            <View style={{ backgroundColor: '#fecaca', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 }}>
-              <Text style={{ fontSize: 9, color: '#666', fontWeight: '600', backgroundColor: 'rgba(0,0,0,0.07)', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999, overflow: 'hidden' }}>카드</Text>
-            </View>
+            <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>카드</Text></View>
           </View>
           <Text style={styles.rowName} numberOfLines={1}>{expense.name}</Text>
           <Text style={styles.rowMeta}>
@@ -836,12 +834,14 @@ const styles = StyleSheet.create({
   rowName: { fontSize: 14, fontWeight: '600', color: COLORS.gray800 },
   rowMeta: { fontSize: 11, color: COLORS.gray400, marginTop: 2 },
   rowAmount: { fontSize: 14, fontWeight: '700', marginLeft: 12 },
+  cardBadge: { backgroundColor: '#fee2e2', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
+  cardBadgeText: { fontSize: 9, fontWeight: '700', color: '#b91c1c' },
   incomeBadge: { backgroundColor: COLORS.greenBg, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
   cardBadge: { backgroundColor: '#fef2f2', borderRadius: 999, paddingHorizontal: 5, paddingVertical: 1 },
   cardBadgeText: { fontSize: 10 },
-  savingsBadge: { backgroundColor: 'rgba(0,0,0,0.07)', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
+  savingsBadge: { backgroundColor: '#ede9fe', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
   incomeBadgeText: { fontSize: 9, fontWeight: '700', color: COLORS.green },
-  savingsBadgeText: { fontSize: 9, fontWeight: '600', color: '#666' },
+  savingsBadgeText: { fontSize: 9, fontWeight: '700', color: '#7c3aed' },
   divider: { height: 1, backgroundColor: COLORS.gray50, marginHorizontal: 14 },
 
   selectedHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: COLORS.gray50 },

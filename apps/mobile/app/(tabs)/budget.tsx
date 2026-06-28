@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.bg },
   center: { alignItems: 'center', justifyContent: 'center' },
   content: { padding: 16, paddingTop: 56, paddingBottom: 40 },
-  pageTitle: { fontSize: 22, fontWeight: '700', color: COLORS.accent, marginBottom: 4 },
+  pageTitle: { fontSize: 18, fontWeight: '600', color: COLORS.accent, marginBottom: 4 },
   emptyText: { fontSize: 12, color: COLORS.gray400, textAlign: 'center', paddingVertical: 16 },
   pageSubtitle: { fontSize: 12, color: COLORS.gray400, marginBottom: 16 },
 

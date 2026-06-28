@@ -653,7 +653,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.bg },
   center: { alignItems: 'center', justifyContent: 'center' },
   content: { padding: 16, paddingTop: 56, paddingBottom: 40 },
-  pageTitle: { fontSize: 22, fontWeight: '700', color: COLORS.accent, marginBottom: 16 },
+  pageTitle: { fontSize: 18, fontWeight: '600', color: COLORS.accent, marginBottom: 16 },
 
   profileCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

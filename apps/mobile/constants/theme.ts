@@ -59,16 +59,16 @@ export function formatCurrency(amount: number): string {
 // apps/web/src/lib/themes.ts 와 동일 (홈화면 테마 적용용)
 // tabBg: 세그먼트 컨트롤/서브탭바 배경색 (primary에서 파생된 연한 톤)
 export const THEMES: Record<string, { primary: string; primaryLight: string; primaryMid: string; accent: string; bg: string; tabBg: string }> = {
-  Burgundy:   { primary: '#6B1E2E', primaryLight: '#F8D5DA', primaryMid: '#C4748A', accent: '#4A1220', bg: '#FDF0F2', tabBg: '#F0C8CF' },
-  Sage:       { primary: '#4A6741', primaryLight: '#C8E4C4', primaryMid: '#8AAF84', accent: '#2E4A2A', bg: '#EFF7EE', tabBg: '#B4D4B0' },
-  Lavender:   { primary: '#5C4B8A', primaryLight: '#D8D0F4', primaryMid: '#9B8EC4', accent: '#3D2E6B', bg: '#F2EFF8', tabBg: '#C8BEE8' },
-  Terracotta: { primary: '#A0522D', primaryLight: '#F5D4C0', primaryMid: '#C48A6A', accent: '#7A3518', bg: '#FCF0EB', tabBg: '#E8C0A8' },
+  Burgundy: { primary: '#6B1E2E', primaryLight: '#F5E8EA', primaryMid: '#C4748A', accent: '#4A1220', bg: '#FAF7F4', tabBg: '#F0EAEC' },
+  Sage: { primary: '#4A6741', primaryLight: '#EAF0E8', primaryMid: '#8AAF84', accent: '#2E4A2A', bg: '#F5F7F4', tabBg: '#E5EBE4' },
+  Lavender: { primary: '#5C4B8A', primaryLight: '#EDE8F5', primaryMid: '#9B8EC4', accent: '#3D2E6B', bg: '#F7F5FB', tabBg: '#EAE6F4' },
+  Terracotta: { primary: '#A0522D', primaryLight: '#F5EDE8', primaryMid: '#C48A6A', accent: '#7A3518', bg: '#FAF5F2', tabBg: '#EFE5DE' },
   // 프리미엄 테마
-  Oatmeal:  { primary: '#B09070', primaryLight: '#EEE0C8', primaryMid: '#CDB898', accent: '#8A6C50', bg: '#FAF5EC', tabBg: '#E0CEAE' },
-  WarmGray: { primary: '#8C8479', primaryLight: '#E0D8D0', primaryMid: '#B5AEA4', accent: '#635D54', bg: '#F5EEE8', tabBg: '#D0C8C0' },
-  WallGray: { primary: '#6B7A8D', primaryLight: '#CCE0EE', primaryMid: '#A0ACBC', accent: '#4A5568', bg: '#EEF2F7', tabBg: '#B8CCDE' },
-  Midnight: { primary: '#2C3E6B', primaryLight: '#C0D0F0', primaryMid: '#6474A0', accent: '#18243E', bg: '#EBF0FA', tabBg: '#A8BEDE' },
-  Indigo:   { primary: '#4B4DA6', primaryLight: '#D0D0F4', primaryMid: '#8A8ACC', accent: '#333576', bg: '#EDEEFA', tabBg: '#BCBCE8' },
+  Oatmeal: { primary: '#B09070', primaryLight: '#F7F2EB', primaryMid: '#CDB898', accent: '#8A6C50', bg: '#FBF8F3', tabBg: '#EDE7DC' },
+  WarmGray: { primary: '#8C8479', primaryLight: '#F0EDEA', primaryMid: '#B5AEA4', accent: '#635D54', bg: '#FAF9F7', tabBg: '#E8E4E0' },
+  WallGray: { primary: '#6B7A8D', primaryLight: '#EDF0F4', primaryMid: '#A0ACBC', accent: '#4A5568', bg: '#F5F7FA', tabBg: '#E3E8EF' },
+  Midnight: { primary: '#2C3E6B', primaryLight: '#E6E9F2', primaryMid: '#6474A0', accent: '#18243E', bg: '#F3F5FA', tabBg: '#DDE2EF' },
+  Indigo: { primary: '#4B4DA6', primaryLight: '#ECEBF7', primaryMid: '#8A8ACC', accent: '#333576', bg: '#F5F5FC', tabBg: '#E5E5F5' },
 }
 
 export const THEME_CARD_PALETTES: Record<string, string[]> = {
