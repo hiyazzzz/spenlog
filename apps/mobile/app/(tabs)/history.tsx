@@ -522,7 +522,7 @@ function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: ()
     const fromAcc = parts[0];
     const toAcc = parts[1] || '';
     return (
-      <TouchableOpacity style={[styles.row, { backgroundColor: '#fff', borderLeftWidth: 3, borderLeftColor: '#7c3aed' }]} onPress={onTap} activeOpacity={0.7}>
+      <TouchableOpacity style={styles.row} onPress={onTap} activeOpacity={0.7}>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
             <View style={styles.savingsBadge}><Text style={styles.savingsBadgeText}>이체</Text></View>
@@ -540,7 +540,7 @@ function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: ()
 
   if (isCard) {
     return (
-      <TouchableOpacity style={[styles.row, { backgroundColor: '#fff', borderLeftWidth: 3, borderLeftColor: '#ef4444' }]} onPress={onTap} activeOpacity={0.7}>
+      <TouchableOpacity style={styles.row} onPress={onTap} activeOpacity={0.7}>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
             <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>카드</Text></View>
@@ -830,7 +830,7 @@ const styles = StyleSheet.create({
   dateSum: { fontSize: 12, fontWeight: '800' },
 
   card: { backgroundColor: '#fff', borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.gray100, overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14 },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, backgroundColor: '#fff' },
   rowName: { fontSize: 14, fontWeight: '600', color: COLORS.gray800 },
   rowMeta: { fontSize: 11, color: COLORS.gray400, marginTop: 2 },
   rowAmount: { fontSize: 14, fontWeight: '700', marginLeft: 12 },
