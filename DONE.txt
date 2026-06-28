@@ -1,0 +1,2 @@
+history.tsx Fragment 오류 수정 완료.
+push_final.bat 더블클릭해서 배포하면 끝.

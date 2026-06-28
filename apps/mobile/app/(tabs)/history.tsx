@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard, Alert, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { useDataCache } from '@/store/dataCache';
@@ -34,9 +34,9 @@ export default function HistoryScreen() {
   const [filterType, setFilterType] = useState<TypeFilter>('');
   const [sort, setSort] = useState<SortKey>('date_desc');
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [showToast, setShowToast] = useState(false);
   const [calMonth, setCalMonth] = useState(dayjs().format('YYYY-MM'));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [filterMonth, setFilterMonth] = useState('');
   const [activeDropdown, setActiveDropdown] = useState<'type' | 'cat' | 'pay' | 'sort' | null>(null);
   const [cardPayModal, setCardPayModal] = useState<{
     payMethod: string; monthTotal: number; alreadyPaid: number; remaining: number;
@@ -79,7 +79,6 @@ export default function HistoryScreen() {
   const filtered = useMemo(() => {
     let list = expenses.filter(e => {
       if (search && !e.name.toLowerCase().includes(search.toLowerCase())) return false;
-      if (filterMonth && !e.date.startsWith(filterMonth)) return false;
       if (filterCat && e.category !== filterCat) return false;
       if (filterPay && e.payment_method !== filterPay) return false;
       if (filterType === 'savings') {
@@ -96,7 +95,7 @@ export default function HistoryScreen() {
       case 'amount_asc': return [...list].sort((a, b) => a.amount - b.amount);
       default: return [...list].sort((a, b) => b.date.localeCompare(a.date));
     }
-  }, [expenses, search, filterCat, filterPay, filterType, filterMonth, sort]);
+  }, [expenses, search, filterCat, filterPay, filterType, sort]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, Expense[]>();
@@ -218,7 +217,7 @@ export default function HistoryScreen() {
   }
 
   const today = dayjs().format('YYYY-MM-DD');
-  const hasFilter = !!(search || filterCat || filterPay || filterType || filterMonth);
+  const hasFilter = !!(search || filterCat || filterPay || filterType);
   const categories = data.userCategories.length > 0 ? data.userCategories : DEFAULT_CATEGORIES;
   const selectedItems = selectedDate ? expenses.filter(e => e.date === selectedDate) : [];
 
@@ -262,27 +261,6 @@ export default function HistoryScreen() {
             <Text style={{ color: COLORS.gray400, fontSize: 12 }}>✕</Text>
           </TouchableOpacity>
         )}
-      </View>
-
-      {/* 월 선택기 */}
-      <View style={styles.monthChipRow}>
-        {([['', '전체'], [-2, ''], [-1, ''], [0, '']] as [number|string, string][]).map(([offset, lbl]) => {
-          if (offset === '') {
-            return (
-              <TouchableOpacity key="all" style={[styles.monthChip, filterMonth === '' && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]} onPress={() => setFilterMonth('')}>
-                <Text style={[styles.monthChipText, filterMonth === '' && styles.monthChipTextActive]}>전체</Text>
-              </TouchableOpacity>
-            );
-          }
-          const d = dayjs().add(Number(offset), 'month');
-          const m = d.format('YYYY-MM');
-          const label = `${d.month() + 1}월`;
-          return (
-            <TouchableOpacity key={m} style={[styles.monthChip, filterMonth === m && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]} onPress={() => setFilterMonth(filterMonth === m ? '' : m)}>
-              <Text style={[styles.monthChipText, filterMonth === m && styles.monthChipTextActive]}>{label}</Text>
-            </TouchableOpacity>
-          );
-        })}
       </View>
 
       {/* 필터 드롭다운 4개 */}
@@ -373,7 +351,7 @@ export default function HistoryScreen() {
                     </Text>
                   )}
                 </View>
-                <View style={styles.card}>
+                <View style={[styles.card, { backgroundColor: colors.bg }]}>
                   {items.map((e, idx) => (
                     <View key={e.id}>
                       <ExpenseRow expense={e} onTap={() => setEditingExpense(e)} onPayCard={handleCardPayment} />
@@ -401,7 +379,7 @@ export default function HistoryScreen() {
       )}
 
       {view === 'calendar' && selectedDate && (
-        <View style={[styles.card, { marginTop: 12 }]}>
+        <View style={[styles.card, { marginTop: 12, backgroundColor: colors.bg }]}>
           <View style={styles.selectedHeaderRow}>
             <Text style={styles.dateLabel}>{dayjs(selectedDate).format('M월 D일 (ddd)')}</Text>
             {selectedItems.filter(e => (e.type ?? 'expense') !== 'income').length > 0 && (
@@ -497,8 +475,9 @@ export default function HistoryScreen() {
                 : <EditRow
                     expense={editingExpense}
                     categories={categories}
+                    paymentMethods={data.paymentMethods}
                     themeColors={themeColors}
-                    onSave={u => handleSave(editingExpense.id, u)}
+                    onSave={u => { handleSave(editingExpense.id, u); setShowToast(true); setTimeout(() => setShowToast(false), 1500); }}
                     onDelete={() => handleDelete(editingExpense)}
                     onCancel={() => setEditingExpense(null)}
                   />
@@ -508,6 +487,7 @@ export default function HistoryScreen() {
         </KeyboardAvoidingView>
       </Modal>
     )}
+    <SaveToast visible={showToast} />
     </>
   );
 }
@@ -524,7 +504,7 @@ function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: ()
     const toAcc = parts[1] || '';
     return (
       <TouchableOpacity onPress={onTap} activeOpacity={0.7} style={styles.rowWrap}>
-        <LinearGradient colors={['#DDD6FE', '#fff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.row}>
+        <LinearGradient colors={['rgba(221,214,254,0.4)', '#fff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.row}>
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
               <View style={styles.savingsBadge}><Text style={styles.savingsBadgeText}>이체</Text></View>
@@ -544,7 +524,7 @@ function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: ()
   if (isCard) {
     return (
       <TouchableOpacity onPress={onTap} activeOpacity={0.7} style={styles.rowWrap}>
-        <LinearGradient colors={['#FECACA', '#fff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.row}>
+        <LinearGradient colors={['rgba(254,202,202,0.4)', '#fff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.row}>
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
               <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>카드</Text></View>
@@ -592,9 +572,78 @@ function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: ()
   );
 }
 
-function EditRow({ expense, categories, themeColors, onSave, onDelete, onCancel }: {
+// ─── 드롭다운 피커 ─────────────────────────────────────────────────────────
+function DropdownPicker({
+  value, options, onSelect, placeholder = '선택하세요', themeColors,
+}: {
+  value: string;
+  options: string[];
+  onSelect: (v: string) => void;
+  placeholder?: string;
+  themeColors: ReturnType<typeof getThemeColors>;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <TouchableOpacity
+        style={[styles.inlineDropdownBtn, { borderColor: COLORS.gray200 }]}
+        onPress={() => setOpen(true)}
+        activeOpacity={0.7}
+      >
+        <Text style={value ? styles.inlineDropdownValue : styles.inlineDropdownPlaceholder} numberOfLines={1}>
+          {value || placeholder}
+        </Text>
+        <Text style={{ fontSize: 10, color: COLORS.gray400, marginLeft: 6 }}>▾</Text>
+      </TouchableOpacity>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <TouchableOpacity style={styles.dropdownOverlay} activeOpacity={1} onPress={() => setOpen(false)}>
+          <View style={styles.dropdownSheet}>
+            <View style={styles.dropdownHandle} />
+            <ScrollView style={{ maxHeight: 340 }} bounces={false}>
+              {options.map(opt => (
+                <TouchableOpacity
+                  key={opt}
+                  style={[styles.dropdownSheetItem, value === opt && { backgroundColor: themeColors.primary }]}
+                  onPress={() => { onSelect(opt); setOpen(false); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.dropdownSheetItemText, value === opt && { color: '#fff', fontWeight: '700' }]}>{opt}</Text>
+                  {value === opt && <Text style={{ color: '#fff', fontSize: 13 }}>✓</Text>}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </>
+  );
+}
+
+// ─── 저장 완료 토스트 ───────────────────────────────────────────────────────
+function SaveToast({ visible }: { visible: boolean }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (visible) {
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.delay(700),
+        Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [visible]);
+  return (
+    <Animated.View style={[styles.saveToast, { opacity }]} pointerEvents="none">
+      <Text style={styles.saveToastText}>✅ 저장됐어요</Text>
+    </Animated.View>
+  );
+}
+
+const EXTRA_PAY_METHODS = ['현금', '카카오페이', '네이버페이', '토스', '계좌이체'];
+
+function EditRow({ expense, categories, paymentMethods, themeColors, onSave, onDelete, onCancel }: {
   expense: Expense;
   categories: string[];
+  paymentMethods: string[];
   themeColors: ReturnType<typeof getThemeColors>;
   onSave: (updates: Partial<Expense>) => void;
   onDelete: () => void;
@@ -605,6 +654,13 @@ function EditRow({ expense, categories, themeColors, onSave, onDelete, onCancel 
   const [category, setCategory] = useState(expense.category);
   const [type, setType] = useState<'expense' | 'income'>((expense.type ?? 'expense') === 'income' ? 'income' : 'expense');
   const [paymentMethod, setPaymentMethod] = useState(expense.payment_method ?? '');
+
+  // 결제수단 옵션: 기존 사용 이력 + 기본 방법 + 기타
+  const allPayOptions = [
+    ...paymentMethods,
+    ...EXTRA_PAY_METHODS.filter(m => !paymentMethods.includes(m)),
+    '기타',
+  ];
 
   return (
     <View style={styles.editBox}>
@@ -629,24 +685,31 @@ function EditRow({ expense, categories, themeColors, onSave, onDelete, onCancel 
         placeholderTextColor={COLORS.gray400}
       />
       {type !== 'income' && (
-        <View style={styles.chipWrap}>
-          {categories.map(cat => (
-            <TouchableOpacity key={cat} style={[styles.smallChip, category === cat && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]} onPress={() => setCategory(cat as any)}>
-              <Text style={[styles.smallChipText, category === cat && styles.smallChipTextActive]}>{cat}</Text>
-            </TouchableOpacity>
-          ))}
+        <View style={{ marginBottom: 8 }}>
+          <Text style={[styles.fieldLabel, { marginBottom: 4 }]}>카테고리</Text>
+          <DropdownPicker
+            value={category}
+            options={categories}
+            onSelect={v => setCategory(v)}
+            placeholder="카테고리 선택"
+            themeColors={themeColors}
+          />
         </View>
       )}
-      <Text style={styles.fieldLabel}>결제수단</Text>
-      <View style={styles.chipWrap}>
-        <TouchableOpacity style={[styles.smallChip, !paymentMethod && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]} onPress={() => setPaymentMethod('')}>
-          <Text style={[styles.smallChipText, !paymentMethod && styles.smallChipTextActive]}>없음</Text>
-        </TouchableOpacity>
-        {PAYMENT_OPTIONS.map(pm => (
-          <TouchableOpacity key={pm} style={[styles.smallChip, paymentMethod === pm && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]} onPress={() => setPaymentMethod(pm)}>
-            <Text style={[styles.smallChipText, paymentMethod === pm && styles.smallChipTextActive]}>{pm}</Text>
+      <View style={{ marginBottom: 12 }}>
+        <Text style={[styles.fieldLabel, { marginBottom: 4 }]}>결제수단</Text>
+        <DropdownPicker
+          value={paymentMethod}
+          options={allPayOptions}
+          onSelect={v => setPaymentMethod(v)}
+          placeholder="없음 (선택 안 함)"
+          themeColors={themeColors}
+        />
+        {paymentMethod !== '' && (
+          <TouchableOpacity onPress={() => setPaymentMethod('')} style={{ marginTop: 6 }}>
+            <Text style={{ fontSize: 11, color: COLORS.gray400 }}>✕ 선택 해제</Text>
           </TouchableOpacity>
-        ))}
+        )}
       </View>
       <View style={styles.formBtnRow}>
         <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: themeColors.primary }]} onPress={() => onSave({
@@ -757,7 +820,7 @@ function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, to
           <Text key={d} style={[styles.calWeekDay, i === 0 && { color: COLORS.red }, i === 6 && { color: '#3b82f6' }]}>{d}</Text>
         ))}
       </View>
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.bg }]}>
         {weeks.map((week, wi) => (
           <View key={wi} style={styles.calRow}>
             {week.map((date, di) => {
@@ -890,10 +953,6 @@ const styles = StyleSheet.create({
   calAmount: { fontSize: 9, fontWeight: '700', color: COLORS.red },
   calIncomeDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: COLORS.green },
 
-  monthChipRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
-  monthChip: { flex: 1, paddingVertical: 7, alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: COLORS.gray200, backgroundColor: '#fff' },
-  monthChipText: { fontSize: 12, fontWeight: '600', color: COLORS.gray500 },
-  monthChipTextActive: { color: '#fff' },
 
   filterRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
   dropdownBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 8, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.gray200, backgroundColor: '#fff' },
@@ -904,6 +963,22 @@ const styles = StyleSheet.create({
   dropdownOptText: { fontSize: 13, color: COLORS.gray700 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+
+  // 인라인 드롭다운 (EditRow 내부)
+  inlineDropdownBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, paddingHorizontal: 10, backgroundColor: '#f8fafc', borderRadius: 8, borderWidth: 1 },
+  inlineDropdownValue: { fontSize: 13, fontWeight: '600', color: '#374151', flex: 1 },
+  inlineDropdownPlaceholder: { fontSize: 13, color: '#9ca3af', flex: 1 },
+
+  // 드롭다운 오버레이 & 시트
+  dropdownOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  dropdownSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 12, paddingBottom: 36 },
+  dropdownHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center' as const, marginBottom: 8 },
+  dropdownSheetItem: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, paddingVertical: 13, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  dropdownSheetItemText: { fontSize: 14, color: '#374151' },
+
+  // 저장 완료 토스트
+  saveToast: { position: 'absolute' as const, bottom: 24, alignSelf: 'center' as const, backgroundColor: 'rgba(30,30,30,0.88)', paddingVertical: 10, paddingHorizontal: 22, borderRadius: 30 },
+  saveToastText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   cardPaySheet: { backgroundColor: '#fff', borderRadius: 20, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: 24, paddingBottom: 40 },
   editSheet: { backgroundColor: '#fff', borderRadius: 20, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: 20, paddingBottom: 40 },
   modalHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 20 },

@@ -43,6 +43,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
   const [view, setView] = useState<ViewMode>('list')
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState(initialCategory ?? '')
+  useEffect(() => { setFilterCat(initialCategory ?? '') }, [initialCategory])
   const [filterPay, setFilterPay] = useState('')
   const [filterType, setFilterType] = useState<TypeFilter>('')
   const [sort, setSort] = useState<SortKey>('date_desc')
@@ -186,11 +187,14 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
     const prev = expenses.find(e => e.id === id)
     setExpenses(es => es.map(e => e.id === id ? { ...e, ...updates } : e))
     setEditingId(null)
+    setAlertMsg('✅ 저장됐어요')
+    setTimeout(() => setAlertMsg(''), 1500)
     try { sessionStorage.removeItem('sp_history_v2') } catch {}
     const { error } = await supabase.from('expenses').update(updates).eq('id', id)
     if (error && prev) {
-      // 실패 시 롤백
       setExpenses(es => es.map(e => e.id === id ? prev : e))
+      setAlertMsg('저장 중 오류가 발생했어요')
+      setTimeout(() => setAlertMsg(''), 2000)
     }
   }
 
@@ -323,7 +327,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
                       {editingId === e.id
                         ? ((e.type === 'savings' || e.type === 'transfer')
                             ? <TransferEditRow expense={e} accounts={accounts} onSaveTransfer={(upd,of,ot,nf,nt,oa,na) => saveTransfer(e.id,upd,of,ot,nf,nt,oa,na)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} />
-                            : <EditRow expense={e} onSave={u => saveExpense(e.id, u)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} />)
+                            : <EditRow expense={e} onSave={u => saveExpense(e.id, u)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} paymentMethods={paymentMethods} userCategories={userCategories} />)
                         : <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} onPayCard={handleCardPayment} />
                       }
                       {idx < items.length - 1 && <div className="h-px bg-gray-50 mx-4" />}
@@ -344,6 +348,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
           onSave={saveExpense} onDelete={deleteExpense} onCancelEdit={() => setEditingId(null)}
           accounts={accounts} onSaveTransfer={(id,upd,of,ot,nf,nt,oa,na) => saveTransfer(id,upd,of,ot,nf,nt,oa,na)}
           onPayCard={handleCardPayment}
+          paymentMethods={paymentMethods} userCategories={userCategories}
         />
       )}
       {/* 커스텀 카드 납부 확인 모달 */}
@@ -449,14 +454,15 @@ function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: ()
   )
 }
 
-const PAYMENT_OPTIONS = ['카드', '현금', '카카오페이', '네이버페이', '토스', '계좌이체']
+const EXTRA_PAY_METHODS = ['현금', '카카오페이', '네이버페이', '토스', '계좌이체']
 
-function EditRow({ expense, onSave, onDelete, onCancel, userCategories }: {
+function EditRow({ expense, onSave, onDelete, onCancel, userCategories, paymentMethods }: {
   expense: Expense
   onSave: (updates: Partial<Expense>) => void
   onDelete: () => void
   onCancel: () => void
   userCategories?: string[]
+  paymentMethods: string[]
 }) {
   const [form, setForm] = useState({ ...expense, type: expense.type ?? 'expense', amount: expense.amount.toLocaleString(), payment_method: expense.payment_method ?? '' })
   function u(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
@@ -483,32 +489,24 @@ function EditRow({ expense, onSave, onDelete, onCancel, userCategories }: {
           onChange={e => { const n = e.target.value.replace(/[^0-9]/g, ''); u('amount', n ? Number(n).toLocaleString() : '') }}
           className="w-full text-sm px-3 py-2 rounded-xl bg-white border border-gray-200 outline-none" placeholder="금액" />
         {form.type !== 'income' && (
-          <div className="flex flex-wrap gap-1.5">
+          <select value={form.category} onChange={e => u('category', e.target.value)}
+            className="w-full text-sm px-3 py-2 rounded-xl bg-white border border-gray-200 outline-none cursor-pointer">
             {(userCategories && userCategories.length > 0 ? userCategories : (CATEGORIES as readonly string[])).map(cat => (
-              <button key={cat} onClick={() => u('category', cat)}
-                className="text-xs px-2.5 py-1 rounded-full border transition-all"
-                style={{ background: form.category === cat ? 'var(--color-primary)' : 'white', color: form.category === cat ? 'white' : '#9ca3af', borderColor: form.category === cat ? 'var(--color-primary)' : '#e5e7eb' }}>
-                {cat}
-              </button>
+              <option key={cat} value={cat}>{cat}</option>
             ))}
-          </div>
+          </select>
         )}
         <input type="date" value={form.date} onChange={e => u('date', e.target.value)}
           className="w-full text-sm px-3 py-2 rounded-xl bg-white border border-gray-200 outline-none" />
         <div>
           <p className="text-[11px] text-gray-400 mb-1">결제수단</p>
-          <div className="flex flex-wrap gap-1.5">
-            <button onClick={() => u('payment_method', '')}
-              className="text-xs px-2.5 py-1 rounded-full border transition-all"
-              style={{ background: !form.payment_method ? 'var(--color-primary)' : 'white', color: !form.payment_method ? 'white' : '#9ca3af', borderColor: !form.payment_method ? 'var(--color-primary)' : '#e5e7eb' }}>없음</button>
-            {PAYMENT_OPTIONS.map(pm => (
-              <button key={pm} onClick={() => u('payment_method', pm)}
-                className="text-xs px-2.5 py-1 rounded-full border transition-all"
-                style={{ background: form.payment_method === pm ? 'var(--color-primary)' : 'white', color: form.payment_method === pm ? 'white' : '#9ca3af', borderColor: form.payment_method === pm ? 'var(--color-primary)' : '#e5e7eb' }}>
-                {pm}
-              </button>
+          <select value={form.payment_method} onChange={e => u('payment_method', e.target.value)}
+            className="w-full text-sm px-3 py-2 rounded-xl bg-white border border-gray-200 outline-none cursor-pointer">
+            <option value="">선택 안 함 (없음)</option>
+            {[...paymentMethods, ...EXTRA_PAY_METHODS.filter(m => !paymentMethods.includes(m)), '기타'].map(pm => (
+              <option key={pm} value={pm}>{pm}</option>
             ))}
-          </div>
+          </select>
         </div>
       </div>
       <div className="flex gap-2 mt-3">
@@ -590,13 +588,14 @@ function TransferEditRow({ expense, accounts, onSaveTransfer, onDelete, onCancel
 }
 
 
-function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, today, selectedDate, onSelectDate, expenses, editingId, onEdit, onSave, onDelete, onCancelEdit, accounts, onSaveTransfer, onPayCard }: {
+function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, today, selectedDate, onSelectDate, expenses, editingId, onEdit, onSave, onDelete, onCancelEdit, accounts, onSaveTransfer, onPayCard, paymentMethods, userCategories }: {
   calMonth: string; onChangeMonth: (m: string) => void; calExpenseMap: Map<string, number>; calIncomeSet: Set<string>
   today: string; selectedDate: string | null; onSelectDate: (d: string) => void
   expenses: Expense[]; editingId: string | null; onEdit: (id: string) => void
   onSave: (id: string, u: Partial<Expense>) => void; onDelete: (id: string) => void; onCancelEdit: () => void
   accounts: {id:string;name:string;balance:number}[]; onSaveTransfer: (id: string, upd: Partial<Expense>, of:string, ot:string, nf:string, nt:string, oa:number, na:number) => void
   onPayCard?: (e: Expense) => void
+  paymentMethods: string[]; userCategories?: string[]
 }) {
   const startOfMonth = dayjs(calMonth).startOf('month')
   const daysInMonth = startOfMonth.daysInMonth()
@@ -669,7 +668,7 @@ function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, to
                 {editingId === e.id
                   ? ((e.type === 'savings' || e.type === 'transfer')
                       ? <TransferEditRow expense={e} accounts={accounts} onSaveTransfer={(upd,of,ot,nf,nt,oa,na) => onSaveTransfer(e.id,upd,of,ot,nf,nt,oa,na)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />
-                      : <EditRow expense={e} onSave={u => onSave(e.id, u)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />)
+                      : <EditRow expense={e} onSave={u => onSave(e.id, u)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} paymentMethods={paymentMethods} userCategories={userCategories} />)
                   : <ExpenseRow expense={e} onTap={() => onEdit(e.id)} onPayCard={onPayCard} />
                 }
                 {idx < selectedItems.length - 1 && <div className="h-px bg-gray-50 mx-4" />}

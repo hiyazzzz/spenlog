@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Modal, Animated } from 'react-native';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import dayjs from 'dayjs';
@@ -10,7 +10,7 @@ import { addExpense } from '@/lib/api/expenses';
 import { useDataCache } from '@/store/dataCache';
 import { DEFAULT_CATEGORIES } from '@/lib/api/categories';
 
-const EXPENSE_METHODS = ['현금', '계좌이체', '카카오페이', '네이버페이', '토스페이', '제로페이'];
+const EXTRA_EXPENSE_METHODS = ['현금', '카카오페이', '네이버페이', '토스페이', '제로페이'];
 const INCOME_METHODS = ['현금', '계좌이체'];
 const RECENCY_KEY = 'payment_method_recency';
 
@@ -32,6 +32,67 @@ const TYPE_CONFIG: { key: EntryType; label: string }[] = [
   { key: 'transfer', label: '🔄 이체' },
 ];
 
+// ─── 드롭다운 피커 ───────────────────────────────────────────────────────────
+function DropdownPicker({
+  value, options, onSelect, placeholder = '선택하세요',
+}: {
+  value: string;
+  options: string[];
+  onSelect: (v: string) => void;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <TouchableOpacity style={styles.dropdownBtn} onPress={() => setOpen(true)} activeOpacity={0.7}>
+        <Text style={value ? styles.dropdownValue : styles.dropdownPlaceholder} numberOfLines={1}>
+          {value || placeholder}
+        </Text>
+        <Text style={styles.dropdownArrow}>▾</Text>
+      </TouchableOpacity>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <TouchableOpacity style={styles.dropdownOverlay} activeOpacity={1} onPress={() => setOpen(false)}>
+          <View style={styles.dropdownSheet}>
+            <View style={styles.dropdownHandle} />
+            <ScrollView style={{ maxHeight: 340 }} bounces={false}>
+              {options.map(opt => (
+                <TouchableOpacity
+                  key={opt}
+                  style={[styles.dropdownItem, value === opt && styles.dropdownItemActive]}
+                  onPress={() => { onSelect(opt); setOpen(false); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.dropdownItemText, value === opt && styles.dropdownItemTextActive]}>{opt}</Text>
+                  {value === opt && <Text style={{ color: '#fff', fontSize: 14 }}>✓</Text>}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </>
+  );
+}
+
+// ─── 저장 완료 토스트 ────────────────────────────────────────────────────────
+function SaveToast({ visible }: { visible: boolean }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (visible) {
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.delay(700),
+        Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [visible]);
+  return (
+    <Animated.View style={[styles.saveToast, { opacity }]} pointerEvents="none">
+      <Text style={styles.saveToastText}>✅ 저장됩니다</Text>
+    </Animated.View>
+  );
+}
+
 export default function AddExpenseScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ type?: string }>();
@@ -41,6 +102,7 @@ export default function AddExpenseScreen() {
   const [accounts, setAccounts] = useState<{ id: string; name: string; balance: number }[]>([]);
   const [cards, setCards] = useState<{ name: string }[]>([]);
   const [recency, setRecency] = useState<Record<string, number>>({});
+  const [showToast, setShowToast] = useState(false);
 
   const initType: EntryType =
     params.type === 'income' ? 'income' :
@@ -49,7 +111,7 @@ export default function AddExpenseScreen() {
   const [type, setType] = useState<EntryType>(initType);
   const [amount, setAmount] = useState('');
   const [name, setName] = useState('');
-  const [category, setCategory] = useState('생활비');
+  const [category, setCategory] = useState('');
   const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [paymentMethod, setPaymentMethod] = useState('');
   const [memo, setMemo] = useState('');
@@ -58,12 +120,9 @@ export default function AddExpenseScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // 최근 사용 수단 로드
   useEffect(() => {
     AsyncStorage.getItem(RECENCY_KEY).then(raw => {
-      if (raw) {
-        try { setRecency(JSON.parse(raw)); } catch {}
-      }
+      if (raw) { try { setRecency(JSON.parse(raw)); } catch {} }
     });
   }, []);
 
@@ -79,6 +138,8 @@ export default function AddExpenseScreen() {
       if (catNames.length > 0) {
         setCategories(catNames);
         setCategory(catNames[0]);
+      } else {
+        setCategory(DEFAULT_CATEGORIES[0]);
       }
     } finally {
       setLoading(false);
@@ -90,17 +151,19 @@ export default function AddExpenseScreen() {
   async function saveRecency(methods: string[]) {
     const updated = { ...recency };
     const now = Date.now();
-    methods.forEach(m => { if (m) updated[m] = now; });
+    methods.forEach(m => { if (m && m !== '기타') updated[m] = now; });
     setRecency(updated);
     await AsyncStorage.setItem(RECENCY_KEY, JSON.stringify(updated));
   }
 
+  // 결제수단 옵션 구성: 내 카드 + 내 계좌 + 기본 방법 + 기타
   const accountNames = accounts.map(a => a.name);
-  const rawPaymentOptions = type === 'income'
+  const cardNames = cards.map(c => c.name);
+  const baseOptions = type === 'income'
     ? [...accountNames, ...INCOME_METHODS.filter(m => !accountNames.includes(m))]
-    : [...cards.map(c => c.name), ...accountNames.filter(n => !cards.some(c => c.name === n)), ...EXPENSE_METHODS.filter(m => !cards.some(c => c.name === m) && !accountNames.includes(m))];
-  // 최근 사용순 정렬 (한 번이라도 쓴 것은 앞으로)
-  const paymentOptions = sortByRecency(rawPaymentOptions, recency);
+    : [...cardNames, ...accountNames.filter(n => !cardNames.includes(n)), ...EXTRA_EXPENSE_METHODS.filter(m => !cardNames.includes(m) && !accountNames.includes(m))];
+  const sortedOptions = sortByRecency(baseOptions, recency);
+  const paymentOptions = [...sortedOptions, '기타'];  // 기타 항상 마지막
 
   function resetTypeState() {
     setError('');
@@ -117,7 +180,7 @@ export default function AddExpenseScreen() {
     setSaving(true);
 
     try {
-      // ── 이체 ──────────────────────────────────────────────
+      // ── 이체
       if (type === 'transfer') {
         if (!transferFrom && !transferTo) {
           setError('출금 또는 입금 계좌를 선택해주세요');
@@ -137,61 +200,58 @@ export default function AddExpenseScreen() {
           source: 'manual',
         });
         if (saveErr) throw saveErr;
-
         const fromAcc = accounts.find(a => a.name === transferFrom);
         if (fromAcc) {
-          await supabase.from('accounts')
-            .update({ balance: (fromAcc.balance ?? 0) - amt })
-            .eq('id', fromAcc.id);
+          await supabase.from('accounts').update({ balance: (fromAcc.balance ?? 0) - amt }).eq('id', fromAcc.id);
         }
         const toAcc = accounts.find(a => a.name === transferTo);
         if (toAcc) {
-          await supabase.from('accounts')
-            .update({ balance: (toAcc.balance ?? 0) + amt })
-            .eq('id', toAcc.id);
+          await supabase.from('accounts').update({ balance: (toAcc.balance ?? 0) + amt }).eq('id', toAcc.id);
         }
-
-        // 이체 계좌도 recency 저장
         await saveRecency([transferFrom, transferTo].filter(Boolean));
         useDataCache.getState().setHistory(null);
-        router.back();
+        triggerToastAndBack();
         return;
       }
 
-      // ── 지출 / 수입 ───────────────────────────────────────
+      // ── 지출 / 수입
       if (!name.trim()) { setError('항목명을 입력해주세요'); setSaving(false); return; }
-      if (type === 'expense' && !paymentMethod) { setError('결제수단을 선택해주세요'); setSaving(false); return; }
 
+      const pm = paymentMethod || null;
       const { error: saveErr } = await addExpense(userId, {
         name: name.trim(),
         amount: amt,
-        category: type === 'income' ? '수입' : category,
+        category: type === 'income' ? '수입' : (category || DEFAULT_CATEGORIES[0]),
         date,
-        payment_method: paymentMethod || null,
+        payment_method: pm,
         memo: memo.trim() || null,
         type,
       });
       if (saveErr) throw saveErr;
 
-      const selectedAccount = accounts.find(a => a.name === paymentMethod);
-      if (selectedAccount) {
-        const delta = type === 'income' ? amt : -amt;
-        await supabase.from('accounts')
-          .update({ balance: (selectedAccount.balance ?? 0) + delta })
-          .eq('id', selectedAccount.id);
+      // 계좌 잔액 업데이트 (기타 제외)
+      if (paymentMethod && paymentMethod !== '기타') {
+        const selectedAccount = accounts.find(a => a.name === paymentMethod);
+        if (selectedAccount) {
+          const delta = type === 'income' ? amt : -amt;
+          await supabase.from('accounts').update({ balance: (selectedAccount.balance ?? 0) + delta }).eq('id', selectedAccount.id);
+        }
+        await saveRecency([paymentMethod]);
       }
 
-      // 사용한 결제수단 recency 저장
-      if (paymentMethod) await saveRecency([paymentMethod]);
-
       useDataCache.getState().setHistory(null);
-      router.back();
+      triggerToastAndBack();
     } catch (err: any) {
       console.error('[add] save error:', JSON.stringify(err));
       setError('저장 중 오류가 발생했어요');
     } finally {
       setSaving(false);
     }
+  }
+
+  function triggerToastAndBack() {
+    setShowToast(true);
+    setTimeout(() => router.back(), 1100);
   }
 
   if (loading) {
@@ -212,7 +272,7 @@ export default function AddExpenseScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 타입 토글: 지출 / 수입 / 이체 */}
+      {/* 타입 토글 */}
       <View style={styles.typeToggleRow}>
         {TYPE_CONFIG.map(({ key, label }) => (
           <TouchableOpacity
@@ -220,16 +280,14 @@ export default function AddExpenseScreen() {
             style={[styles.typeToggleBtn, type === key && styles.typeToggleBtnActive]}
             onPress={() => { setType(key); resetTypeState(); }}
           >
-            <Text style={[styles.typeToggleText, type === key && styles.typeToggleTextActive]}>
-              {label}
-            </Text>
+            <Text style={[styles.typeToggleText, type === key && styles.typeToggleTextActive]}>{label}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
       {/* 금액 */}
       <View style={styles.card}>
-        <Text style={styles.fieldLabel}>금액</Text>
+        <Text style={styles.fieldLabel}>금액 *</Text>
         <TextInput
           style={styles.amountInput}
           placeholder="0"
@@ -247,21 +305,11 @@ export default function AddExpenseScreen() {
           <Text style={styles.fieldLabel}>출금 계좌 (선택)</Text>
           <View style={styles.chipWrap}>
             {accounts.map(a => (
-              <TouchableOpacity
-                key={a.id}
-                style={[
-                  styles.chip,
-                  transferFrom === a.name && styles.chipActive,
-                  transferTo === a.name && styles.chipDisabled,
-                ]}
-                onPress={() => {
-                  if (transferTo === a.name) return;
-                  setTransferFrom(prev => prev === a.name ? '' : a.name);
-                }}
+              <TouchableOpacity key={a.id}
+                style={[styles.chip, transferFrom === a.name && styles.chipActive, transferTo === a.name && styles.chipDisabled]}
+                onPress={() => { if (transferTo === a.name) return; setTransferFrom(prev => prev === a.name ? '' : a.name); }}
               >
-                <Text style={[styles.chipText, transferFrom === a.name && styles.chipTextActive]}>
-                  {a.name}
-                </Text>
+                <Text style={[styles.chipText, transferFrom === a.name && styles.chipTextActive]}>{a.name}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -275,21 +323,11 @@ export default function AddExpenseScreen() {
           <Text style={styles.fieldLabel}>입금 계좌 (선택)</Text>
           <View style={styles.chipWrap}>
             {accounts.map(a => (
-              <TouchableOpacity
-                key={a.id}
-                style={[
-                  styles.chip,
-                  transferTo === a.name && styles.chipActiveGreen,
-                  transferFrom === a.name && styles.chipDisabled,
-                ]}
-                onPress={() => {
-                  if (transferFrom === a.name) return;
-                  setTransferTo(prev => prev === a.name ? '' : a.name);
-                }}
+              <TouchableOpacity key={a.id}
+                style={[styles.chip, transferTo === a.name && styles.chipActiveGreen, transferFrom === a.name && styles.chipDisabled]}
+                onPress={() => { if (transferFrom === a.name) return; setTransferTo(prev => prev === a.name ? '' : a.name); }}
               >
-                <Text style={[styles.chipText, transferTo === a.name && styles.chipTextActive]}>
-                  {a.name}
-                </Text>
+                <Text style={[styles.chipText, transferTo === a.name && styles.chipTextActive]}>{a.name}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -301,20 +339,14 @@ export default function AddExpenseScreen() {
       {type === 'transfer' && (
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>이체 항목 (선택)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="예) ISA 투자금"
-            placeholderTextColor={COLORS.gray400}
-            value={name}
-            onChangeText={setName}
-          />
+          <TextInput style={styles.input} placeholder="예) ISA 투자금" placeholderTextColor={COLORS.gray400} value={name} onChangeText={setName} />
         </View>
       )}
 
       {/* 지출/수입 — 항목명 */}
       {type !== 'transfer' && (
         <View style={styles.card}>
-          <Text style={styles.fieldLabel}>{type === 'expense' ? '어디서 썼나요?' : '어디서 받았나요?'}</Text>
+          <Text style={styles.fieldLabel}>{type === 'expense' ? '상호명 / 항목명 *' : '항목명 *'}</Text>
           <TextInput
             style={styles.input}
             placeholder={type === 'expense' ? '예) 스타벅스' : '예) 용돈'}
@@ -325,71 +357,48 @@ export default function AddExpenseScreen() {
         </View>
       )}
 
-      {/* 지출 — 카테고리 */}
+      {/* 카테고리 드롭다운 */}
       {type === 'expense' && (
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>카테고리</Text>
-          <View style={styles.chipWrap}>
-            {categories.map(cat => (
-              <TouchableOpacity
-                key={cat}
-                style={[styles.chip, category === cat && styles.chipActive]}
-                onPress={() => setCategory(cat)}
-              >
-                <Text style={[styles.chipText, category === cat && styles.chipTextActive]}>{cat}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <DropdownPicker
+            value={category}
+            options={categories}
+            onSelect={setCategory}
+            placeholder="카테고리 선택"
+          />
         </View>
       )}
 
       {/* 날짜 */}
       <View style={styles.card}>
         <Text style={styles.fieldLabel}>날짜</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={COLORS.gray400}
-          value={date}
-          onChangeText={setDate}
-        />
+        <TextInput style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor={COLORS.gray400} value={date} onChangeText={setDate} />
       </View>
 
-      {/* 지출/수입 — 결제수단 (최근사용순) */}
+      {/* 결제수단 드롭다운 */}
       {type !== 'transfer' && (
         <View style={styles.card}>
-          <Text style={styles.fieldLabel}>
-            {type === 'expense' ? '결제수단' : '받은 수단'}{' '}
-            {type === 'expense' && <Text style={{ color: COLORS.red }}>*</Text>}
-          </Text>
-          {Object.keys(recency).length > 0 && (
-            <Text style={styles.recencyHint}>최근 사용순으로 정렬됨</Text>
+          <Text style={styles.fieldLabel}>{type === 'expense' ? '결제수단' : '받은 수단'}</Text>
+          <DropdownPicker
+            value={paymentMethod}
+            options={paymentOptions}
+            onSelect={setPaymentMethod}
+            placeholder="선택 안 함 (없음)"
+          />
+          {paymentMethod !== '' && (
+            <TouchableOpacity onPress={() => setPaymentMethod('')} style={{ marginTop: 8 }}>
+              <Text style={{ fontSize: 11, color: COLORS.gray400 }}>✕ 선택 해제</Text>
+            </TouchableOpacity>
           )}
-          <View style={styles.chipWrap}>
-            {paymentOptions.map(method => (
-              <TouchableOpacity
-                key={method}
-                style={[styles.chip, paymentMethod === method && styles.chipActive]}
-                onPress={() => setPaymentMethod(paymentMethod === method ? '' : method)}
-              >
-                <Text style={[styles.chipText, paymentMethod === method && styles.chipTextActive]}>{method}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
         </View>
       )}
 
-      {/* 메모 (지출/수입만) */}
+      {/* 메모 */}
       {type !== 'transfer' && (
         <View style={styles.card}>
-          <Text style={styles.fieldLabel}>메모</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="메모 (선택)"
-            placeholderTextColor={COLORS.gray400}
-            value={memo}
-            onChangeText={setMemo}
-          />
+          <Text style={styles.fieldLabel}>메모 (선택)</Text>
+          <TextInput style={styles.input} placeholder="간단히 남겨보세요" placeholderTextColor={COLORS.gray400} value={memo} onChangeText={setMemo} />
         </View>
       )}
 
@@ -403,6 +412,7 @@ export default function AddExpenseScreen() {
         </Text>
       </TouchableOpacity>
     </ScrollView>
+    <SaveToast visible={showToast} />
     </KeyboardAvoidingView>
   );
 }
@@ -427,8 +437,6 @@ const styles = StyleSheet.create({
   amountInput: { fontSize: 22, fontWeight: '800', color: COLORS.gray800 },
   input: { fontSize: 14, color: COLORS.gray800 },
 
-  recencyHint: { fontSize: 10, color: COLORS.gray400, marginBottom: 6 },
-
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: COLORS.gray100 },
   chipActive: { backgroundColor: COLORS.primary },
@@ -442,4 +450,33 @@ const styles = StyleSheet.create({
 
   saveBtn: { backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
   saveBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+
+  // 드롭다운
+  dropdownBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 10, paddingHorizontal: 12,
+    backgroundColor: COLORS.gray100, borderRadius: RADIUS.md,
+  },
+  dropdownValue: { fontSize: 14, fontWeight: '600', color: COLORS.gray800, flex: 1 },
+  dropdownPlaceholder: { fontSize: 14, color: COLORS.gray400, flex: 1 },
+  dropdownArrow: { fontSize: 10, color: COLORS.gray400, marginLeft: 8 },
+  dropdownOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  dropdownSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 12, paddingBottom: 36 },
+  dropdownHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 8 },
+  dropdownItem: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 14, paddingHorizontal: 20,
+    borderBottomWidth: 1, borderBottomColor: COLORS.gray100,
+  },
+  dropdownItemActive: { backgroundColor: COLORS.primary },
+  dropdownItemText: { fontSize: 14, color: COLORS.gray700 },
+  dropdownItemTextActive: { color: '#fff', fontWeight: '700' },
+
+  // 저장 완료 토스트
+  saveToast: {
+    position: 'absolute', bottom: 100, alignSelf: 'center',
+    backgroundColor: 'rgba(30,30,30,0.88)', paddingVertical: 10, paddingHorizontal: 22,
+    borderRadius: 30,
+  },
+  saveToastText: { color: '#fff', fontWeight: '600', fontSize: 14 },
 });

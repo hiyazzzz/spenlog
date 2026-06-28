@@ -127,7 +127,7 @@ function FixedRow({ item, accountName, targetAccountName, onDelete, onEdit, isEd
 
   if (isEditing) {
     return (
-      <div style={{ padding: '10px 0', borderBottom: '1px solid #f9fafb' }}>
+      <div style={{ padding: 12, borderRadius: 12, background: '#f9fafb', marginBottom: 8 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div>
             <label style={labelStyle}>이름</label>
@@ -285,7 +285,7 @@ function AccountRow({ acc, sb, onDelete, onUpdated, isEditing, onStartEdit, onCl
   const inp: React.CSSProperties = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const }
   const lbl: React.CSSProperties = { fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 3, marginTop: 6 }
   if (isEditing) return (
-    <div style={{ padding: '10px 0', borderBottom: '1px solid #f9fafb' }}>
+    <div style={{ padding: 12, borderRadius: 12, background: '#f9fafb', marginBottom: 8 }}>
       <label style={{ ...lbl, marginTop: 0 }}>계좌명</label>
       <input value={vals.name} onChange={e => setVals(p => ({ ...p, name: e.target.value }))} placeholder="예) 국민 주거래통장" style={inp} />
       <label style={lbl}>은행</label>

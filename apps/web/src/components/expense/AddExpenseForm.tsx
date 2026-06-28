@@ -70,7 +70,7 @@ export default function AddExpenseForm({ prefill, userCategories }: Props) {
       if (!transferTo) { setError('입금 계좌를 선택하세요'); return }
     } else {
       if (!form.name.trim()) { setError(TEXTS.addExpense.errName); return }
-      if (type === 'expense' && !form.payment_method) { setError(TEXTS.addExpense.errPayment); return }
+      // 결제수단 없이 저장 허용 (기타/미선택)
     }
     setSaving(true)
     try {
@@ -144,7 +144,7 @@ export default function AddExpenseForm({ prefill, userCategories }: Props) {
   const accountNames = accounts.map(a => a.name)
   const paymentOptions = type === 'income'
     ? [...accountNames, ...INCOME_METHODS.filter(m => !accountNames.includes(m))]
-    : [...cards.map(c => c.name), ...accountNames.filter(n => !cards.some(c => c.name === n)), ...EXPENSE_METHODS.filter(m => !cards.some(c => c.name === m) && !accountNames.includes(m))]
+    : [...cards.map(c => c.name), ...accountNames.filter(n => !cards.some(c => c.name === n)), ...EXPENSE_METHODS.filter(m => !cards.some(c => c.name === m) && !accountNames.includes(m)), '기타']
 
   return (
     <div className="space-y-3 relative">
@@ -226,17 +226,17 @@ export default function AddExpenseForm({ prefill, userCategories }: Props) {
         </div>
       ) : (
         <div className="bg-white rounded-2xl p-4 border border-gray-100">
-          <label className="text-xs text-gray-400 mb-2 block">{type === 'expense' ? TEXTS.addExpense.labelPaymentExpense : TEXTS.addExpense.labelPaymentIncome} <span className="text-rose-400">*</span></label>
-          <div className="flex flex-wrap gap-2">
-            {paymentOptions.slice(0, 6).map(method => (
-              <button key={method}
-                onClick={() => update('payment_method', form.payment_method === method ? '' : method)}
-                className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-                style={{ background: form.payment_method === method ? 'var(--color-primary)' : '#f3f4f6', color: form.payment_method === method ? 'white' : '#6b7280' }}>
-                {method}
-              </button>
+          <label className="text-xs text-gray-400 mb-2 block">{type === 'expense' ? TEXTS.addExpense.labelPaymentExpense : TEXTS.addExpense.labelPaymentIncome}</label>
+          <select
+            value={form.payment_method}
+            onChange={e => update('payment_method', e.target.value)}
+            className="w-full text-sm outline-none text-gray-800 bg-transparent cursor-pointer"
+            style={{ appearance: 'auto' }}>
+            <option value="">선택 안 함 (없음)</option>
+            {paymentOptions.map(method => (
+              <option key={method} value={method}>{method}</option>
             ))}
-          </div>
+          </select>
         </div>
       )}
       <div className="bg-white rounded-2xl p-4 border border-gray-100">

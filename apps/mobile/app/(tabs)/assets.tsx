@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Alert, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Alert, Switch, Keyboard } from 'react-native';
 import SlideUpModal from '@/components/SlideUpModal';
 import { useFocusEffect } from 'expo-router';
 import { useDataCache } from '@/store/dataCache';
@@ -124,6 +124,13 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
 
   // 월 수입 수정
   const [editingIncome, setEditingIncome] = useState(false);
+
+  function closeAllEditing() {
+    setEditingAccountId(null);
+    setEditingCardId(null);
+    setEditingIncome(false);
+    Keyboard.dismiss();
+  }
   const [income, setIncome] = useState('');
   const [savingGoal, setSavingGoal] = useState('');
   const [savingIncome, setSavingIncome] = useState(false);
@@ -422,7 +429,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
   const showSetupBanner = accounts.length === 0 && cards.length === 0 && fixedCosts.length === 0;
 
   return (
-    <ScrollView style={sharedStyles.panel} contentContainerStyle={sharedStyles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView style={sharedStyles.panel} contentContainerStyle={sharedStyles.content} keyboardShouldPersistTaps="handled" onScrollBeginDrag={closeAllEditing}>
       {/* 초기 설정 가이드 배너 */}
       {showSetupBanner && (
         <View style={[assetStyles.setupBanner, { backgroundColor: themeColors.primaryLight, borderColor: themeColors.primary + '33' }]}>
@@ -1724,7 +1731,7 @@ const sharedStyles = StyleSheet.create({
   emptyText: { fontSize: 12, color: COLORS.gray400, textAlign: 'center', paddingVertical: 16 },
 
   headerWrap: { paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12, backgroundColor: COLORS.bg },
-  pageTitle: { fontSize: 18, fontWeight: '600', color: COLORS.accent, marginBottom: 12 },
+  pageTitle: { fontSize: 22, fontWeight: '700', color: COLORS.accent, marginBottom: 12 },
   subTabBar: { flexDirection: 'row', backgroundColor: '#F0EAEC', borderRadius: RADIUS.lg, padding: 4, gap: 4 },
   subTabBtn: { flex: 1, paddingVertical: 8, borderRadius: RADIUS.md, alignItems: 'center' },
   subTabBtnActive: { backgroundColor: COLORS.primary },
