@@ -449,7 +449,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
       {/* 0. 이번 달 루틴 (고정비만) */}
       {fixedCosts.length > 0 && (
         <View style={assetStyles.section}>
-          <TouchableOpacity style={[assetStyles.sectionHeader, { backgroundColor: themeColors.primaryLight, borderLeftWidth: 3, borderLeftColor: themeColors.primary }]} onPress={() => setRoutineExpanded(o => !o)} activeOpacity={0.7}>
+          <TouchableOpacity style={[assetStyles.sectionHeader, { backgroundColor: themeColors.primaryLight, borderWidth: 1.5, borderColor: themeColors.primaryLight, borderRadius: 10 }]} onPress={() => setRoutineExpanded(o => !o)} activeOpacity={0.7}>
             <Text style={[assetStyles.sectionTitle, { color: themeColors.primary }]}>이번 달 정기 기록</Text>
             <View style={assetStyles.sectionHeaderRight}>
               <Text style={[assetStyles.sectionSummary, { color: themeColors.primary }]}>{routineDone}/{routineTotal} 완료</Text>
@@ -501,7 +501,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
       {/* 0-1. 이번 달 카드 납부 */}
       {cards.length > 0 && (
         <View style={assetStyles.section}>
-          <TouchableOpacity style={[assetStyles.sectionHeader, { backgroundColor: themeColors.primaryLight, borderLeftWidth: 3, borderLeftColor: themeColors.primary }]} onPress={() => setCardSectionExpanded(o => !o)} activeOpacity={0.7}>
+          <TouchableOpacity style={[assetStyles.sectionHeader, { backgroundColor: themeColors.primaryLight, borderWidth: 1.5, borderColor: themeColors.primaryLight, borderRadius: 10 }]} onPress={() => setCardSectionExpanded(o => !o)} activeOpacity={0.7}>
             <Text style={[assetStyles.sectionTitle, { color: themeColors.primary }]}>이번 달 카드 납부</Text>
             <View style={assetStyles.sectionHeaderRight}>
               <Text style={[assetStyles.sectionSummary, { color: themeColors.primary }]}>{cardsDone}/{cards.length} 완료</Text>
