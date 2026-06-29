@@ -235,13 +235,18 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
       <div className="flex items-center justify-between mb-3">
         <h1 className="text-lg font-semibold" style={{ color: 'var(--color-accent)' }}>내역</h1>
         <div className="flex items-center gap-2">
+          <div className="flex rounded-full p-0.5 gap-0.5" style={{ background: 'var(--color-primary-light)' }}>
+            {(['list', 'calendar'] as const).map(v => (
+              <button key={v} onClick={() => setView(v)}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
+                style={{ background: view === v ? 'var(--color-primary)' : 'transparent', color: view === v ? '#fff' : 'var(--color-primary)' }}>
+                {v === 'list' ? '≡ 리스트' : '캘린더'}
+              </button>
+            ))}
+          </div>
           <a href="/add"
             className="w-8 h-8 flex items-center justify-center rounded-full text-white text-lg font-bold"
             style={{ background: 'var(--color-primary)' }}>+</a>
-          <button onClick={() => setView(v => v === 'list' ? 'calendar' : 'list')}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 text-base">
-            {view === 'list' ? '🗓' : '≡'}
-          </button>
         </div>
       </div>
 
