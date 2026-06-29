@@ -35,10 +35,13 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
 
   const [expenses, setExpenses] = useState(initialExpenses)
   const [accounts, setAccounts] = useState<{id:string;name:string;balance:number}[]>([])
+  const [cards, setCards] = useState<{name:string}[]>([])
 
   useEffect(() => {
     supabase.from('accounts').select('id, name, balance').eq('user_id', userId).order('name')
       .then(({ data }) => { if (data) setAccounts(data) })
+    supabase.from('cards').select('name').eq('user_id', userId).order('name')
+      .then(({ data }) => { if (data) setCards(data) })
   }, [userId])
   const [view, setView] = useState<ViewMode>('list')
   const [search, setSearch] = useState('')
@@ -327,7 +330,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
                       {editingId === e.id
                         ? ((e.type === 'savings' || e.type === 'transfer')
                             ? <TransferEditRow expense={e} accounts={accounts} onSaveTransfer={(upd,of,ot,nf,nt,oa,na) => saveTransfer(e.id,upd,of,ot,nf,nt,oa,na)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} />
-                            : <EditRow expense={e} onSave={u => saveExpense(e.id, u)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} paymentMethods={paymentMethods} userCategories={userCategories} />)
+                            : <EditRow expense={e} onSave={u => saveExpense(e.id, u)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} paymentMethods={paymentMethods} userCategories={userCategories} cards={cards} accounts={accounts} />)
                         : <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} onPayCard={handleCardPayment} />
                       }
                       {idx < items.length - 1 && <div className="h-px bg-gray-50 mx-4" />}
@@ -346,7 +349,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
           selectedDate={selectedDate} onSelectDate={d => setSelectedDate(selectedDate === d ? null : d)}
           expenses={expenses} editingId={editingId} onEdit={setEditingId}
           onSave={saveExpense} onDelete={deleteExpense} onCancelEdit={() => setEditingId(null)}
-          accounts={accounts} onSaveTransfer={(id,upd,of,ot,nf,nt,oa,na) => saveTransfer(id,upd,of,ot,nf,nt,oa,na)}
+          accounts={accounts} cards={cards} onSaveTransfer={(id,upd,of,ot,nf,nt,oa,na) => saveTransfer(id,upd,of,ot,nf,nt,oa,na)}
           onPayCard={handleCardPayment}
           paymentMethods={paymentMethods} userCategories={userCategories}
         />
@@ -454,15 +457,15 @@ function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: ()
   )
 }
 
-const EXTRA_PAY_METHODS = ['현금', '카카오페이', '네이버페이', '토스', '계좌이체']
-
-function EditRow({ expense, onSave, onDelete, onCancel, userCategories, paymentMethods }: {
+function EditRow({ expense, onSave, onDelete, onCancel, userCategories, paymentMethods, cards, accounts }: {
   expense: Expense
   onSave: (updates: Partial<Expense>) => void
   onDelete: () => void
   onCancel: () => void
   userCategories?: string[]
   paymentMethods: string[]
+  cards: {name:string}[]
+  accounts: {id:string;name:string;balance:number}[]
 }) {
   const [form, setForm] = useState({ ...expense, type: expense.type ?? 'expense', amount: expense.amount.toLocaleString(), payment_method: expense.payment_method ?? '' })
   function u(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
@@ -503,9 +506,24 @@ function EditRow({ expense, onSave, onDelete, onCancel, userCategories, paymentM
           <select value={form.payment_method} onChange={e => u('payment_method', e.target.value)}
             className="w-full text-sm px-3 py-2 rounded-xl bg-white border border-gray-200 outline-none cursor-pointer">
             <option value="">선택 안 함 (없음)</option>
-            {[...paymentMethods, ...EXTRA_PAY_METHODS.filter(m => !paymentMethods.includes(m)), '기타'].map(pm => (
-              <option key={pm} value={pm}>{pm}</option>
-            ))}
+            {cards.length > 0 && (
+              <optgroup label="카드">
+                {[...cards].sort((a, b) => a.name.localeCompare(b.name)).map(c => (
+                  <option key={c.name} value={c.name}>{c.name}</option>
+                ))}
+              </optgroup>
+            )}
+            {accounts.length > 0 && (
+              <optgroup label="계좌">
+                {[...accounts].sort((a, b) => a.name.localeCompare(b.name)).map(a => (
+                  <option key={a.name} value={a.name}>{a.name}</option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label="기타 수단">
+              <option value="현금">현금</option>
+              <option value="기타">기타</option>
+            </optgroup>
           </select>
         </div>
       </div>
@@ -588,12 +606,13 @@ function TransferEditRow({ expense, accounts, onSaveTransfer, onDelete, onCancel
 }
 
 
-function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, today, selectedDate, onSelectDate, expenses, editingId, onEdit, onSave, onDelete, onCancelEdit, accounts, onSaveTransfer, onPayCard, paymentMethods, userCategories }: {
+function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, today, selectedDate, onSelectDate, expenses, editingId, onEdit, onSave, onDelete, onCancelEdit, accounts, cards, onSaveTransfer, onPayCard, paymentMethods, userCategories }: {
   calMonth: string; onChangeMonth: (m: string) => void; calExpenseMap: Map<string, number>; calIncomeSet: Set<string>
   today: string; selectedDate: string | null; onSelectDate: (d: string) => void
   expenses: Expense[]; editingId: string | null; onEdit: (id: string) => void
   onSave: (id: string, u: Partial<Expense>) => void; onDelete: (id: string) => void; onCancelEdit: () => void
-  accounts: {id:string;name:string;balance:number}[]; onSaveTransfer: (id: string, upd: Partial<Expense>, of:string, ot:string, nf:string, nt:string, oa:number, na:number) => void
+  accounts: {id:string;name:string;balance:number}[]; cards: {name:string}[]
+  onSaveTransfer: (id: string, upd: Partial<Expense>, of:string, ot:string, nf:string, nt:string, oa:number, na:number) => void
   onPayCard?: (e: Expense) => void
   paymentMethods: string[]; userCategories?: string[]
 }) {
@@ -668,7 +687,7 @@ function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, to
                 {editingId === e.id
                   ? ((e.type === 'savings' || e.type === 'transfer')
                       ? <TransferEditRow expense={e} accounts={accounts} onSaveTransfer={(upd,of,ot,nf,nt,oa,na) => onSaveTransfer(e.id,upd,of,ot,nf,nt,oa,na)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />
-                      : <EditRow expense={e} onSave={u => onSave(e.id, u)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} paymentMethods={paymentMethods} userCategories={userCategories} />)
+                      : <EditRow expense={e} onSave={u => onSave(e.id, u)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} paymentMethods={paymentMethods} userCategories={userCategories} cards={cards} accounts={accounts} />)
                   : <ExpenseRow expense={e} onTap={() => onEdit(e.id)} onPayCard={onPayCard} />
                 }
                 {idx < selectedItems.length - 1 && <div className="h-px bg-gray-50 mx-4" />}

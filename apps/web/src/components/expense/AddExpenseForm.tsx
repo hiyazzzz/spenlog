@@ -7,10 +7,6 @@ import { CATEGORIES } from '@/lib/themes'
 import dayjs from 'dayjs'
 import { TEXTS } from '@/config/texts'
 
-// 지출 수단: 카드(등록된 카드 우선) + 직접결제 수단
-const EXPENSE_METHODS = ['현금', '계좌이체', '카카오페이', '네이버페이', '토스페이', '제로페이']
-// 수입 수단
-const INCOME_METHODS = ['현금', '계좌이체']
 
 interface Props {
   prefill?: { name?: string; amount?: number; category?: string; type?: 'expense' | 'income' | 'transfer' }
@@ -147,9 +143,6 @@ export default function AddExpenseForm({ prefill, userCategories }: Props) {
   }
 
   const accountNames = accounts.map(a => a.name)
-  const paymentOptions = type === 'income'
-    ? [...accountNames, ...INCOME_METHODS.filter(m => !accountNames.includes(m))]
-    : [...cards.map(c => c.name), ...accountNames.filter(n => !cards.some(c => c.name === n)), ...EXPENSE_METHODS.filter(m => !cards.some(c => c.name === m) && !accountNames.includes(m)), '기타']
 
   return (
     <div className="space-y-3 relative">
@@ -238,9 +231,41 @@ export default function AddExpenseForm({ prefill, userCategories }: Props) {
             className="w-full text-sm outline-none text-gray-800 bg-transparent cursor-pointer"
             style={{ appearance: 'auto' }}>
             <option value="">선택 안 함 (없음)</option>
-            {paymentOptions.map(method => (
-              <option key={method} value={method}>{method}</option>
-            ))}
+            {type === 'expense' ? (
+              <>
+                {cards.length > 0 && (
+                  <optgroup label="카드">
+                    {[...cards].sort((a, b) => a.name.localeCompare(b.name)).map(c => (
+                      <option key={c.name} value={c.name}>{c.name}</option>
+                    ))}
+                  </optgroup>
+                )}
+                {accountNames.length > 0 && (
+                  <optgroup label="계좌">
+                    {[...accountNames].sort((a, b) => a.localeCompare(b)).map(n => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </optgroup>
+                )}
+                <optgroup label="기타 수단">
+                  <option value="현금">현금</option>
+                  <option value="기타">기타</option>
+                </optgroup>
+              </>
+            ) : (
+              <>
+                {accountNames.length > 0 && (
+                  <optgroup label="계좌">
+                    {[...accountNames].sort((a, b) => a.localeCompare(b)).map(n => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </optgroup>
+                )}
+                <optgroup label="기타 수단">
+                  <option value="현금">현금</option>
+                </optgroup>
+              </>
+            )}
           </select>
         </div>
       )}
