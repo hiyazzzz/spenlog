@@ -1022,8 +1022,8 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       {activeTab === 'budget' && (
         <BudgetForm
           userId={userId}
-          initialBudgets={budgets}
-          expenses={(expenses ?? []).map(e => ({ category: e.category, amount: e.amount, type: (e as any).type ?? 'expense' }))}
+          initialBudgets={budgets as any}
+          expenses={(expenses ?? []).map(e => ({ category: e.category as any, amount: e.amount, type: (e as any).type ?? 'expense' }))}
           thisMonth={thisMonth}
           income={profile?.income ?? 0}
           fixedSavings={fixedSavings.reduce((s: number, f: any) => s + f.amount, 0)}
