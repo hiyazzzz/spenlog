@@ -45,20 +45,34 @@ function LoadingSkeleton() {
 }
 
 export default function AssetsDataLoader({ userId }: { userId: string }) {
-  const [data, setData] = useState<AssetsData | null>(null)
+  // lazy initializer: sessionStorage를 동기적으로 읽어 첫 render부터 캐시 데이터 사용
+  // → skeleton flash(layout shift) 방지
+  const [data, setData] = useState<AssetsData | null>(() => {
+    if (typeof window === 'undefined') return null
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY)
+      if (raw) {
+        const { d } = JSON.parse(raw)
+        return d
+      }
+    } catch {}
+    return null
+  })
 
   useEffect(() => {
-    // 캐시 확인
+    // 캐시 신선도 확인 → stale이면 background revalidate
+    let needsFetch = true
     try {
-      const cached = sessionStorage.getItem(CACHE_KEY)
-      if (cached) {
-        const { d, ts } = JSON.parse(cached)
-        setData(d)
-        if (Date.now() - ts < CACHE_TTL) return // 신선한 캐시 → fetch 스킵
+      const raw = sessionStorage.getItem(CACHE_KEY)
+      if (raw) {
+        const { ts } = JSON.parse(raw)
+        if (Date.now() - ts < CACHE_TTL) needsFetch = false
       }
     } catch {}
 
-    // 백그라운드 fetch (캐시 있으면 stale-while-revalidate, 없으면 첫 로딩)
+    if (!needsFetch) return
+
+    // 캐시 없거나 stale → 백그라운드 fetch
     fetch('/api/assets-data')
       .then(r => r.json())
       .then(fresh => {
