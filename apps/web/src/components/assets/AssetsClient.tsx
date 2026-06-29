@@ -372,6 +372,9 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const router = useRouter()
   const activeTab = (searchParams.get('tab') as 'assets' | 'budget' | 'fixed') ?? 'assets'
   const setActiveTab = (tab: 'assets' | 'budget' | 'fixed') => {
+    // 탭 전환 시 편집/추가 상태 즉시 리셋
+    setActiveEditId(null)
+    setShowAddFixed(null)
     const params = new URLSearchParams(Array.from(searchParams.entries()))
     if (tab === 'assets') params.delete('tab')
     else params.set('tab', tab)
@@ -394,12 +397,6 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const [cardEditBillingStart, setCardEditBillingStart] = useState('')
   const [cardEditLinkedAccountId, setCardEditLinkedAccountId] = useState('')
   const [cardEditSaving, setCardEditSaving] = useState(false)
-
-  // 탭 전환 시 편집/추가 상태 리셋
-  useEffect(() => {
-    setActiveEditId(null)
-    setShowAddFixed(null)
-  }, [activeTab])
 
   // 이번 달 카드 납부 완료 목록 초기 로딩 (savings_payments 테이블 기준)
   useEffect(() => {
