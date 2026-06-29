@@ -195,7 +195,18 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    load();
+    return () => {
+      // 다른 탭으로 이동 시 편집 폼 초기화
+      setEditingAccountId(null);
+      setEditingCardId(null);
+      setEditingIncome(false);
+      setShowAddAccount(false);
+      setShowAddCard(false);
+      setShowCashForm(false);
+    };
+  }, [load]));
 
   if (loading) {
     return (
