@@ -240,8 +240,8 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
     await supabase.from('users').delete().eq('id', userId)
     await supabase.auth.signOut({ scope: 'global' })
     if (typeof window !== 'undefined') {
-      ['sp_assets_v2','sp_history_v2','sp_home_v1','sp_settings_v1','sp_report_v1'].forEach(k => { try { localStorage.removeItem(k) } catch {} })
-      ['sp_assets_v2','sp_history_v2','sp_home_v1','sp_settings_v1','sp_report_v1'].forEach(k => { try { localStorage.removeItem(k) } catch {} })
+      ;['sp_assets_v2','sp_history_v2','sp_home_v1','sp_settings_v1','sp_report_v1'].forEach(k => { try { localStorage.removeItem(k) } catch {} })
+      ;['sp_assets_v2','sp_history_v2','sp_home_v1','sp_settings_v1','sp_report_v1'].forEach(k => { try { localStorage.removeItem(k) } catch {} })
     }
     window.location.href = '/login'
   }
