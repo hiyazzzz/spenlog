@@ -10,6 +10,7 @@ import { addExpense } from '@/lib/api/expenses';
 import { getHistoryData } from '@/lib/api/history';
 import { useDataCache } from '@/store/dataCache';
 import { DEFAULT_CATEGORIES } from '@/lib/api/categories';
+import GroupedDropdownPicker, { GroupedItem } from '@/components/GroupedDropdownPicker';
 
 const EXTRA_EXPENSE_METHODS = ['현금', '카카오페이', '네이버페이', '토스페이', '제로페이'];
 const INCOME_METHODS = ['현금', '계좌이체'];
@@ -157,14 +158,30 @@ export default function AddExpenseScreen() {
     await AsyncStorage.setItem(RECENCY_KEY, JSON.stringify(updated));
   }
 
-  // 결제수단 옵션 구성: 내 카드 + 내 계좌 + 기본 방법 + 기타
+  // 결제수단 옵션 구성: 카드/계좌/기타 그룹으로 분리 (이름순)
   const accountNames = accounts.map(a => a.name);
   const cardNames = cards.map(c => c.name);
-  const baseOptions = type === 'income'
-    ? [...accountNames, ...INCOME_METHODS.filter(m => !accountNames.includes(m))]
-    : [...cardNames, ...accountNames.filter(n => !cardNames.includes(n)), ...EXTRA_EXPENSE_METHODS.filter(m => !cardNames.includes(m) && !accountNames.includes(m))];
-  const sortedOptions = sortByRecency(baseOptions, recency);
-  const paymentOptions = [...sortedOptions, '기타'];  // 기타 항상 마지막
+
+  function buildPaymentItems(t: 'expense' | 'income' | 'transfer'): GroupedItem[] {
+    const sorted = (arr: string[]) => [...arr].sort((a, b) => a.localeCompare(b, 'ko'));
+    const items: GroupedItem[] = [];
+    if (t === 'expense') {
+      const sc = sorted(cardNames);
+      const sa = sorted(accountNames);
+      const se = sorted(EXTRA_EXPENSE_METHODS.filter(m => !cardNames.includes(m) && !accountNames.includes(m)));
+      if (sc.length) { items.push({ type: 'header', label: '카드' }); sc.forEach(v => items.push({ type: 'item', label: v, value: v })); }
+      if (sa.length) { items.push({ type: 'header', label: '계좌' }); sa.forEach(v => items.push({ type: 'item', label: v, value: v })); }
+      if (se.length) { items.push({ type: 'header', label: '기타 수단' }); se.forEach(v => items.push({ type: 'item', label: v, value: v })); }
+    } else {
+      const sa = sorted(accountNames);
+      const se = sorted(INCOME_METHODS.filter(m => !accountNames.includes(m)));
+      if (sa.length) { items.push({ type: 'header', label: '계좌' }); sa.forEach(v => items.push({ type: 'item', label: v, value: v })); }
+      if (se.length) { items.push({ type: 'header', label: '기타 수단' }); se.forEach(v => items.push({ type: 'item', label: v, value: v })); }
+    }
+    items.push({ type: 'item', label: '기타', value: '기타' });
+    return items;
+  }
+  const paymentItems = buildPaymentItems(type);
 
   function resetTypeState() {
     setError('');
@@ -387,9 +404,9 @@ export default function AddExpenseScreen() {
       {type !== 'transfer' && (
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>{type === 'expense' ? '결제수단' : '받은 수단'}</Text>
-          <DropdownPicker
+          <GroupedDropdownPicker
             value={paymentMethod}
-            options={paymentOptions}
+            items={paymentItems}
             onSelect={setPaymentMethod}
             placeholder="선택 안 함 (없음)"
           />

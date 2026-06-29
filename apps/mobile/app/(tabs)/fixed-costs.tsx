@@ -42,19 +42,48 @@ function SelectModal({
   visible: boolean; title: string; options: SelectOption[];
   onSelect: (option: SelectOption | null) => void; onClose: () => void;
 }) {
+  // 카드/계좌 그룹 분리 후 이름순 정렬
+  const sortedName = (arr: SelectOption[]) =>
+    [...arr].sort((a, b) => a.label.localeCompare(b.label, 'ko'));
+  const cards = sortedName(options.filter(o => o.type === 'card'));
+  const accounts = sortedName(options.filter(o => o.type === 'account'));
+
   return (
     <SlideUpModal visible={visible} onRequestClose={onClose}>
       <View style={styles.modalSheet}>
         <Text style={styles.modalTitle}>{title}</Text>
-        <ScrollView style={{ maxHeight: 280 }}>
+        <ScrollView style={{ maxHeight: 320 }}>
           <TouchableOpacity style={styles.modalOption} onPress={() => onSelect(null)}>
             <Text style={styles.modalOptionTextMuted}>선택 안 함</Text>
           </TouchableOpacity>
-          {options.map(opt => (
-            <TouchableOpacity key={opt.key} style={styles.modalOption} onPress={() => onSelect(opt)}>
-              <Text style={styles.modalOptionText}>{opt.label}</Text>
-            </TouchableOpacity>
-          ))}
+
+          {/* 카드 그룹 */}
+          {cards.length > 0 && (
+            <>
+              <View style={styles.modalGroupHeader}>
+                <Text style={styles.modalGroupHeaderText}>카드</Text>
+              </View>
+              {cards.map(opt => (
+                <TouchableOpacity key={opt.key} style={styles.modalOptionIndented} onPress={() => onSelect(opt)}>
+                  <Text style={styles.modalOptionText}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </>
+          )}
+
+          {/* 계좌 그룹 */}
+          {accounts.length > 0 && (
+            <>
+              <View style={styles.modalGroupHeader}>
+                <Text style={styles.modalGroupHeaderText}>계좌</Text>
+              </View>
+              {accounts.map(opt => (
+                <TouchableOpacity key={opt.key} style={styles.modalOptionIndented} onPress={() => onSelect(opt)}>
+                  <Text style={styles.modalOptionText}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </>
+          )}
         </ScrollView>
       </View>
     </SlideUpModal>
@@ -152,11 +181,11 @@ export default function FixedCostsScreen() {
   const grandTotal = expenseTotal + savingTotal;
 
   const accountOptions: SelectOption[] = data.accounts.map(acc => ({
-    key: `account-${acc.id}`, label: `${acc.name} (계좌)`, type: 'account' as const, id: acc.id,
+    key: `account-${acc.id}`, label: acc.name, type: 'account' as const, id: acc.id,
   }));
   const linkedOptions: SelectOption[] = [
     ...accountOptions,
-    ...data.cards.map(card => ({ key: `card-${card.id}`, label: `${card.name} (카드)`, type: 'card' as const, id: card.id })),
+    ...data.cards.map(card => ({ key: `card-${card.id}`, label: card.name, type: 'card' as const, id: card.id })),
   ];
 
   function selectedLabel(options: SelectOption[], id: string | null) {
@@ -709,4 +738,12 @@ const styles = StyleSheet.create({
   modalOption: { paddingVertical: 12, borderTopWidth: 1, borderTopColor: COLORS.gray50 },
   modalOptionText: { fontSize: 13, color: COLORS.gray800 },
   modalOptionTextMuted: { fontSize: 13, color: COLORS.gray400 },
+  modalGroupHeader: {
+    paddingHorizontal: 12, paddingVertical: 6,
+    backgroundColor: COLORS.gray50,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.gray200,
+    marginTop: 2,
+  },
+  modalGroupHeaderText: { fontSize: 11, fontWeight: '700', color: COLORS.gray500, letterSpacing: 0.6 },
+  modalOptionIndented: { paddingVertical: 12, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: COLORS.gray50 },
 });
