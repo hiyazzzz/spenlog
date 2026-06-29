@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import AssetsClient from './AssetsClient'
 
 const CACHE_KEY = 'sp_assets_v2'
@@ -45,63 +45,34 @@ function LoadingSkeleton() {
 }
 
 export default function AssetsDataLoader({ userId }: { userId: string }) {
-  // lazy initializer: localStorage를 동기적으로 읽어 첫 render부터 캐시 데이터 사용
-  // → skeleton flash(layout shift) 방지
-  const [data, setData] = useState<AssetsData | null>(() => {
-    if (typeof window === 'undefined') return null
-    try {
-      const raw = localStorage.getItem(CACHE_KEY)
-      if (raw) {
-        const { d } = JSON.parse(raw)
-        if (d && typeof d === 'object') return d  // 유효한 데이터만 사용
-      }
-    } catch {}
-    return null
-  })
-  const [fetchError, setFetchError] = useState(false)
+  const [data, setData] = useState<AssetsData | null>(null)
 
   useEffect(() => {
-    setFetchError(false)
-    // data가 없으면 항상 fetch (캐시 신선도 무관)
-    // data가 있으면 stale 여부만 확인 후 background revalidate
-    let needsFetch = true
-    if (data) {
-      try {
-        const raw = localStorage.getItem(CACHE_KEY)
-        if (raw) {
-          const { ts } = JSON.parse(raw)
-          if (Date.now() - ts < CACHE_TTL) needsFetch = false
-        }
-      } catch {}
-    }
+    // 캐시 확인
+    try {
+      const cached = localStorage.getItem(CACHE_KEY)
+      if (cached) {
+        const { d, ts } = JSON.parse(cached)
+        setData(d)
+        if (Date.now() - ts < CACHE_TTL) return // 신선한 캐시 → fetch 스킵
+      }
+    } catch {}
 
-    if (!needsFetch) return
-
+    // 백그라운드 fetch (캐시 있으면 stale-while-revalidate, 없으면 첫 로딩)
     fetch('/api/assets-data')
       .then(r => r.json())
       .then(fresh => {
-        if (fresh.error) {
-          if (!data) setFetchError(true)  // data 없을 때만 에러 표시
-          return
-        }
+        if (fresh.error) return
         setData(fresh)
-        setFetchError(false)
         try { localStorage.setItem(CACHE_KEY, JSON.stringify({ d: fresh, ts: Date.now() })) } catch {}
       })
-      .catch(() => { if (!data) setFetchError(true) })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+      .catch(() => {})
   }, [userId])
 
-  if (!data) {
-    if (fetchError) return (
-      <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>
-        데이터를 불러오지 못했어요. 새로고침 해주세요.
-      </div>
-    )
-    return <LoadingSkeleton />
-  }
+  if (!data) return <LoadingSkeleton />
 
   return (
+    <Suspense fallback={<LoadingSkeleton />}>
     <AssetsClient
       profile={data.profile}
       userId={userId}
@@ -116,5 +87,6 @@ export default function AssetsDataLoader({ userId }: { userId: string }) {
       expenses={data.expenses}
       recentExpenses={data.recentExpenses}
     />
+    </Suspense>
   )
 }
