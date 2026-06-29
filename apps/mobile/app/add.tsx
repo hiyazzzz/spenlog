@@ -12,7 +12,7 @@ import { useDataCache } from '@/store/dataCache';
 import { DEFAULT_CATEGORIES } from '@/lib/api/categories';
 import GroupedDropdownPicker, { GroupedItem } from '@/components/GroupedDropdownPicker';
 
-const EXTRA_EXPENSE_METHODS = ['현금', '카카오페이', '네이버페이', '토스페이', '제로페이'];
+const EXTRA_EXPENSE_METHODS = ['현금'];
 const INCOME_METHODS = ['현금', '계좌이체'];
 const RECENCY_KEY = 'payment_method_recency';
 

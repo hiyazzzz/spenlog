@@ -491,6 +491,8 @@ export default function HistoryScreen() {
                     expense={editingExpense}
                     categories={categories}
                     paymentMethods={data.paymentMethods}
+                    cardNames={data.cardNames}
+                    accountNames={data.accountNames}
                     themeColors={themeColors}
                     onSave={u => { handleSave(editingExpense.id, u); setShowToast(true); setTimeout(() => setShowToast(false), 1500); }}
                     onDelete={() => handleDelete(editingExpense)}
@@ -653,12 +655,14 @@ function SaveToast({ visible }: { visible: boolean }) {
   );
 }
 
-const EXTRA_PAY_METHODS = ['현금', '카카오페이', '네이버페이', '토스', '계좌이체'];
+const EXTRA_PAY_METHODS = ['현금', '계좌이체'];
 
-function EditRow({ expense, categories, paymentMethods, themeColors, onSave, onDelete, onCancel }: {
+function EditRow({ expense, categories, paymentMethods, cardNames, accountNames, themeColors, onSave, onDelete, onCancel }: {
   expense: Expense;
   categories: string[];
   paymentMethods: string[];
+  cardNames: string[];
+  accountNames: string[];
   themeColors: ReturnType<typeof getThemeColors>;
   onSave: (updates: Partial<Expense>) => void;
   onDelete: () => void;
@@ -670,12 +674,23 @@ function EditRow({ expense, categories, paymentMethods, themeColors, onSave, onD
   const [type, setType] = useState<'expense' | 'income'>((expense.type ?? 'expense') === 'income' ? 'income' : 'expense');
   const [paymentMethod, setPaymentMethod] = useState(expense.payment_method ?? '');
 
-  // 결제수단 옵션: 기존 사용 이력 + 기본 방법 + 기타
-  const allPayOptions = [
-    ...paymentMethods,
-    ...EXTRA_PAY_METHODS.filter(m => !paymentMethods.includes(m)),
-    '기타',
-  ];
+  // 결제수단 그룹 아이템 구성 (카드 / 계좌 / 기타 수단 / 기타)
+  const sortKo = (arr: string[]) => [...arr].sort((a, b) => a.localeCompare(b, 'ko'));
+  const sortedCards = sortKo(cardNames);
+  const sortedAccounts = sortKo(accountNames);
+  // 기존 지출 이력의 결제수단 중 카드/계좌에 없는 것만 기타 수단으로
+  const historyExtras = paymentMethods.filter(
+    m => !cardNames.includes(m) && !accountNames.includes(m)
+  );
+  const extraMethods = sortKo([...new Set([...historyExtras, ...EXTRA_PAY_METHODS.filter(
+    m => !cardNames.includes(m) && !accountNames.includes(m)
+  )])]);
+
+  const payGroupItems: GroupedItem[] = [];
+  if (sortedCards.length) { payGroupItems.push({ type: 'header', label: '카드' }); sortedCards.forEach(v => payGroupItems.push({ type: 'item', label: v, value: v })); }
+  if (sortedAccounts.length) { payGroupItems.push({ type: 'header', label: '계좌' }); sortedAccounts.forEach(v => payGroupItems.push({ type: 'item', label: v, value: v })); }
+  if (extraMethods.length) { payGroupItems.push({ type: 'header', label: '기타 수단' }); extraMethods.forEach(v => payGroupItems.push({ type: 'item', label: v, value: v })); }
+  payGroupItems.push({ type: 'item', label: '기타', value: '기타' });
 
   return (
     <View style={styles.editBox}>
@@ -713,12 +728,11 @@ function EditRow({ expense, categories, paymentMethods, themeColors, onSave, onD
       )}
       <View style={{ marginBottom: 12 }}>
         <Text style={[styles.fieldLabel, { marginBottom: 4 }]}>결제수단</Text>
-        <DropdownPicker
+        <GroupedDropdownPicker
           value={paymentMethod}
-          options={allPayOptions}
+          items={payGroupItems}
           onSelect={v => setPaymentMethod(v)}
           placeholder="없음 (선택 안 함)"
-          themeColors={themeColors}
         />
         {paymentMethod !== '' && (
           <TouchableOpacity onPress={() => setPaymentMethod('')} style={{ marginTop: 6 }}>
