@@ -449,7 +449,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
 
       {/* 0. 이번 달 루틴 (고정비만) */}
       {fixedCosts.length > 0 && (
-        <LinearGradient colors={[themeColors.primaryLight, '#ffffff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[assetStyles.section, { borderColor: themeColors.primaryLight }]}>
+        <View style={[assetStyles.section, { backgroundColor: themeColors.primaryLight + '33', borderColor: themeColors.primaryLight }]}>
           <TouchableOpacity style={assetStyles.sectionHeader} onPress={() => setRoutineExpanded(o => !o)} activeOpacity={0.7}>
             <Text style={[assetStyles.sectionTitle, { color: themeColors.primary }]}>이번 달 정기 기록</Text>
             <View style={assetStyles.sectionHeaderRight}>
@@ -496,12 +496,12 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
               })}
             </View>
           )}
-        </LinearGradient>
+        </View>
       )}
 
       {/* 0-1. 이번 달 카드 납부 */}
       {cards.length > 0 && (
-        <LinearGradient colors={[themeColors.primaryLight, '#ffffff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[assetStyles.section, { borderColor: themeColors.primaryLight }]}>
+        <View style={[assetStyles.section, { backgroundColor: themeColors.primaryLight + '33', borderColor: themeColors.primaryLight }]}>
           <TouchableOpacity style={assetStyles.sectionHeader} onPress={() => setCardSectionExpanded(o => !o)} activeOpacity={0.7}>
             <Text style={[assetStyles.sectionTitle, { color: themeColors.primary }]}>이번 달 카드 납부</Text>
             <View style={assetStyles.sectionHeaderRight}>
@@ -538,7 +538,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
               );
             })}
           </View>}
-        </LinearGradient>
+        </View>
       )}
 
       {/* 1. 월 수입 */}
