@@ -10,7 +10,7 @@ export default function SettingsDataLoader() {
 
   useEffect(() => {
     try {
-      const cached = sessionStorage.getItem(CACHE_KEY)
+      const cached = localStorage.getItem(CACHE_KEY)
       if (cached) {
         const { d, ts } = JSON.parse(cached)
         setData(d)
@@ -22,7 +22,7 @@ export default function SettingsDataLoader() {
       .then(fresh => {
         if (fresh.error) return
         setData(fresh)
-        try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ d: fresh, ts: Date.now() })) } catch {}
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ d: fresh, ts: Date.now() })) } catch {}
       })
       .catch(() => {})
   }, [])

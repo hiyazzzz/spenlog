@@ -230,7 +230,7 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
     setLoggingOut(true)
     await supabase.auth.signOut({ scope: 'global' })
     if (typeof window !== 'undefined') {
-      sessionStorage.clear()
+      localStorage.clear()
       localStorage.removeItem('spenlog_offline_queue')
     }
     window.location.href = '/login'
@@ -240,7 +240,7 @@ export default function SettingsForm({ profile, userId, email, provider, isGuest
     await supabase.from('users').delete().eq('id', userId)
     await supabase.auth.signOut({ scope: 'global' })
     if (typeof window !== 'undefined') {
-      sessionStorage.clear()
+      localStorage.clear()
       localStorage.clear()
     }
     window.location.href = '/login'

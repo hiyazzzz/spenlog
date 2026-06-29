@@ -174,7 +174,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
           }
         }
         if (newExp) setExpenses(prev => [newExp as Expense, ...prev])
-        try { sessionStorage.removeItem('sp_history_v2') } catch {}
+        try { localStorage.removeItem('sp_history_v2') } catch {}
       }
     })
   }
@@ -184,7 +184,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
     const prev = expenses.find(e => e.id === id)
     setExpenses(es => es.filter(e => e.id !== id))
     setEditingId(null)
-    try { sessionStorage.removeItem('sp_history_v2') } catch {}
+    try { localStorage.removeItem('sp_history_v2') } catch {}
     const { error } = await supabase.from('expenses').delete().eq('id', id)
     if (error && prev) {
       // 실패 시 롤백
@@ -199,7 +199,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
     setEditingId(null)
     setAlertMsg('✅ 저장됐어요')
     setTimeout(() => setAlertMsg(''), 1500)
-    try { sessionStorage.removeItem('sp_history_v2') } catch {}
+    try { localStorage.removeItem('sp_history_v2') } catch {}
     const { error } = await supabase.from('expenses').update(updates).eq('id', id)
     if (error && prev) {
       setExpenses(es => es.map(e => e.id === id ? prev : e))

@@ -15,7 +15,7 @@ export default function Prefetcher({ userId }: { userId: string }) {
     // 각 탭 데이터를 백그라운드에서 미리 fetch
     ENDPOINTS.forEach(({ url, key }) => {
       try {
-        const cached = sessionStorage.getItem(key)
+        const cached = localStorage.getItem(key)
         if (cached) {
           const { ts } = JSON.parse(cached)
           if (Date.now() - ts < CACHE_TTL) return // 신선한 캐시 있으면 skip
@@ -25,7 +25,7 @@ export default function Prefetcher({ userId }: { userId: string }) {
         .then(r => r.json())
         .then(data => {
           if (data.error) return
-          try { sessionStorage.setItem(key, JSON.stringify({ d: data, ts: Date.now() })) } catch {}
+          try { localStorage.setItem(key, JSON.stringify({ d: data, ts: Date.now() })) } catch {}
         })
         .catch(() => {})
     })

@@ -52,7 +52,7 @@ export default function HistoryDataLoader({ userId }: { userId: string }) {
   function fetchHistory(force = false) {
     if (!force) {
       try {
-        const cached = sessionStorage.getItem(CACHE_KEY)
+        const cached = localStorage.getItem(CACHE_KEY)
         if (cached) {
           const { d, ts } = JSON.parse(cached)
           setData(d)
@@ -65,7 +65,7 @@ export default function HistoryDataLoader({ userId }: { userId: string }) {
       .then(fresh => {
         if (fresh.error) return
         setData(fresh)
-        try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ d: fresh, ts: Date.now() })) } catch {}
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ d: fresh, ts: Date.now() })) } catch {}
       })
       .catch(() => {})
   }
@@ -79,35 +79,20 @@ export default function HistoryDataLoader({ userId }: { userId: string }) {
     if (pathname !== '/history') return
     // 저장 직후 강제 새로고침 플래그 — Prefetcher race condition 완전 차단
     try {
-      if (sessionStorage.getItem('sp_history_needs_refresh') === '1') {
-        sessionStorage.removeItem('sp_history_needs_refresh')
-        sessionStorage.removeItem(CACHE_KEY)
+      if (localStorage.getItem('sp_history_needs_refresh') === '1') {
+        localStorage.removeItem('sp_history_needs_refresh')
+        localStorage.removeItem(CACHE_KEY)
         fetchHistory(true)
         return
       }
     } catch {}
     // 10초 이내 데이터는 재요청 생략 (초기 로드 직후 이중 요청 방지)
     try {
-      const cached = sessionStorage.getItem(CACHE_KEY)
+      const cached = localStorage.getItem(CACHE_KEY)
       if (cached) {
         const { ts } = JSON.parse(cached)
         if (Date.now() - ts < 10000) return
       }
     } catch {}
     // 캐시 삭제 후 재조회
-    try { sessionStorage.removeItem(CACHE_KEY) } catch {}
-    fetchHistory(true)
-  }, [pathname])
-
-  if (!data) return <LoadingSkeleton />
-
-  return (
-    <HistoryClient
-      userId={userId}
-      initialExpenses={data.expenses}
-      paymentMethods={data.paymentMethods}
-      userCategories={data.userCategories}
-      initialCategory={initialCategory}
-    />
-  )
-}
+    try { sessionSto

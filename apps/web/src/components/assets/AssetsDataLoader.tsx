@@ -45,12 +45,12 @@ function LoadingSkeleton() {
 }
 
 export default function AssetsDataLoader({ userId }: { userId: string }) {
-  // lazy initializer: sessionStorage를 동기적으로 읽어 첫 render부터 캐시 데이터 사용
+  // lazy initializer: localStorage를 동기적으로 읽어 첫 render부터 캐시 데이터 사용
   // → skeleton flash(layout shift) 방지
   const [data, setData] = useState<AssetsData | null>(() => {
     if (typeof window === 'undefined') return null
     try {
-      const raw = sessionStorage.getItem(CACHE_KEY)
+      const raw = localStorage.getItem(CACHE_KEY)
       if (raw) {
         const { d } = JSON.parse(raw)
         if (d && typeof d === 'object') return d  // 유효한 데이터만 사용
@@ -67,7 +67,7 @@ export default function AssetsDataLoader({ userId }: { userId: string }) {
     let needsFetch = true
     if (data) {
       try {
-        const raw = sessionStorage.getItem(CACHE_KEY)
+        const raw = localStorage.getItem(CACHE_KEY)
         if (raw) {
           const { ts } = JSON.parse(raw)
           if (Date.now() - ts < CACHE_TTL) needsFetch = false
@@ -86,7 +86,7 @@ export default function AssetsDataLoader({ userId }: { userId: string }) {
         }
         setData(fresh)
         setFetchError(false)
-        try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ d: fresh, ts: Date.now() })) } catch {}
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ d: fresh, ts: Date.now() })) } catch {}
       })
       .catch(() => { if (!data) setFetchError(true) })
   // eslint-disable-next-line react-hooks/exhaustive-deps

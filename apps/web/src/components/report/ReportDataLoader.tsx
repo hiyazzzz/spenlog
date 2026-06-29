@@ -27,7 +27,7 @@ export default function ReportDataLoader() {
   const load = useCallback(async (m: string) => {
     const cacheKey = `sp_report_v1_${m || 'default'}`
     try {
-      const cached = sessionStorage.getItem(cacheKey)
+      const cached = localStorage.getItem(cacheKey)
       if (cached) {
         const { d, ts } = JSON.parse(cached)
         setData(d)
@@ -41,7 +41,7 @@ export default function ReportDataLoader() {
         if (fresh.error) return
         setData(fresh)
         const ck = `sp_report_v1_${fresh.currentMonth || m || 'default'}`
-        try { sessionStorage.setItem(ck, JSON.stringify({ d: fresh, ts: Date.now() })) } catch {}
+        try { localStorage.setItem(ck, JSON.stringify({ d: fresh, ts: Date.now() })) } catch {}
       })
       .catch(() => {})
   }, [])
