@@ -30,6 +30,11 @@ export default function AssetsScreen() {
   const { themeColors, tabBg } = useThemeColors();
   const { colors } = useAppTheme();
 
+  // 다른 탭으로 이동 시 자산현황으로 리셋
+  useFocusEffect(useCallback(() => {
+    return () => { setSubTab('assets'); };
+  }, []));
+
   return (
     <View style={[sharedStyles.screen, { backgroundColor: colors.bg }]}>
       <View style={[sharedStyles.headerWrap, { backgroundColor: colors.bg }]}>
@@ -1128,9 +1133,9 @@ function FixedCostsPanel({ themeColors }: { themeColors: ReturnType<typeof getTh
   return (
     <ScrollView style={sharedStyles.panel} contentContainerStyle={sharedStyles.content} keyboardShouldPersistTaps="handled">
       <LinearGradient colors={[themeColors.primaryLight, '#ffffff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1.5, borderColor: themeColors.primaryLight, overflow: 'hidden' }}>
-        <Text style={{ fontSize: 12, color: COLORS.gray400, marginBottom: 4 }}>이번 달 고정비 지출</Text>
+        <Text style={{ fontSize: 12, color: themeColors.primary, marginBottom: 4, opacity: 0.75 }}>이번 달 고정비 지출</Text>
         <Text style={{ fontSize: 20, fontWeight: '700', color: themeColors.primary, marginBottom: 4 }}>월 {formatCurrency(grandTotal)}</Text>
-        <Text style={{ fontSize: 12, color: COLORS.gray500 }}>고정지출 {formatCurrency(expenseTotal)} · 고정저축 {formatCurrency(savingTotal)}</Text>
+        <Text style={{ fontSize: 12, color: themeColors.accent }}>고정지출 {formatCurrency(expenseTotal)} · 고정저축 {formatCurrency(savingTotal)}</Text>
       </LinearGradient>
 
       {/* 고정 지출 섹션 */}

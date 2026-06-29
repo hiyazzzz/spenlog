@@ -87,6 +87,11 @@ export default function HistoryScreen() {
       setFilterCat(params.category);
       appliedCategoryRef.current = params.category;
     }
+    // 다른 탭에서 돌아올 때 편집/드롭다운 상태 초기화
+    return () => {
+      setEditingExpense(null);
+      setActiveDropdown(null);
+    };
   }, [load, params.category]));
 
   const expenses = data?.expenses ?? [];

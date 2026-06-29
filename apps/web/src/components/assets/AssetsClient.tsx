@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react'
 import { TEXTS } from '@/config/texts'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { CATEGORIES } from '@/lib/themes'
 import CategoryManager from './CategoryManager'
 import RoutineBanner from './RoutineBanner'
@@ -347,7 +347,6 @@ function getCardBillingPeriod(card: Card, targetMonth: string): { start: string;
 
 export default function AssetsClient({ profile, userId, accounts, cards, fixedCosts, budgets, thisMonthSpent, categorySpent, thisMonth, customCategories, expenses = [], recentExpenses = [] }: Props) {
   const supabase = createClient()
-  const router = useRouter()
   const [localAccounts, setLocalAccounts] = useState(accounts)
   const [localCards, setLocalCards] = useState(cards)
   const [localFixed, setLocalFixed] = useState(fixedCosts)
@@ -368,7 +367,17 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const editingCardId = activeEditId?.startsWith('card:') ? activeEditId.slice(5) : null
   // 카드 납부 기록 바텀시트
   const [cardPaySheet, setCardPaySheet] = useState<Card | null>(null)
-  const [activeTab, setActiveTab] = useState<'assets' | 'budget' | 'fixed'>('assets')
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
+  const router = useRouter()
+  const activeTab = (searchParams.get('tab') as 'assets' | 'budget' | 'fixed') ?? 'assets'
+  const setActiveTab = (tab: 'assets' | 'budget' | 'fixed') => {
+    const params = new URLSearchParams(Array.from(searchParams.entries()))
+    if (tab === 'assets') params.delete('tab')
+    else params.set('tab', tab)
+    const qs = params.toString()
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }
   const [cardSectionExpanded, setCardSectionExpanded] = useState(false)
   const [cardPayAmount, setCardPayAmount] = useState('')
   const [cardPayDate, setCardPayDate] = useState('')
@@ -1033,17 +1042,18 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       )}
 
       {activeTab === 'fixed' && (
-        <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #f0f0f0', padding: '16px', marginBottom: 10 }}>
-          {/* 월 총 고정비 배너 */}
-          <div style={{ background: 'linear-gradient(135deg, var(--color-primary-light), #fff)', borderRadius: 14, padding: '14px 16px', marginBottom: 16, border: '1.5px solid var(--color-primary-light)' }}>
-            <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>이번 달 고정비 지출</p>
+        <>
+          {/* 월 총 고정비 배너 - 독립 카드 */}
+          <div style={{ background: 'linear-gradient(135deg, var(--color-primary-light), #fff)', borderRadius: 14, padding: '14px 16px', marginBottom: 12, border: '1.5px solid var(--color-primary-light)' }}>
+            <p style={{ fontSize: 12, color: 'var(--color-primary)', marginBottom: 4, opacity: 0.75 }}>이번 달 고정비 지출</p>
             <p style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-primary)', marginBottom: 4 }}>
               월 {(fixedExpenseTotal + fixedSavingTotal).toLocaleString()}원
             </p>
-            <p style={{ fontSize: 12, color: '#6b7280' }}>
+            <p style={{ fontSize: 12, color: 'var(--color-accent)' }}>
               고정지출 {fixedExpenseTotal.toLocaleString()}원 · 고정저축 {fixedSavingTotal.toLocaleString()}원
             </p>
           </div>
+        <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #f0f0f0', padding: '16px', marginBottom: 10 }}>
           <div style={{ marginBottom: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{TEXTS.assets.fixedSection.expense}</span>
@@ -1101,6 +1111,8 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             <p style={{ fontSize: 12, color: '#059669', marginTop: 6, fontWeight: 600 }}>{TEXTS.assets.fixedSection.subtotalSaving(fixedSavingTotal)}</p>
           </div>
         </div>
+        </div>
+        </>
       )}
     </div>
 
