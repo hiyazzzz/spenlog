@@ -53,37 +53,53 @@ export default function AssetsDataLoader({ userId }: { userId: string }) {
       const raw = sessionStorage.getItem(CACHE_KEY)
       if (raw) {
         const { d } = JSON.parse(raw)
-        return d
+        if (d && typeof d === 'object') return d  // 유효한 데이터만 사용
       }
     } catch {}
     return null
   })
+  const [fetchError, setFetchError] = useState(false)
 
   useEffect(() => {
-    // 캐시 신선도 확인 → stale이면 background revalidate
+    setFetchError(false)
+    // data가 없으면 항상 fetch (캐시 신선도 무관)
+    // data가 있으면 stale 여부만 확인 후 background revalidate
     let needsFetch = true
-    try {
-      const raw = sessionStorage.getItem(CACHE_KEY)
-      if (raw) {
-        const { ts } = JSON.parse(raw)
-        if (Date.now() - ts < CACHE_TTL) needsFetch = false
-      }
-    } catch {}
+    if (data) {
+      try {
+        const raw = sessionStorage.getItem(CACHE_KEY)
+        if (raw) {
+          const { ts } = JSON.parse(raw)
+          if (Date.now() - ts < CACHE_TTL) needsFetch = false
+        }
+      } catch {}
+    }
 
     if (!needsFetch) return
 
-    // 캐시 없거나 stale → 백그라운드 fetch
     fetch('/api/assets-data')
       .then(r => r.json())
       .then(fresh => {
-        if (fresh.error) return
+        if (fresh.error) {
+          if (!data) setFetchError(true)  // data 없을 때만 에러 표시
+          return
+        }
         setData(fresh)
+        setFetchError(false)
         try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ d: fresh, ts: Date.now() })) } catch {}
       })
-      .catch(() => {})
+      .catch(() => { if (!data) setFetchError(true) })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
 
-  if (!data) return <LoadingSkeleton />
+  if (!data) {
+    if (fetchError) return (
+      <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>
+        데이터를 불러오지 못했어요. 새로고침 해주세요.
+      </div>
+    )
+    return <LoadingSkeleton />
+  }
 
   return (
     <AssetsClient
