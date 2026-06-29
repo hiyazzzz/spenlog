@@ -672,7 +672,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       <h1 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-accent)' }}>{TEXTS.assets.title}</h1>
 
       {/* 세그먼트 탭 */}
-      <div style={{ display: 'flex', background: 'var(--color-primary-light)', borderRadius: 20, padding: 4, gap: 4, marginBottom: 16 }}>
+      <div style={{ display: 'flex', background: 'var(--color-primary-light)', borderRadius: 20, padding: 4, gap: 4, marginBottom: 16, position: 'sticky', top: 58, zIndex: 10 }}>
         {([
           { key: 'assets', label: '자산현황' },
           { key: 'budget', label: '예산' },
@@ -1033,7 +1033,11 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       )}
 
       {activeTab === 'fixed' && (
-        <Section icon="" title={TEXTS.assets.sectionFixed} summary={TEXTS.assets.fixedMonthly(fixedExpenseTotal)}>
+        <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #f0f0f0', padding: '16px', marginBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#1f2937' }}>{TEXTS.assets.sectionFixed}</span>
+            <span style={{ fontSize: 12, color: '#6b7280' }}>{TEXTS.assets.fixedMonthly(fixedExpenseTotal)}</span>
+          </div>
           <div style={{ marginBottom: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{TEXTS.assets.fixedSection.expense}</span>
@@ -1090,7 +1094,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
               accounts={localAccounts} cards={localCards} />)}
             <p style={{ fontSize: 12, color: '#059669', marginTop: 6, fontWeight: 600 }}>{TEXTS.assets.fixedSection.subtotalSaving(fixedSavingTotal)}</p>
           </div>
-        </Section>
+        </div>
       )}
     </div>
 
