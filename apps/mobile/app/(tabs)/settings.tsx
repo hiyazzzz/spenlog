@@ -38,7 +38,6 @@ const PREMIUM_THEMES = [
   { key: 'Terracotta', name: '테라코타', color: '#C56C4E' },
   { key: 'Oatmeal', name: '오트밀', color: '#B09070' },
   { key: 'WarmGray', name: '웜그레이', color: '#8C8479' },
-  { key: 'WallGray', name: '월그레이', color: '#6B7A8D' },
   { key: 'Midnight', name: '미드나잇', color: '#2C3E6B' },
   { key: 'Indigo', name: '인디고', color: '#4B4DA6' },
 ];

@@ -32,10 +32,10 @@ const BASIC_THEMES: Theme[] = ['Burgundy', 'Sage']
 const PREMIUM_THEMES = [
   { key: 'Lavender', color: THEMES.Lavender.primary, label: '라벤더' },
   { key: 'Terracotta', color: THEMES.Terracotta.primary, label: '테라코타' },
-  { key: 'Oatmeal', color: '#C8B8A2', label: 'Oatmeal' },
-  { key: 'WarmGray', color: '#9E9E9E', label: 'Warm Gray' },
-  { key: 'Midnight', color: '#1A237E', label: 'Midnight' },
-  { key: 'Indigo', color: '#3949AB', label: 'Indigo' },
+  { key: 'Oatmeal', color: THEMES.Oatmeal.primary, label: '오트밀' },
+  { key: 'WarmGray', color: THEMES.WarmGray.primary, label: '웜그레이' },
+  { key: 'Midnight', color: THEMES.Midnight.primary, label: '미드나잇' },
+  { key: 'Indigo', color: THEMES.Indigo.primary, label: '인디고' },
 ]
 
 interface Props {

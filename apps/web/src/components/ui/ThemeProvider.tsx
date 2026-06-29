@@ -7,7 +7,10 @@ const DEFAULT: Theme = 'Burgundy'
 
 export default function ThemeProvider({ theme }: { theme?: string | null }) {
   useEffect(() => {
-    const t = THEMES[(theme as Theme) ?? DEFAULT] ?? THEMES[DEFAULT]
+    // localStorage 우선 (applyTheme에서 즉시 저장됨) → 서버 prop → 기본값
+    const savedLocal = typeof window !== 'undefined' ? localStorage.getItem('spenlog_theme') as Theme | null : null
+    const themeKey = (savedLocal || theme || DEFAULT) as Theme
+    const t = THEMES[themeKey] ?? THEMES[DEFAULT]
     const root = document.documentElement
     root.style.setProperty('--color-primary', t.primary)
     root.style.setProperty('--color-primary-mid', t.primaryMid)

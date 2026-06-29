@@ -40,7 +40,7 @@ export const THEMES = {
     bg: '#FCF9F4',
   },
   WarmGray: {
-    name: '웹그레이',
+    name: '웜그레이',
     primary: '#7A7068',
     primaryLight: '#E0D8D0',
     primaryMid: '#AEA49A',
