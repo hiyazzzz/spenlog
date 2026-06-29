@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState } from 'react'
 import AssetsClient from './AssetsClient'
 
 const CACHE_KEY = 'sp_assets_v2'
@@ -86,7 +86,6 @@ export default function AssetsDataLoader({ userId }: { userId: string }) {
   if (!data) return <LoadingSkeleton />
 
   return (
-    <Suspense fallback={<LoadingSkeleton />}>
     <AssetsClient
       profile={data.profile}
       userId={userId}
@@ -101,6 +100,5 @@ export default function AssetsDataLoader({ userId }: { userId: string }) {
       expenses={data.expenses}
       recentExpenses={data.recentExpenses}
     />
-    </Suspense>
   )
 }
