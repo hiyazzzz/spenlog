@@ -640,6 +640,28 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       <AssetsGuide />
       <AssetsGuide hasNoAccounts={localAccounts.length === 0} />
 
+      <h1 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-accent)' }}>{TEXTS.assets.title}</h1>
+
+      {/* 세그먼트 탭 */}
+      <div style={{ display: 'flex', background: 'var(--color-primary-light)', borderRadius: 20, padding: 4, gap: 4, marginBottom: 16, position: 'sticky', top: 58, zIndex: 10 }}>
+        {([
+          { key: 'assets', label: '자산현황' },
+          { key: 'budget', label: '예산' },
+          { key: 'fixed', label: '고정비' },
+        ] as const).map(t => (
+          <button key={t.key} onClick={() => setActiveTab(t.key)}
+            style={{
+              flex: 1, padding: '8px 0', borderRadius: 16, border: 'none', cursor: 'pointer',
+              fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
+              background: activeTab === t.key ? 'var(--color-primary)' : 'transparent',
+              color: activeTab === t.key ? '#fff' : 'var(--color-primary)',
+              transition: 'all 0.15s',
+            }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       {activeTab === 'assets' && <>
       {/* 자산 온보딩 재유도 배너 */}
       {showOnboardingBanner && (
@@ -668,28 +690,6 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
           }}>✕</button>
         </div>
       )}
-
-      <h1 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-accent)' }}>{TEXTS.assets.title}</h1>
-
-      {/* 세그먼트 탭 */}
-      <div style={{ display: 'flex', background: 'var(--color-primary-light)', borderRadius: 20, padding: 4, gap: 4, marginBottom: 16, position: 'sticky', top: 58, zIndex: 10 }}>
-        {([
-          { key: 'assets', label: '자산현황' },
-          { key: 'budget', label: '예산' },
-          { key: 'fixed', label: '고정비' },
-        ] as const).map(t => (
-          <button key={t.key} onClick={() => setActiveTab(t.key)}
-            style={{
-              flex: 1, padding: '8px 0', borderRadius: 16, border: 'none', cursor: 'pointer',
-              fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
-              background: activeTab === t.key ? 'var(--color-primary)' : 'transparent',
-              color: activeTab === t.key ? '#fff' : 'var(--color-primary)',
-              transition: 'all 0.15s',
-            }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
 
       {/* 루틴 배너 */}
       <RoutineBanner
@@ -1034,9 +1034,15 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
 
       {activeTab === 'fixed' && (
         <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #f0f0f0', padding: '16px', marginBottom: 10 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#1f2937' }}>{TEXTS.assets.sectionFixed}</span>
-            <span style={{ fontSize: 12, color: '#6b7280' }}>{TEXTS.assets.fixedMonthly(fixedExpenseTotal)}</span>
+          {/* 월 총 고정비 배너 */}
+          <div style={{ background: 'linear-gradient(135deg, var(--color-primary-light), #fff)', borderRadius: 14, padding: '14px 16px', marginBottom: 16, border: '1.5px solid var(--color-primary-light)' }}>
+            <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>이번 달 고정비 지출</p>
+            <p style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-primary)', marginBottom: 4 }}>
+              월 {(fixedExpenseTotal + fixedSavingTotal).toLocaleString()}원
+            </p>
+            <p style={{ fontSize: 12, color: '#6b7280' }}>
+              고정지출 {fixedExpenseTotal.toLocaleString()}원 · 고정저축 {fixedSavingTotal.toLocaleString()}원
+            </p>
           </div>
           <div style={{ marginBottom: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
