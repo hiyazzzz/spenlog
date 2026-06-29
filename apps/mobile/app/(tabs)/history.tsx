@@ -895,7 +895,7 @@ const styles = StyleSheet.create({
   viewToggleBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.gray200, alignItems: 'center', justifyContent: 'center' },
   viewSegment: { flexDirection: 'row', borderRadius: 20, padding: 3, gap: 2 },
   viewSegmentBtn: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  viewSegmentText: { fontSize: 12, fontWeight: '600', color: '#B8A8AC' },
+  viewSegmentText: { fontSize: 12, fontWeight: '600' },
   viewSegmentTextActive: { color: '#fff' },
 
   searchBox: {

@@ -323,7 +323,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
                   <div className="flex gap-2 text-xs font-bold">
                     {(() => {
                       const net = expenseSum - incomeSum
-                      if (net > 0) return <span className="text-rose-400">-{net.toLocaleString()}원</span>
+                      if (net > 0) return <span className="text-red-500">-{net.toLocaleString()}원</span>
                       if (net < 0) return <span className="text-emerald-500">+{Math.abs(net).toLocaleString()}원</span>
                       return null
                     })()}
@@ -667,7 +667,7 @@ function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, to
                     style={{ color: isToday ? 'white' : dow === 0 ? '#ef4444' : dow === 6 ? '#3b82f6' : '#374151', background: isToday ? 'var(--color-primary)' : undefined, width: 22, height: 22, borderRadius: '50%' }}>
                     {parseInt(date.split('-')[2])}
                   </span>
-                  {amt ? <span className="text-[9px] font-bold text-rose-400">-{amt >= 1000000 ? `${(amt/1000000).toFixed(1)}M` : amt >= 10000 ? `${Math.round(amt/1000)}k` : amt.toLocaleString()}</span> : null}
+                  {amt ? <span className="text-[9px] font-bold text-red-500">-{amt >= 1000000 ? `${(amt/1000000).toFixed(1)}M` : amt >= 10000 ? `${Math.round(amt/1000)}k` : amt.toLocaleString()}</span> : null}
                   {hasIncome && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />}
                 </button>
               )
@@ -679,7 +679,7 @@ function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, to
         <div className="mt-4 bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="flex justify-between items-center p-4 border-b border-gray-50">
             <span className="text-sm font-bold text-gray-700">{dayjs(selectedDate).format('M월 D일 (ddd)')}</span>
-            <span className="text-sm font-bold text-rose-400">
+            <span className="text-sm font-bold text-red-500">
               {selectedItems.filter(e => (e.type ?? 'expense') !== 'income').length > 0
                 ? `-${selectedItems.filter(e => (e.type ?? 'expense') !== 'income').reduce((s, e) => s + e.amount, 0).toLocaleString()}원`
                 : ''}
