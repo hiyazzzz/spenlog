@@ -201,28 +201,26 @@ export default function AddExpenseForm({ prefill, userCategories, initialCards, 
       {type === 'transfer' ? (
         <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-3">
           <div>
-            <label className="text-xs text-gray-400 mb-2 block">출금 계좌 (돈이 나가는 곳) <span className="text-rose-400">*</span></label>
-            <div className="flex flex-wrap gap-2">
+            <label className="text-xs text-gray-400 mb-1 block">출금 계좌 (돈이 나가는 곳) <span className="text-red-500">*</span></label>
+            <select value={transferFrom} onChange={e => setTransferFrom(e.target.value)}
+              className="w-full text-sm outline-none text-gray-800 bg-transparent cursor-pointer"
+              style={{ appearance: 'auto' }}>
+              <option value="">계좌 선택</option>
               {accountNames.map(n => (
-                <button key={n} onClick={() => setTransferFrom(n)}
-                  className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-                  style={{ background: transferFrom === n ? 'var(--color-primary)' : '#f3f4f6', color: transferFrom === n ? 'white' : '#6b7280' }}>
-                  {n}
-                </button>
+                <option key={n} value={n} disabled={n === transferTo}>{n}{n === transferTo ? ' (입금 계좌)' : ''}</option>
               ))}
-            </div>
+            </select>
           </div>
           <div>
-            <label className="text-xs text-gray-400 mb-2 block">입금 계좌 (돈이 들어오는 곳) <span className="text-rose-400">*</span></label>
-            <div className="flex flex-wrap gap-2">
+            <label className="text-xs text-gray-400 mb-1 block">입금 계좌 (돈이 들어오는 곳) <span className="text-red-500">*</span></label>
+            <select value={transferTo} onChange={e => setTransferTo(e.target.value)}
+              className="w-full text-sm outline-none text-gray-800 bg-transparent cursor-pointer"
+              style={{ appearance: 'auto' }}>
+              <option value="">계좌 선택</option>
               {accountNames.map(n => (
-                <button key={n} onClick={() => setTransferTo(n)}
-                  className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-                  style={{ background: transferTo === n ? '#3b82f6' : '#f3f4f6', color: transferTo === n ? 'white' : '#6b7280' }}>
-                  {n}
-                </button>
+                <option key={n} value={n} disabled={n === transferFrom}>{n}{n === transferFrom ? ' (출금 계좌)' : ''}</option>
               ))}
-            </div>
+            </select>
           </div>
         </div>
       ) : (

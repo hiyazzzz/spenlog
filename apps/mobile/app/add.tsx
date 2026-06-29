@@ -327,16 +327,12 @@ export default function AddExpenseScreen() {
       {type === 'transfer' && (
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>출금 계좌 (선택)</Text>
-          <View style={styles.chipWrap}>
-            {accounts.map(a => (
-              <TouchableOpacity key={a.id}
-                style={[styles.chip, transferFrom === a.name && styles.chipActive, transferTo === a.name && styles.chipDisabled]}
-                onPress={() => { if (transferTo === a.name) return; setTransferFrom(prev => prev === a.name ? '' : a.name); }}
-              >
-                <Text style={[styles.chipText, transferFrom === a.name && styles.chipTextActive]}>{a.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <DropdownPicker
+            value={transferFrom}
+            options={accounts.filter(a => a.name !== transferTo).map(a => a.name)}
+            onSelect={v => setTransferFrom(v === transferFrom ? '' : v)}
+            placeholder="계좌 선택"
+          />
           {accounts.length === 0 && <Text style={styles.emptyHint}>등록된 계좌가 없어요</Text>}
         </View>
       )}
@@ -345,16 +341,12 @@ export default function AddExpenseScreen() {
       {type === 'transfer' && (
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>입금 계좌 (선택)</Text>
-          <View style={styles.chipWrap}>
-            {accounts.map(a => (
-              <TouchableOpacity key={a.id}
-                style={[styles.chip, transferTo === a.name && styles.chipActiveGreen, transferFrom === a.name && styles.chipDisabled]}
-                onPress={() => { if (transferFrom === a.name) return; setTransferTo(prev => prev === a.name ? '' : a.name); }}
-              >
-                <Text style={[styles.chipText, transferTo === a.name && styles.chipTextActive]}>{a.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <DropdownPicker
+            value={transferTo}
+            options={accounts.filter(a => a.name !== transferFrom).map(a => a.name)}
+            onSelect={v => setTransferTo(v === transferTo ? '' : v)}
+            placeholder="계좌 선택"
+          />
           {accounts.length === 0 && <Text style={styles.emptyHint}>등록된 계좌가 없어요</Text>}
         </View>
       )}
