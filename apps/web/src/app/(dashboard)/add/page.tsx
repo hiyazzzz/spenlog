@@ -20,9 +20,13 @@ export default async function AddExpensePage({ searchParams }: Props) {
     type: params.type as 'expense' | 'income' | undefined,
   }
 
-  const { data: categories } = await supabase
-    .from('categories').select('name').eq('user_id', user.id)
-    .eq('is_hidden', false).order('sort_order')
+  // 서버에서 미리 fetch → 클라이언트 waterfall 제거
+  const [{ data: categories }, { data: cards }, { data: accounts }] = await Promise.all([
+    supabase.from('categories').select('name').eq('user_id', user.id)
+      .eq('is_hidden', false).order('sort_order'),
+    supabase.from('cards').select('name').eq('user_id', user.id).order('name'),
+    supabase.from('accounts').select('id, name, balance').eq('user_id', user.id).order('name'),
+  ])
   const userCategories = (categories ?? []).map(c => c.name)
 
   return (
@@ -31,7 +35,12 @@ export default async function AddExpensePage({ searchParams }: Props) {
         <h1 className="text-lg font-semibold" style={{ color: 'var(--color-accent)' }}>직접 입력</h1>
         <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">취소</Link>
       </div>
-      <AddExpenseForm prefill={prefill} userCategories={userCategories} />
+      <AddExpenseForm
+        prefill={prefill}
+        userCategories={userCategories}
+        initialCards={cards ?? []}
+        initialAccounts={accounts ?? []}
+      />
     </div>
   )
 }

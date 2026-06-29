@@ -11,6 +11,8 @@ import { TEXTS } from '@/config/texts'
 interface Props {
   prefill?: { name?: string; amount?: number; category?: string; type?: 'expense' | 'income' | 'transfer' }
   userCategories?: string[]
+  initialCards?: { name: string }[]
+  initialAccounts?: { id: string; name: string; balance: number }[]
 }
 
 function formatAmount(val: string): string {
@@ -19,7 +21,7 @@ function formatAmount(val: string): string {
   return Number(num).toLocaleString()
 }
 
-export default function AddExpenseForm({ prefill, userCategories }: Props) {
+export default function AddExpenseForm({ prefill, userCategories, initialCards, initialAccounts }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const { prefill: storePrefill, clearPrefill } = useAiInputStore()
@@ -36,13 +38,14 @@ export default function AddExpenseForm({ prefill, userCategories }: Props) {
     payment_method: '',
     memo: '',
   })
-  const [cards, setCards] = useState<{ name: string }[]>([])
-  const [accounts, setAccounts] = useState<{ id: string; name: string; balance: number }[]>([])
+  const [cards, setCards] = useState<{ name: string }[]>(initialCards ?? [])
+  const [accounts, setAccounts] = useState<{ id: string; name: string; balance: number }[]>(initialAccounts ?? [])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
 
   useEffect(() => {
+    if (initialCards && initialCards.length >= 0) return  // 서버에서 미리 받은 경우 fetch 생략
     supabase.from('cards').select('name').then(({ data }) => { if (data) setCards(data) })
     supabase.from('accounts').select('id, name, balance').then(({ data }) => { if (data) setAccounts(data) })
   }, [])

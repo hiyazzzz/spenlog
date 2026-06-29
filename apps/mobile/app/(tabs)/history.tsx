@@ -849,7 +849,7 @@ function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, to
           <Text key={d} style={[styles.calWeekDay, i === 0 && { color: COLORS.red }, i === 6 && { color: '#3b82f6' }]}>{d}</Text>
         ))}
       </View>
-      <View style={[styles.card, { backgroundColor: colors.bg }]}>
+      <View style={[styles.card, { backgroundColor: themeColors.bg }]}>
         {weeks.map((week, wi) => (
           <View key={wi} style={styles.calRow}>
             {week.map((date, di) => {
