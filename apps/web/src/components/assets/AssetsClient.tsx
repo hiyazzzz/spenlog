@@ -10,6 +10,7 @@ import { Account, Card, FixedCost, AccountType } from '@spenlog/types'
 import { formatCurrency } from '@/lib/format'
 import dayjs from 'dayjs'
 import AssetsGuide from './AssetsGuide'
+import BudgetForm from '@/components/budget/BudgetForm'
 
 interface Budget { id: string; category: string; amount: number; month: string }
 interface Expense { id: string; name: string; amount: number; category: string; date: string; payment_method: string | null }
@@ -20,6 +21,7 @@ interface Props {
   categorySpent: Record<string, number>; thisMonth: string
   customCategories?: any[]
   expenses?: Expense[]
+  recentExpenses?: { category: string; amount: number; date: string }[]
 }
 
 function fmt(v: string) { const n = v.replace(/[^0-9]/g, ''); return n ? Number(n).toLocaleString() : '' }
@@ -343,7 +345,7 @@ function getCardBillingPeriod(card: Card, targetMonth: string): { start: string;
   return { start, end }
 }
 
-export default function AssetsClient({ profile, userId, accounts, cards, fixedCosts, budgets, thisMonthSpent, categorySpent, thisMonth, customCategories, expenses = [] }: Props) {
+export default function AssetsClient({ profile, userId, accounts, cards, fixedCosts, budgets, thisMonthSpent, categorySpent, thisMonth, customCategories, expenses = [], recentExpenses = [] }: Props) {
   const supabase = createClient()
   const router = useRouter()
   const [localAccounts, setLocalAccounts] = useState(accounts)
@@ -366,6 +368,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const editingCardId = activeEditId?.startsWith('card:') ? activeEditId.slice(5) : null
   // 카드 납부 기록 바텀시트
   const [cardPaySheet, setCardPaySheet] = useState<Card | null>(null)
+  const [activeTab, setActiveTab] = useState<'assets' | 'budget' | 'fixed'>('assets')
   const [cardSectionExpanded, setCardSectionExpanded] = useState(false)
   const [cardPayAmount, setCardPayAmount] = useState('')
   const [cardPayDate, setCardPayDate] = useState('')
@@ -637,6 +640,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
       <AssetsGuide />
       <AssetsGuide hasNoAccounts={localAccounts.length === 0} />
 
+      {activeTab === 'assets' && <>
       {/* 자산 온보딩 재유도 배너 */}
       {showOnboardingBanner && (
         <div style={{
@@ -667,6 +671,26 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
 
       <h1 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-accent)' }}>{TEXTS.assets.title}</h1>
 
+      {/* 세그먼트 탭 */}
+      <div style={{ display: 'flex', background: 'var(--color-primary-light)', borderRadius: 20, padding: 4, gap: 4, marginBottom: 16 }}>
+        {([
+          { key: 'assets', label: '자산현황' },
+          { key: 'budget', label: '예산' },
+          { key: 'fixed', label: '고정비' },
+        ] as const).map(t => (
+          <button key={t.key} onClick={() => setActiveTab(t.key)}
+            style={{
+              flex: 1, padding: '8px 0', borderRadius: 16, border: 'none', cursor: 'pointer',
+              fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
+              background: activeTab === t.key ? 'var(--color-primary)' : 'transparent',
+              color: activeTab === t.key ? '#fff' : 'var(--color-primary)',
+              transition: 'all 0.15s',
+            }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       {/* 루틴 배너 */}
       <RoutineBanner
         userId={userId}
@@ -687,15 +711,14 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
         const cardsDone = localCards.filter(c => cardPaidIds.has(c.id)).length
         return (
           <div style={{
-            background: '#fff',
-            border: '1px solid #f3f4f6',
+            background: 'linear-gradient(135deg, var(--color-primary-light), #fff)',
+            border: '1.5px solid var(--color-primary-light)',
             borderRadius: 16, padding: '14px 16px', marginBottom: 12,
-            boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
           }}>
             <button onClick={() => setCardSectionExpanded(e => !e)} style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', marginBottom: cardSectionExpanded ? 10 : 0 }}>
-              <p style={{ fontSize: 14, fontWeight: 700, color: '#1f2937' }}>이번 달 카드 납부</p>
+              <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-primary)' }}>이번 달 카드 납부</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <p style={{ fontSize: 12, color: '#9ca3af' }}>{cardsDone}/{localCards.length} 완료</p>
+                <p style={{ fontSize: 12, color: 'var(--color-primary)' }}>{cardsDone}/{localCards.length} 완료</p>
                 <span style={{ fontSize: 14, color: '#9ca3af', transform: cardSectionExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', display: 'inline-block' }}>▼</span>
               </div>
             </button>
@@ -769,24 +792,6 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
           </div>
         )}
       </Section>
-
-      {/* 2. 예산 — /budget 페이지로 이동 */}
-      <button
-        onClick={() => router.push('/budget')}
-        style={{
-          width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          background: '#fff', border: '1px solid #f3f4f6', borderRadius: 16,
-          padding: '18px 16px', cursor: 'pointer', fontFamily: 'inherit',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.04)', marginBottom: 10,
-        }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: '#1f2937' }}>{TEXTS.assets.sectionBudget}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 13, color: totalBudget > 0 ? 'var(--color-accent)' : '#9ca3af' }}>
-            {totalBudget > 0 ? TEXTS.assets.budgetSet(totalBudget) : TEXTS.assets.budgetNotSet}
-          </span>
-          <span style={{ fontSize: 16, color: '#9ca3af' }}>›</span>
-        </div>
-      </button>
 
       {/* 3. 계좌/현금 */}
       <Section icon="" title={TEXTS.assets.sectionAccount} summary={TEXTS.assets.totalBalance(totalBalance)}>
@@ -1011,65 +1016,82 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
         <button onClick={() => { setShowAddCard(s => !s); setActiveEditId(null) }} style={fullAddBtn}>{TEXTS.assets.btnAddCard}</button>
       </Section>
 
-      {/* 5. 고정비 */}
-      <Section icon="" title={TEXTS.assets.sectionFixed} summary={TEXTS.assets.fixedMonthly(fixedExpenseTotal)}>
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{TEXTS.assets.fixedSection.expense}</span>
-            <button onClick={() => setShowAddFixed(showAddFixed === 'expense' ? null : 'expense')} style={addBtnStyle('var(--color-primary)', 'var(--color-primary-light)')}>+ 추가</button>
+      </>
+      }
+
+      {activeTab === 'budget' && (
+        <BudgetForm
+          userId={userId}
+          initialBudgets={budgets}
+          expenses={(expenses ?? []).map(e => ({ category: e.category, amount: e.amount, type: (e as any).type ?? 'expense' }))}
+          thisMonth={thisMonth}
+          income={profile?.income ?? 0}
+          fixedSavings={fixedSavings.reduce((s: number, f: any) => s + f.amount, 0)}
+          recentExpenses={recentExpenses}
+          customCategories={customCategories?.map((c: any) => c.name || c).filter(Boolean)}
+        />
+      )}
+
+      {activeTab === 'fixed' && (
+        <Section icon="" title={TEXTS.assets.sectionFixed} summary={TEXTS.assets.fixedMonthly(fixedExpenseTotal)}>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{TEXTS.assets.fixedSection.expense}</span>
+              <button onClick={() => setShowAddFixed(showAddFixed === 'expense' ? null : 'expense')} style={addBtnStyle('var(--color-primary)', 'var(--color-primary-light)')}>+ 추가</button>
+            </div>
+            {showAddFixed === 'expense' && (
+              <InlineForm
+                fields={[
+                  { label: '이름', key: 'name', placeholder: '예) 넷플릭스' },
+                  { label: '금액', key: 'amount', type: 'number', placeholder: '0' },
+                  { label: '빠져나가는 날', key: 'due_day', placeholder: '예) 25' },
+                  { label: '연결 계좌/카드', key: 'linked_account_id', options: linkedOptions },
+                ]}
+                onSave={v => addFixed(v, '고정지출')}
+                onCancel={() => setShowAddFixed(null)} />
+            )}
+            {fixedExpenses.length === 0 && <p style={{ fontSize: 12, color: '#9ca3af' }}>{TEXTS.assets.noFixedExpense}</p>}
+            {fixedExpenses.map(f => <FixedRow key={f.id} item={f}
+              accountName={localAccounts.find(a => a.id === (f as any).linked_account_id)?.name}
+              onDelete={() => deleteFixed(f.id)}
+              onEdit={(u: Record<string, unknown>) => editFixed(f.id, u)}
+              isEditing={activeEditId === 'fixed:' + f.id}
+              onStartEdit={() => setActiveEditId('fixed:' + f.id)}
+              onClose={() => setActiveEditId(null)}
+              accounts={localAccounts} cards={localCards} />)}
+            <p style={{ fontSize: 12, color: '#6b7280', marginTop: 6, fontWeight: 600 }}>{TEXTS.assets.fixedSection.subtotal(fixedExpenseTotal)}</p>
           </div>
-          {showAddFixed === 'expense' && (
-            <InlineForm
-              fields={[
-                { label: '이름', key: 'name', placeholder: '예) 넷플릭스' },
-                { label: '금액', key: 'amount', type: 'number', placeholder: '0' },
-                { label: '빠져나가는 날', key: 'due_day', placeholder: '예) 25' },
-                { label: '연결 계좌/카드', key: 'linked_account_id', options: linkedOptions },
-              ]}
-              onSave={v => addFixed(v, '고정지출')}
-              onCancel={() => setShowAddFixed(null)} />
-          )}
-          {fixedExpenses.length === 0 && <p style={{ fontSize: 12, color: '#9ca3af' }}>{TEXTS.assets.noFixedExpense}</p>}
-          {fixedExpenses.map(f => <FixedRow key={f.id} item={f}
-            accountName={localAccounts.find(a => a.id === (f as any).linked_account_id)?.name}
-            onDelete={() => deleteFixed(f.id)}
-            onEdit={(u: Record<string, unknown>) => editFixed(f.id, u)}
-            isEditing={activeEditId === 'fixed:' + f.id}
-            onStartEdit={() => setActiveEditId('fixed:' + f.id)}
-            onClose={() => setActiveEditId(null)}
-            accounts={localAccounts} cards={localCards} />)}
-          <p style={{ fontSize: 12, color: '#6b7280', marginTop: 6, fontWeight: 600 }}>{TEXTS.assets.fixedSection.subtotal(fixedExpenseTotal)}</p>
-        </div>
-        <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{TEXTS.assets.fixedSection.saving}</span>
-            <button onClick={() => setShowAddFixed(showAddFixed === 'saving' ? null : 'saving')} style={addBtnStyle('#059669', '#f0fdf4')}>+ 추가</button>
+          <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{TEXTS.assets.fixedSection.saving}</span>
+              <button onClick={() => setShowAddFixed(showAddFixed === 'saving' ? null : 'saving')} style={addBtnStyle('#059669', '#f0fdf4')}>+ 추가</button>
+            </div>
+            {showAddFixed === 'saving' && (
+              <InlineForm
+                fields={[
+                  { label: '이름', key: 'name', placeholder: '예) 석열 적금' },
+                  { label: '금액', key: 'amount', type: 'number', placeholder: '0' },
+                  { label: '빠져나가는 날', key: 'due_day', placeholder: '예) 5' },
+                  { label: '출금 계좌 (돈이 나가는 곳)', key: 'linked_account_id', options: linkedOptions },
+                  { label: '입금 계좌 (적금 계좌)', key: 'linked_target_account_id', options: linkedOptions },
+                ]}
+                onSave={v => addFixed(v, '고정저축')}
+                onCancel={() => setShowAddFixed(null)} />
+            )}
+            {fixedSavings.length === 0 && <p style={{ fontSize: 12, color: '#9ca3af' }}>{TEXTS.assets.noFixedSaving}</p>}
+            {fixedSavings.map(f => <FixedRow key={f.id} item={f}
+              accountName={localAccounts.find(a => a.id === (f as any).linked_account_id)?.name}
+              targetAccountName={localAccounts.find(a => a.id === (f as any).linked_target_account_id)?.name}
+              onDelete={() => deleteFixed(f.id)}
+              onEdit={(u: Record<string, unknown>) => editFixed(f.id, u)}
+              isEditing={activeEditId === 'fixed:' + f.id}
+              onStartEdit={() => setActiveEditId('fixed:' + f.id)}
+              onClose={() => setActiveEditId(null)}
+              accounts={localAccounts} cards={localCards} />)}
+            <p style={{ fontSize: 12, color: '#059669', marginTop: 6, fontWeight: 600 }}>{TEXTS.assets.fixedSection.subtotalSaving(fixedSavingTotal)}</p>
           </div>
-          {showAddFixed === 'saving' && (
-            <InlineForm
-              fields={[
-                { label: '이름', key: 'name', placeholder: '예) 석열 적금' },
-                { label: '금액', key: 'amount', type: 'number', placeholder: '0' },
-                { label: '빠져나가는 날', key: 'due_day', placeholder: '예) 5' },
-                { label: '출금 계좌 (돈이 나가는 곳)', key: 'linked_account_id', options: linkedOptions },
-                { label: '입금 계좌 (적금 계좌)', key: 'linked_target_account_id', options: linkedOptions },
-              ]}
-              onSave={v => addFixed(v, '고정저축')}
-              onCancel={() => setShowAddFixed(null)} />
-          )}
-          {fixedSavings.length === 0 && <p style={{ fontSize: 12, color: '#9ca3af' }}>{TEXTS.assets.noFixedSaving}</p>}
-          {fixedSavings.map(f => <FixedRow key={f.id} item={f}
-            accountName={localAccounts.find(a => a.id === (f as any).linked_account_id)?.name}
-            targetAccountName={localAccounts.find(a => a.id === (f as any).linked_target_account_id)?.name}
-            onDelete={() => deleteFixed(f.id)}
-            onEdit={(u: Record<string, unknown>) => editFixed(f.id, u)}
-            isEditing={activeEditId === 'fixed:' + f.id}
-            onStartEdit={() => setActiveEditId('fixed:' + f.id)}
-            onClose={() => setActiveEditId(null)}
-            accounts={localAccounts} cards={localCards} />)}
-          <p style={{ fontSize: 12, color: '#059669', marginTop: 6, fontWeight: 600 }}>{TEXTS.assets.fixedSection.subtotalSaving(fixedSavingTotal)}</p>
-        </div>
-      </Section>
+        </Section>
+      )}
     </div>
 
     {/* 카드 납부 기록 토스트 */}

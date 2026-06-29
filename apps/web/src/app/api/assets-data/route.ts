@@ -9,6 +9,7 @@ export async function GET() {
 
   const thisMonth = dayjs().format('YYYY-MM')
   const nextMonth = dayjs().add(1, 'month').format('YYYY-MM')
+  const threeMonthsAgo = dayjs().subtract(2, 'month').format('YYYY-MM')
 
   const [
     { data: profile },
@@ -18,6 +19,7 @@ export async function GET() {
     { data: expenses },
     { data: budgets },
     { data: customCategories },
+    { data: recentExpenses },
   ] = await Promise.all([
     supabase.from('users').select('*').eq('id', user.id).single(),
     supabase.from('accounts').select('*').eq('user_id', user.id),
@@ -29,6 +31,9 @@ export async function GET() {
       .order('date', { ascending: false }),
     supabase.from('budgets').select('*').eq('user_id', user.id).eq('month', thisMonth),
     supabase.from('categories').select('*').eq('user_id', user.id).order('sort_order'),
+    supabase.from('expenses').select('category, amount, date')
+      .eq('user_id', user.id).neq('type', 'transfer')
+      .gte('date', `${threeMonthsAgo}-01`).lt('date', `${nextMonth}-01`),
   ])
 
   const categorySpent: Record<string, number> = {}
@@ -49,5 +54,6 @@ export async function GET() {
     thisMonth,
     customCategories: customCategories ?? [],
     expenses: expenses ?? [],
+    recentExpenses: recentExpenses ?? [],
   })
 }

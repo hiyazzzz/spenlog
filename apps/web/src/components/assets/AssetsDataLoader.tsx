@@ -8,7 +8,7 @@ const CACHE_TTL = 5 * 60 * 1000 // 60초
 interface AssetsData {
   profile: any; accounts: any[]; cards: any[]; fixedCosts: any[]
   budgets: any[]; thisMonthSpent: number; categorySpent: Record<string, number>
-  thisMonth: string; customCategories: any[]; expenses: any[]
+  thisMonth: string; customCategories: any[]; expenses: any[]; recentExpenses: any[]
 }
 
 function Sk({ w, h, r = '10px' }: { w: string; h: string; r?: string }) {
@@ -84,6 +84,7 @@ export default function AssetsDataLoader({ userId }: { userId: string }) {
       thisMonth={data.thisMonth}
       customCategories={data.customCategories}
       expenses={data.expenses}
+      recentExpenses={data.recentExpenses}
     />
   )
 }

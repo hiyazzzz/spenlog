@@ -44,7 +44,7 @@ export default function AssetsScreen() {
               style={[sharedStyles.subTabBtn, subTab === t.key && { backgroundColor: themeColors.primary }]}
               onPress={() => setSubTab(t.key)}
             >
-              <Text style={[sharedStyles.subTabBtnText, subTab === t.key && sharedStyles.subTabBtnTextActive]}>{t.label}</Text>
+              <Text style={[sharedStyles.subTabBtnText, { color: subTab === t.key ? '#fff' : themeColors.primary }]}>{t.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -449,10 +449,10 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
       {/* 0. 이번 달 루틴 (고정비만) */}
       {fixedCosts.length > 0 && (
         <View style={assetStyles.section}>
-          <TouchableOpacity style={assetStyles.sectionHeader} onPress={() => setRoutineExpanded(o => !o)} activeOpacity={0.7}>
-            <Text style={assetStyles.sectionTitle}>이번 달 정기 기록</Text>
+          <TouchableOpacity style={[assetStyles.sectionHeader, { backgroundColor: themeColors.primaryLight, borderLeftWidth: 3, borderLeftColor: themeColors.primary }]} onPress={() => setRoutineExpanded(o => !o)} activeOpacity={0.7}>
+            <Text style={[assetStyles.sectionTitle, { color: themeColors.primary }]}>이번 달 정기 기록</Text>
             <View style={assetStyles.sectionHeaderRight}>
-              <Text style={assetStyles.sectionSummary}>{routineDone}/{routineTotal} 완료</Text>
+              <Text style={[assetStyles.sectionSummary, { color: themeColors.primary }]}>{routineDone}/{routineTotal} 완료</Text>
               <Text style={[assetStyles.sectionChevron, routineExpanded && { transform: [{ rotate: '180deg' }] }]}>▼</Text>
             </View>
           </TouchableOpacity>
@@ -501,10 +501,10 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
       {/* 0-1. 이번 달 카드 납부 */}
       {cards.length > 0 && (
         <View style={assetStyles.section}>
-          <TouchableOpacity style={assetStyles.sectionHeader} onPress={() => setCardSectionExpanded(o => !o)} activeOpacity={0.7}>
-            <Text style={assetStyles.sectionTitle}>이번 달 카드 납부</Text>
+          <TouchableOpacity style={[assetStyles.sectionHeader, { backgroundColor: themeColors.primaryLight, borderLeftWidth: 3, borderLeftColor: themeColors.primary }]} onPress={() => setCardSectionExpanded(o => !o)} activeOpacity={0.7}>
+            <Text style={[assetStyles.sectionTitle, { color: themeColors.primary }]}>이번 달 카드 납부</Text>
             <View style={assetStyles.sectionHeaderRight}>
-              <Text style={assetStyles.sectionSummary}>{cardsDone}/{cards.length} 완료</Text>
+              <Text style={[assetStyles.sectionSummary, { color: themeColors.primary }]}>{cardsDone}/{cards.length} 완료</Text>
               <Text style={[assetStyles.sectionChevron, cardSectionExpanded && { transform: [{ rotate: '180deg' }] }]}>▼</Text>
             </View>
           </TouchableOpacity>
