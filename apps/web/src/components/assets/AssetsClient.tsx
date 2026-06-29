@@ -12,7 +12,7 @@ import dayjs from 'dayjs'
 import AssetsGuide from './AssetsGuide'
 import BudgetForm from '@/components/budget/BudgetForm'
 
-interface Budget { id: string; category: string; amount: number; month: string }
+interface Budget { id: string; user_id: string; category: string; amount: number; month: string; source?: string | null }
 interface Expense { id: string; name: string; amount: number; category: string; date: string; payment_method: string | null }
 interface Props {
   profile: any; userId: string
