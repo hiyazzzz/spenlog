@@ -395,6 +395,12 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const [cardEditLinkedAccountId, setCardEditLinkedAccountId] = useState('')
   const [cardEditSaving, setCardEditSaving] = useState(false)
 
+  // 탭 전환 시 편집/추가 상태 리셋
+  useEffect(() => {
+    setActiveEditId(null)
+    setShowAddFixed(null)
+  }, [activeTab])
+
   // 이번 달 카드 납부 완료 목록 초기 로딩 (savings_payments 테이블 기준)
   useEffect(() => {
     async function loadPaidCards() {
