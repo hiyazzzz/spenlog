@@ -1111,7 +1111,6 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
             <p style={{ fontSize: 12, color: '#059669', marginTop: 6, fontWeight: 600 }}>{TEXTS.assets.fixedSection.subtotalSaving(fixedSavingTotal)}</p>
           </div>
         </div>
-        </div>
         </>
       )}
     </div>
