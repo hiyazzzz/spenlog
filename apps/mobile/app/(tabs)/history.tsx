@@ -11,6 +11,7 @@ import { recordCardPayment } from '@/lib/api/routine';
 import { getHistoryData, updateExpense, type HistoryData } from '@/lib/api/history';
 import { deleteExpense } from '@/lib/api/expenses';
 import type { Expense } from '@spenlog/types';
+import GroupedDropdownPicker from '@/components/GroupedDropdownPicker';
 
 type ViewMode = 'list' | 'calendar';
 type SortKey = 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc';

@@ -30,17 +30,10 @@ export default function AssetsScreen() {
   const { themeColors, tabBg } = useThemeColors();
   const { colors } = useAppTheme();
 
-  // 다른 탭으로 이동 시 자산현황으로 리셋 + 편집 상태 초기화
+  // 다른 탭으로 이동 시 자산현황으로 리셋
+  // (자식 컴포넌트 edit state는 언마운트 시 자동 초기화됨)
   useFocusEffect(useCallback(() => {
-    return () => {
-      setSubTab('assets');
-      setEditingAccountId(null);
-      setEditingCardId(null);
-      setEditingIncome(false);
-      setShowAddAccount(false);
-      setShowAddCard(false);
-      setCardPaySheet(null);
-    };
+    return () => { setSubTab('assets'); };
   }, []));
 
   return (
