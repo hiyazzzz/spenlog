@@ -372,23 +372,18 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
   const router = useRouter()
   const activeTab = (searchParams.get('tab') as 'assets' | 'budget' | 'fixed') ?? 'assets'
   const setActiveTab = (tab: 'assets' | 'budget' | 'fixed') => {
-    // 탭 전환 시 편집/추가 상태 즉시 리셋 (세그먼트 버튼 클릭)
-    setActiveEditId(null)
-    setShowAddFixed(null)
     const params = new URLSearchParams(Array.from(searchParams.entries()))
     if (tab === 'assets') params.delete('tab')
     else params.set('tab', tab)
     const qs = params.toString()
     router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }
-  // 하단 탭 이동 시 편집 상태 리셋 (pathname 변화로 감지 — TabShell display:none 상태에서도 동작)
+  // 세그먼트 탭 또는 하단 탭 이동 후 편집 상태 리셋 (탭 전환 완료 후 실행되어 UX 자연스러움)
   useEffect(() => {
-    if (pathname !== '/assets') {
-      setActiveEditId(null)
-      setShowAddFixed(null)
-    }
+    setActiveEditId(null)
+    setShowAddFixed(null)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname])
+  }, [activeTab, pathname])
   const [cardSectionExpanded, setCardSectionExpanded] = useState(false)
   const [cardPayAmount, setCardPayAmount] = useState('')
   const [cardPayDate, setCardPayDate] = useState('')

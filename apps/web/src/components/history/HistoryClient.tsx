@@ -1,5 +1,6 @@
 'use client'
 import { useState, useMemo, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ko'
@@ -53,6 +54,12 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [calMonth, setCalMonth] = useState(dayjs().format('YYYY-MM'))
   const [editingId, setEditingId] = useState<string | null>(null)
+  const pathname = usePathname()
+  // 다른 탭으로 이동 시 인라인 수정 폼 닫기
+  useEffect(() => {
+    if (pathname !== '/history') setEditingId(null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname])
   const [confirmModal, setConfirmModal] = useState<{ title: string; lines: string[]; onConfirm: () => void } | null>(null)
   const [alertMsg, setAlertMsg] = useState('')
 
