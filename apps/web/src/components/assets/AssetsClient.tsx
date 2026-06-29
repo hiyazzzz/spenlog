@@ -1027,7 +1027,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
           thisMonth={thisMonth}
           income={profile?.income ?? 0}
           fixedSavings={fixedSavings.reduce((s: number, f: any) => s + f.amount, 0)}
-          recentExpenses={recentExpenses}
+          recentExpenses={recentExpenses.map(e => ({ category: e.category, amount: e.amount, month: e.date.slice(0, 7) }))}
           customCategories={customCategories?.map((c: any) => c.name || c).filter(Boolean)}
         />
       )}
