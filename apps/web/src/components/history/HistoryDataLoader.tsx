@@ -95,4 +95,19 @@ export default function HistoryDataLoader({ userId }: { userId: string }) {
       }
     } catch {}
     // 캐시 삭제 후 재조회
-    try { sessionSto
+    try { localStorage.removeItem(CACHE_KEY) } catch {}
+    fetchHistory(true)
+  }, [pathname])
+
+  if (!data) return <LoadingSkeleton />
+
+  return (
+    <HistoryClient
+      userId={userId}
+      initialExpenses={data.expenses}
+      paymentMethods={data.paymentMethods}
+      userCategories={data.userCategories}
+      initialCategory={initialCategory}
+    />
+  )
+}
