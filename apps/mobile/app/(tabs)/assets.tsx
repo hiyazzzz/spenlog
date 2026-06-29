@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Alert, Switch, Keyboard } from 'react-native';
 import SlideUpModal from '@/components/SlideUpModal';
 import { useFocusEffect } from 'expo-router';
@@ -448,8 +449,8 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
 
       {/* 0. 이번 달 루틴 (고정비만) */}
       {fixedCosts.length > 0 && (
-        <View style={assetStyles.section}>
-          <TouchableOpacity style={[assetStyles.sectionHeader, { backgroundColor: themeColors.primaryLight, borderWidth: 1.5, borderColor: themeColors.primaryLight, borderRadius: 10 }]} onPress={() => setRoutineExpanded(o => !o)} activeOpacity={0.7}>
+        <LinearGradient colors={[themeColors.primaryLight, '#ffffff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[assetStyles.section, { borderColor: themeColors.primaryLight }]}>
+          <TouchableOpacity style={assetStyles.sectionHeader} onPress={() => setRoutineExpanded(o => !o)} activeOpacity={0.7}>
             <Text style={[assetStyles.sectionTitle, { color: themeColors.primary }]}>이번 달 정기 기록</Text>
             <View style={assetStyles.sectionHeaderRight}>
               <Text style={[assetStyles.sectionSummary, { color: themeColors.primary }]}>{routineDone}/{routineTotal} 완료</Text>
@@ -495,13 +496,13 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
               })}
             </View>
           )}
-        </View>
+        </LinearGradient>
       )}
 
       {/* 0-1. 이번 달 카드 납부 */}
       {cards.length > 0 && (
-        <View style={assetStyles.section}>
-          <TouchableOpacity style={[assetStyles.sectionHeader, { backgroundColor: themeColors.primaryLight, borderWidth: 1.5, borderColor: themeColors.primaryLight, borderRadius: 10 }]} onPress={() => setCardSectionExpanded(o => !o)} activeOpacity={0.7}>
+        <LinearGradient colors={[themeColors.primaryLight, '#ffffff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[assetStyles.section, { borderColor: themeColors.primaryLight }]}>
+          <TouchableOpacity style={assetStyles.sectionHeader} onPress={() => setCardSectionExpanded(o => !o)} activeOpacity={0.7}>
             <Text style={[assetStyles.sectionTitle, { color: themeColors.primary }]}>이번 달 카드 납부</Text>
             <View style={assetStyles.sectionHeaderRight}>
               <Text style={[assetStyles.sectionSummary, { color: themeColors.primary }]}>{cardsDone}/{cards.length} 완료</Text>
@@ -537,7 +538,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
               );
             })}
           </View>}
-        </View>
+        </LinearGradient>
       )}
 
       {/* 1. 월 수입 */}
@@ -1126,7 +1127,11 @@ function FixedCostsPanel({ themeColors }: { themeColors: ReturnType<typeof getTh
 
   return (
     <ScrollView style={sharedStyles.panel} contentContainerStyle={sharedStyles.content} keyboardShouldPersistTaps="handled">
-      <Text style={fixedStyles.pageSubtitle}>월 {formatCurrency(grandTotal)} 지출 ▲</Text>
+      <LinearGradient colors={[themeColors.primaryLight, '#ffffff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1.5, borderColor: themeColors.primaryLight, overflow: 'hidden' }}>
+        <Text style={{ fontSize: 12, color: COLORS.gray400, marginBottom: 4 }}>이번 달 고정비 지출</Text>
+        <Text style={{ fontSize: 20, fontWeight: '700', color: themeColors.primary, marginBottom: 4 }}>월 {formatCurrency(grandTotal)}</Text>
+        <Text style={{ fontSize: 12, color: COLORS.gray500 }}>고정지출 {formatCurrency(expenseTotal)} · 고정저축 {formatCurrency(savingTotal)}</Text>
+      </LinearGradient>
 
       {/* 고정 지출 섹션 */}
       <View style={fixedStyles.section}>
