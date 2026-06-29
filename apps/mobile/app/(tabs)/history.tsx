@@ -44,7 +44,11 @@ export default function HistoryScreen() {
   } | null>(null);
   const appliedCategoryRef = useRef<string>('');
 
+  // 세대 카운터: 구버전 응답이 최신 응답보다 늦게 도착해도 UI 덮어쓰기 방지
+  const loadGenRef = useRef(0);
+
   const load = useCallback(async () => {
+    const gen = ++loadGenRef.current;
     try {
       setError(null);
       const userId = await getCurrentUserId();
@@ -57,14 +61,25 @@ export default function HistoryScreen() {
       if (cached) { setData(cached); setLoading(false); }
 
       const result = await getHistoryData(userId);
+      if (gen !== loadGenRef.current) return; // 더 최신 요청 있으면 구버전 무시
       useDataCache.getState().setHistory(result);
       setData(result);
     } catch (e) {
+      if (gen !== loadGenRef.current) return;
       setError(e instanceof Error ? e.message : '데이터를 불러오지 못했어요');
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current) setLoading(false);
     }
   }, []);
+
+  // Zustand store 변경 즉시 반영 — prefetch로 store가 업데이트되면 useFocusEffect 없이도 UI 갱신
+  const storeHistory = useDataCache(s => s.history);
+  useEffect(() => {
+    if (storeHistory) {
+      setData(storeHistory);
+      setLoading(false);
+    }
+  }, [storeHistory]);
 
   useFocusEffect(useCallback(() => {
     load();
