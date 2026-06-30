@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useLayoutEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import AssetsClient from './AssetsClient'
 
 const CACHE_KEY = 'sp_assets_v2'
@@ -63,14 +64,18 @@ export default function AssetsDataLoader({ userId }: { userId: string }) {
     } catch {}
   }, [])
 
-  useEffect(() => {
-    try {
-      const cached = localStorage.getItem(CACHE_KEY)
-      if (cached) {
-        const { ts } = JSON.parse(cached)
-        if (Date.now() - ts < CACHE_TTL) return
-      }
-    } catch {}
+  function fetchAssets(force = false) {
+    if (!force) {
+      try {
+        const cached = localStorage.getItem(CACHE_KEY)
+        if (cached) {
+          const { d, ts } = JSON.parse(cached)
+          _memCache = d
+          setData(d)
+          if (Date.now() - ts < CACHE_TTL) return
+        }
+      } catch {}
+    }
     fetch('/api/assets-data')
       .then(r => r.json())
       .then(fresh => {
@@ -80,7 +85,35 @@ export default function AssetsDataLoader({ userId }: { userId: string }) {
         try { localStorage.setItem(CACHE_KEY, JSON.stringify({ d: fresh, ts: Date.now() })) } catch {}
       })
       .catch(() => {})
-  }, [userId])
+  }
+
+  // 최초 마운트 시 로드
+  useEffect(() => { fetchAssets() }, [userId])
+
+  // /assets 탭 진입 시마다 재확인 (HistoryDataLoader 패턴)
+  const pathname = usePathname()
+  useEffect(() => {
+    if (pathname !== '/assets') return
+    try {
+      if (localStorage.getItem('sp_assets_needs_refresh') === '1') {
+        localStorage.removeItem('sp_assets_needs_refresh')
+        localStorage.removeItem(CACHE_KEY)
+        _memCache = null
+        fetchAssets(true)
+        return
+      }
+    } catch {}
+    try {
+      const cached = localStorage.getItem(CACHE_KEY)
+      if (cached) {
+        const { ts } = JSON.parse(cached)
+        if (Date.now() - ts < 10000) return
+      }
+    } catch {}
+    localStorage.removeItem(CACHE_KEY)
+    _memCache = null
+    fetchAssets(true)
+  }, [pathname])
 
   if (!data) return <LoadingSkeleton />
 

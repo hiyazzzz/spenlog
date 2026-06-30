@@ -35,11 +35,6 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
   const supabase = createClient()
 
   const [expenses, setExpenses] = useState(initialExpenses)
-
-  // DataLoader가 새 데이터 fetch 후 prop 갱신 시 동기화 (display:none/block 마운트 유지 구조 대응)
-  useEffect(() => {
-    setExpenses(initialExpenses)
-  }, [initialExpenses])
   const [accounts, setAccounts] = useState<{id:string;name:string;balance:number}[]>([])
   const [cards, setCards] = useState<{name:string}[]>([])
 

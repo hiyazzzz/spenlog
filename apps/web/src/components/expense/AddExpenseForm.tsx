@@ -94,7 +94,9 @@ export default function AddExpenseForm({ prefill, userCategories, initialCards, 
         setForm({ name: '', amount: '', category: '생활비', date: dayjs().format('YYYY-MM-DD'), payment_method: '', memo: '' })
         setTransferFrom(''); setTransferTo('')
         try { localStorage.removeItem('sp_history_v2') } catch {}
+        try { localStorage.removeItem('sp_assets_v2') } catch {}
         try { localStorage.setItem('sp_history_needs_refresh', '1') } catch {}
+        try { localStorage.setItem('sp_assets_needs_refresh', '1') } catch {}
         setTimeout(() => router.push('/history'), 1000)
         return
       }
@@ -138,7 +140,9 @@ export default function AddExpenseForm({ prefill, userCategories, initialCards, 
       setForm({ name: '', amount: '', category: '생활비', date: dayjs().format('YYYY-MM-DD'), payment_method: '', memo: '' })
       try { localStorage.removeItem('sp_history_v2') } catch {}
       try { localStorage.removeItem('sp_home_v1') } catch {}
+      try { localStorage.removeItem('sp_assets_v2') } catch {}
       try { localStorage.setItem('sp_history_needs_refresh', '1') } catch {}
+      try { localStorage.setItem('sp_assets_needs_refresh', '1') } catch {}
       // 1초 후 내역 탭으로 이동
       setTimeout(() => router.push('/history'), 1000)
     } catch { setError(TEXTS.addExpense.errSave) }

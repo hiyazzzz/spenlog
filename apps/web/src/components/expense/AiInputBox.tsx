@@ -126,6 +126,7 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
       try { localStorage.removeItem('sp_home_v1') } catch {}
       try { localStorage.removeItem('sp_assets_v2') } catch {}
       try { localStorage.setItem('sp_history_needs_refresh', '1') } catch {}
+      try { localStorage.setItem('sp_assets_needs_refresh', '1') } catch {}
       router.push('/history')
     } catch {
       const newCount = saveFailCount + 1
@@ -164,6 +165,7 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
           try { localStorage.removeItem('sp_home_v1') } catch {}
           try { localStorage.removeItem('sp_assets_v2') } catch {}
           try { localStorage.setItem('sp_history_needs_refresh', '1') } catch {}
+          try { localStorage.setItem('sp_assets_needs_refresh', '1') } catch {}
           router.push('/history')
         }, 1000)
       }
