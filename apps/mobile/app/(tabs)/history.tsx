@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard, Alert, KeyboardAvoidingView, Platform, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard, Alert, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { useDataCache } from '@/store/dataCache';
@@ -482,36 +482,44 @@ export default function HistoryScreen() {
       </Modal>
     )}
 
-    {/* 수정 바텀시트 모달 */}
+    {/* 수정 풀스크린 모달 */}
     {editingExpense && (
-      <Modal visible transparent animationType="slide" onRequestClose={() => setEditingExpense(null)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <View style={styles.modalOverlay}>
-            <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setEditingExpense(null)} />
-            <View style={styles.editSheet}>
-              <View style={styles.modalHandle} />
-              {(editingExpense.type === 'savings' || editingExpense.type === 'transfer')
-                ? <TransferEditRow
-                    expense={editingExpense}
-                    onSave={u => handleSave(editingExpense.id, u)}
-                    onDelete={() => handleDelete(editingExpense)}
-                    onCancel={() => setEditingExpense(null)}
-                  />
-                : <EditRow
-                    expense={editingExpense}
-                    categories={categories}
-                    paymentMethods={data.paymentMethods}
-                    cardNames={data.cardNames}
-                    accountNames={data.accountNames}
-                    themeColors={themeColors}
-                    onSave={u => { handleSave(editingExpense.id, u); setShowToast(true); setTimeout(() => setShowToast(false), 1500); }}
-                    onDelete={() => handleDelete(editingExpense)}
-                    onCancel={() => setEditingExpense(null)}
-                  />
-              }
-            </View>
+      <Modal visible animationType="slide" onRequestClose={() => { Keyboard.dismiss(); setEditingExpense(null); }}>
+        <View style={{ flex: 1, backgroundColor: '#fff' }}>
+          <View style={styles.fullscreenHeader}>
+            <TouchableOpacity onPress={() => { Keyboard.dismiss(); setEditingExpense(null); }} style={styles.headerSideBtn}>
+              <Text style={styles.headerCancelText}>취소</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>{dayjs(editingExpense.date).format('M월 D일')} 수정</Text>
+            <View style={{ width: 48 }} />
           </View>
-        </KeyboardAvoidingView>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 40 }}
+          >
+            {(editingExpense.type === 'savings' || editingExpense.type === 'transfer')
+              ? <TransferEditRow
+                  expense={editingExpense}
+                  onSave={u => handleSave(editingExpense.id, u)}
+                  onDelete={() => handleDelete(editingExpense)}
+                  onCancel={() => setEditingExpense(null)}
+                />
+              : <EditRow
+                  expense={editingExpense}
+                  categories={categories}
+                  paymentMethods={data.paymentMethods}
+                  cardNames={data.cardNames}
+                  accountNames={data.accountNames}
+                  themeColors={themeColors}
+                  onSave={u => { handleSave(editingExpense.id, u); setShowToast(true); setTimeout(() => setShowToast(false), 1500); }}
+                  onDelete={() => handleDelete(editingExpense)}
+                  onCancel={() => setEditingExpense(null)}
+                />
+            }
+          </ScrollView>
+        </View>
       </Modal>
     )}
     <SaveToast visible={showToast} />
@@ -703,11 +711,7 @@ function EditRow({ expense, categories, paymentMethods, cardNames, accountNames,
   payGroupItems.push({ type: 'item', label: '기타', value: '기타' });
 
   return (
-    <View style={styles.editBox}>
-      <View style={styles.editHeaderRow}>
-        <Text style={styles.dateLabel}>{dayjs(expense.date).format('M월 D일')}</Text>
-        <TouchableOpacity onPress={onCancel}><Text style={{ color: COLORS.gray400 }}>✕</Text></TouchableOpacity>
-      </View>
+    <View style={{ padding: 20 }}>
       <View style={styles.typeToggleRow}>
         {(['expense', 'income'] as const).map(t => (
           <TouchableOpacity key={t} style={[styles.typeToggleBtn, type === t && { backgroundColor: themeColors.primary }]} onPress={() => setType(t)}>
@@ -715,17 +719,10 @@ function EditRow({ expense, categories, paymentMethods, cardNames, accountNames,
           </TouchableOpacity>
         ))}
       </View>
-      <TextInput style={styles.editInput} value={name} onChangeText={setName} placeholder="항목명" placeholderTextColor={COLORS.gray400} />
-      <TextInput
-        style={styles.editInput}
-        value={amount ? Number(amount).toLocaleString() : ''}
-        onChangeText={v => setAmount(v.replace(/[^0-9]/g, ''))}
-        keyboardType="numeric"
-        placeholder="금액"
-        placeholderTextColor={COLORS.gray400}
-      />
+      <Text style={styles.fieldLabel}>항목명</Text>
+      <TextInput style={[styles.editInput, { marginBottom: 16 }]} value={name} onChangeText={setName} placeholder="항목명" placeholderTextColor={COLORS.gray400} returnKeyType="done" />
       {type !== 'income' && (
-        <View style={{ marginBottom: 8 }}>
+        <View style={{ marginBottom: 16 }}>
           <Text style={[styles.fieldLabel, { marginBottom: 4 }]}>카테고리</Text>
           <DropdownPicker
             value={category}
@@ -736,7 +733,7 @@ function EditRow({ expense, categories, paymentMethods, cardNames, accountNames,
           />
         </View>
       )}
-      <View style={{ marginBottom: 12 }}>
+      <View style={{ marginBottom: 24 }}>
         <Text style={[styles.fieldLabel, { marginBottom: 4 }]}>결제수단</Text>
         <GroupedDropdownPicker
           value={paymentMethod}
@@ -750,7 +747,21 @@ function EditRow({ expense, categories, paymentMethods, cardNames, accountNames,
           </TouchableOpacity>
         )}
       </View>
-      <View style={styles.formBtnRow}>
+      {/* 금액 — 하단 고정, 키보드 바로 위 */}
+      <View style={styles.amountSection}>
+        <Text style={styles.fieldLabel}>금액</Text>
+        <TextInput
+          style={styles.amountInput}
+          value={amount ? Number(amount).toLocaleString() : ''}
+          onChangeText={v => setAmount(v.replace(/[^0-9]/g, ''))}
+          keyboardType="numeric"
+          placeholder="0"
+          placeholderTextColor={COLORS.gray300}
+          returnKeyType="done"
+        />
+        <Text style={styles.amountUnit}>원</Text>
+      </View>
+      <View style={[styles.formBtnRow, { marginTop: 24 }]}>
         <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: themeColors.primary }]} onPress={() => onSave({
           name,
           amount: parseInt(amount) || expense.amount,
@@ -1002,6 +1013,13 @@ const styles = StyleSheet.create({
   dropdownOptText: { fontSize: 13, color: COLORS.gray700 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  fullscreenHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12, borderBottomWidth: 0.5, borderBottomColor: COLORS.gray100, backgroundColor: '#fff' },
+  headerSideBtn: { width: 48, paddingVertical: 4 },
+  headerCancelText: { fontSize: 16, color: COLORS.gray500 },
+  headerTitle: { fontSize: 16, fontWeight: '600', color: COLORS.gray800 },
+  amountSection: { borderTopWidth: 1, borderTopColor: COLORS.gray100, paddingTop: 20 },
+  amountInput: { fontSize: 32, fontWeight: '700', color: COLORS.gray800, paddingVertical: 8, letterSpacing: -0.5 },
+  amountUnit: { fontSize: 18, color: COLORS.gray500, fontWeight: '500', marginTop: 2 },
 
   // 인라인 드롭다운 (EditRow 내부)
   inlineDropdownBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, paddingHorizontal: 10, backgroundColor: '#f8fafc', borderRadius: 8, borderWidth: 1 },
@@ -1019,7 +1037,7 @@ const styles = StyleSheet.create({
   saveToast: { position: 'absolute' as const, bottom: 24, alignSelf: 'center' as const, backgroundColor: 'rgba(30,30,30,0.88)', paddingVertical: 10, paddingHorizontal: 22, borderRadius: 30 },
   saveToastText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   cardPaySheet: { backgroundColor: '#fff', borderRadius: 20, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: 24, paddingBottom: 40 },
-  editSheet: { backgroundColor: '#fff', borderRadius: 20, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: 20, paddingBottom: 40 },
+  editSheet: { backgroundColor: '#fff', borderRadius: 20, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: 20, paddingBottom: 0 },
   modalHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 20 },
   modalTitle: { fontSize: 17, fontWeight: '700', color: COLORS.gray800, marginBottom: 20 },
   cardPayInfoBox: { backgroundColor: '#fafafa', borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.gray100, padding: 14, marginBottom: 20 },
