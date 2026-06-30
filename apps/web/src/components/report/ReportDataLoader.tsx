@@ -5,6 +5,9 @@ import ReportClient from './ReportClient'
 
 const CACHE_TTL = 5 * 60 * 1000
 
+// month별 모듈 캐시
+const _memCacheMap: Record<string, any> = {}
+
 function LoadingSkeleton() {
   return (
     <div style={{ minHeight: '100vh', paddingBottom: 80 }}>
@@ -22,26 +25,31 @@ function LoadingSkeleton() {
 export default function ReportDataLoader() {
   const searchParams = useSearchParams()
   const month = searchParams.get('month') ?? ''
-  const [data, setData] = useState<any>(null)
+  const cacheKey = `sp_report_v1_${month || 'default'}`
 
-  // 페인트 전 캐시 즉시 적용 → skeleton 플래시 완전 제거
+  const [data, setData] = useState<any>(_memCacheMap[month || 'default'] ?? null)
+
   useLayoutEffect(() => {
-    const cacheKey = `sp_report_v1_${month || 'default'}`
+    const mk = month || 'default'
+    if (_memCacheMap[mk]) return
     try {
-      const cached = localStorage.getItem(cacheKey)
+      const cached = localStorage.getItem(`sp_report_v1_${mk}`)
       if (cached) {
         const { d } = JSON.parse(cached)
+        _memCacheMap[mk] = d
         setData(d)
       }
     } catch {}
   }, [month])
 
   const load = useCallback(async (m: string) => {
-    const cacheKey = `sp_report_v1_${m || 'default'}`
+    const mk = m || 'default'
+    const lsKey = `sp_report_v1_${mk}`
     try {
-      const cached = localStorage.getItem(cacheKey)
+      const cached = localStorage.getItem(lsKey)
       if (cached) {
         const { d, ts } = JSON.parse(cached)
+        _memCacheMap[mk] = d
         setData(d)
         if (Date.now() - ts < CACHE_TTL) return
       }
@@ -51,9 +59,10 @@ export default function ReportDataLoader() {
       .then(r => r.json())
       .then(fresh => {
         if (fresh.error) return
+        const fmk = fresh.currentMonth || m || 'default'
+        _memCacheMap[fmk] = fresh
         setData(fresh)
-        const ck = `sp_report_v1_${fresh.currentMonth || m || 'default'}`
-        try { localStorage.setItem(ck, JSON.stringify({ d: fresh, ts: Date.now() })) } catch {}
+        try { localStorage.setItem(`sp_report_v1_${fmk}`, JSON.stringify({ d: fresh, ts: Date.now() })) } catch {}
       })
       .catch(() => {})
   }, [])

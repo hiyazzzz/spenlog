@@ -5,6 +5,8 @@ import HomeClient from './HomeClient'
 const CACHE_KEY = 'sp_home_v1'
 const CACHE_TTL = 5 * 60 * 1000
 
+let _memCache: any = null
+
 interface HomeData {
   userId: string
   profile: any
@@ -44,14 +46,15 @@ function LoadingSkeleton() {
 }
 
 export default function HomeDataLoader() {
-  const [data, setData] = useState<HomeData | null>(null)
+  const [data, setData] = useState<HomeData | null>(_memCache)
 
-  // 페인트 전 캐시 즉시 적용 → skeleton 플래시 완전 제거
   useLayoutEffect(() => {
+    if (_memCache) return
     try {
       const cached = localStorage.getItem(CACHE_KEY)
       if (cached) {
         const { d } = JSON.parse(cached)
+        _memCache = d
         setData(d)
       }
     } catch {}
@@ -69,6 +72,7 @@ export default function HomeDataLoader() {
       .then(r => r.json())
       .then(fresh => {
         if (fresh.error) return
+        _memCache = fresh
         setData(fresh)
         try { localStorage.setItem(CACHE_KEY, JSON.stringify({ d: fresh, ts: Date.now() })) } catch {}
       })

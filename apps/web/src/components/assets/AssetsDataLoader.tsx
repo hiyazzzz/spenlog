@@ -3,7 +3,10 @@ import { useEffect, useLayoutEffect, useState, Suspense } from 'react'
 import AssetsClient from './AssetsClient'
 
 const CACHE_KEY = 'sp_assets_v2'
-const CACHE_TTL = 5 * 60 * 1000 // 60초
+const CACHE_TTL = 5 * 60 * 1000 // 5분
+
+// 모듈 레벨 캐시 — React remount(탭 전환)에도 보존됨
+let _memCache: any = null
 
 interface AssetsData {
   profile: any; accounts: any[]; cards: any[]; fixedCosts: any[]
@@ -45,34 +48,34 @@ function LoadingSkeleton() {
 }
 
 export default function AssetsDataLoader({ userId }: { userId: string }) {
-  const [data, setData] = useState<AssetsData | null>(null)
+  // 탭 전환(remount) 시 모듈 캐시에서 즉시 복원 → skeleton 없음
+  const [data, setData] = useState<AssetsData | null>(_memCache)
 
-  // 페인트 전 캐시 즉시 적용 → skeleton 플래시 완전 제거
   useLayoutEffect(() => {
+    if (_memCache) return // 모듈 캐시 있으면 스킵
     try {
       const cached = localStorage.getItem(CACHE_KEY)
       if (cached) {
         const { d } = JSON.parse(cached)
+        _memCache = d
         setData(d)
       }
     } catch {}
   }, [])
 
   useEffect(() => {
-    // TTL 체크 후 백그라운드 재검증
     try {
       const cached = localStorage.getItem(CACHE_KEY)
       if (cached) {
         const { ts } = JSON.parse(cached)
-        if (Date.now() - ts < CACHE_TTL) return // 신선한 캐시 → fetch 스킵
+        if (Date.now() - ts < CACHE_TTL) return
       }
     } catch {}
-
-    // 백그라운드 fetch (캐시 있으면 stale-while-revalidate, 없으면 첫 로딩)
     fetch('/api/assets-data')
       .then(r => r.json())
       .then(fresh => {
         if (fresh.error) return
+        _memCache = fresh
         setData(fresh)
         try { localStorage.setItem(CACHE_KEY, JSON.stringify({ d: fresh, ts: Date.now() })) } catch {}
       })

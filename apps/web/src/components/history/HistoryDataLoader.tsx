@@ -6,6 +6,8 @@ import HistoryClient from './HistoryClient'
 const CACHE_KEY = 'sp_history_v2'
 const CACHE_TTL = 5 * 60 * 1000
 
+let _memCache: any = null
+
 interface HistoryData {
   expenses: any[]
   paymentMethods: string[]
@@ -45,16 +47,17 @@ function LoadingSkeleton() {
 }
 
 export default function HistoryDataLoader({ userId }: { userId: string }) {
-  const [data, setData] = useState<HistoryData | null>(null)
+  const [data, setData] = useState<HistoryData | null>(_memCache)
   const searchParams = useSearchParams()
   const initialCategory = searchParams.get('category') ?? ''
 
-  // 페인트 전 캐시 즉시 적용 → skeleton 플래시 완전 제거
   useLayoutEffect(() => {
+    if (_memCache) return
     try {
       const cached = localStorage.getItem(CACHE_KEY)
       if (cached) {
         const { d } = JSON.parse(cached)
+        _memCache = d
         setData(d)
       }
     } catch {}
@@ -66,6 +69,7 @@ export default function HistoryDataLoader({ userId }: { userId: string }) {
         const cached = localStorage.getItem(CACHE_KEY)
         if (cached) {
           const { d, ts } = JSON.parse(cached)
+          _memCache = d
           setData(d)
           if (Date.now() - ts < CACHE_TTL) return
         }
@@ -75,6 +79,7 @@ export default function HistoryDataLoader({ userId }: { userId: string }) {
       .then(r => r.json())
       .then(fresh => {
         if (fresh.error) return
+        _memCache = fresh
         setData(fresh)
         try { localStorage.setItem(CACHE_KEY, JSON.stringify({ d: fresh, ts: Date.now() })) } catch {}
       })
@@ -84,20 +89,19 @@ export default function HistoryDataLoader({ userId }: { userId: string }) {
   // 최초 마운트 시 로드
   useEffect(() => { fetchHistory() }, [userId])
 
-  // /history 탭 진입 시마다 재확인 — TabShell이 모든 탭을 pre-mount하기 때문에 필요
+  // /history 탭 진입 시마다 재확인
   const pathname = usePathname()
   useEffect(() => {
     if (pathname !== '/history') return
-    // 저장 직후 강제 새로고침 플래그 — Prefetcher race condition 완전 차단
     try {
       if (localStorage.getItem('sp_history_needs_refresh') === '1') {
         localStorage.removeItem('sp_history_needs_refresh')
         localStorage.removeItem(CACHE_KEY)
+        _memCache = null
         fetchHistory(true)
         return
       }
     } catch {}
-    // 10초 이내 데이터는 재요청 생략 (초기 로드 직후 이중 요청 방지)
     try {
       const cached = localStorage.getItem(CACHE_KEY)
       if (cached) {
@@ -105,8 +109,8 @@ export default function HistoryDataLoader({ userId }: { userId: string }) {
         if (Date.now() - ts < 10000) return
       }
     } catch {}
-    // 캐시 삭제 후 재조회
     try { localStorage.removeItem(CACHE_KEY) } catch {}
+    _memCache = null
     fetchHistory(true)
   }, [pathname])
 
