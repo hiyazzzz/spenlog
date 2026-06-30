@@ -31,17 +31,17 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
   const [failModal, setFailModal] = useState(false)
   const [failMsg, setFailMsg] = useState('')
   // 실패 모달 인라인 입력 상태
-  const [inlineForm, setInlineForm] = useState({ name: '', amount: '', category: cats[0] ?? '생활비', payment_method: '카드' })
+  const [inlineForm, setInlineForm] = useState({ name: '', amount: '', category: cats[0] ?? '생활비', payment_method: '' })
   const [inlineSaving, setInlineSaving] = useState(false)
   const [inlineSaved, setInlineSaved] = useState(false)
   const router = useRouter()
   const supabase = createClient()
   const { setPrefill } = useAiInputStore()
-  const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([])
+  const [accounts, setAccounts] = useState<{ id: string; name: string; balance: number }[]>([])
   const [cards, setCards] = useState<{ name: string }[]>([])
 
   useEffect(() => {
-    supabase.from('accounts').select('id, name').then(({ data }) => { if (data) setAccounts(data) })
+    supabase.from('accounts').select('id, name, balance').then(({ data }) => { if (data) setAccounts(data) })
     supabase.from('cards').select('name').then(({ data }) => { if (data) setCards(data) })
   }, [])
 
@@ -111,12 +111,21 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
           : TEXTS.ai.saveErrorRetry)
         return
       }
+      // 계좌 결제 시 잔액 차감
+      const accountMap = new Map(accounts.map(a => [a.name, a]))
+      const expensePreviews = previews.filter(p => p.type === 'expense' && p.payment_method && accountMap.has(p.payment_method))
+      await Promise.all(expensePreviews.map(async p => {
+        const acct = accountMap.get(p.payment_method!)!
+        await supabase.from('accounts').update({ balance: (acct.balance || 0) - p.amount }).eq('id', acct.id)
+      }))
       setPreviews([])
       setText('')
       setEditingIdx(null)
       setSaveFailCount(0)
       try { localStorage.removeItem('sp_history_v2') } catch {}
       try { localStorage.removeItem('sp_home_v1') } catch {}
+      try { localStorage.removeItem('sp_assets_v2') } catch {}
+      try { localStorage.setItem('sp_history_needs_refresh', '1') } catch {}
       router.push('/history')
     } catch {
       const newCount = saveFailCount + 1
@@ -141,13 +150,20 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
         payment_method: inlineForm.payment_method, source: 'manual', type: 'expense',
       })
       if (!saveErr) {
+        // 계좌 결제 시 잔액 차감
+        const acct = accounts.find(a => a.name === inlineForm.payment_method)
+        if (acct) {
+          await supabase.from('accounts').update({ balance: (acct.balance || 0) - amount }).eq('id', acct.id)
+        }
         setInlineSaved(true)
         setTimeout(() => {
           setFailModal(false)
           setInlineSaved(false)
-          setInlineForm({ name: '', amount: '', category: cats[0] ?? '생활비', payment_method: '카드' })
+          setInlineForm({ name: '', amount: '', category: cats[0] ?? '생활비', payment_method: '' })
           try { localStorage.removeItem('sp_history_v2') } catch {}
           try { localStorage.removeItem('sp_home_v1') } catch {}
+          try { localStorage.removeItem('sp_assets_v2') } catch {}
+          try { localStorage.setItem('sp_history_needs_refresh', '1') } catch {}
           router.push('/history')
         }, 1000)
       }
