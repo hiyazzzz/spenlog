@@ -153,6 +153,8 @@ export default function HistoryScreen() {
         { text: '삭제', style: 'destructive', onPress: async () => {
           await deleteExpense(expense);
           setData(d => d ? { ...d, expenses: d.expenses.filter(e => e.id !== expense.id) } : d);
+          useDataCache.getState().setHome(null);
+          useDataCache.getState().setAssets(null);
           setEditingExpense(null);
         }},
       ]
@@ -162,6 +164,8 @@ export default function HistoryScreen() {
   async function handleSave(id: string, updates: Partial<Expense>) {
     await updateExpense(id, updates);
     setData(d => d ? { ...d, expenses: d.expenses.map(e => e.id === id ? { ...e, ...updates } : e) } : d);
+    useDataCache.getState().setHome(null);
+    useDataCache.getState().setAssets(null);
     setEditingExpense(null);
   }
 
@@ -375,7 +379,7 @@ export default function HistoryScreen() {
                 <View style={[styles.card, { backgroundColor: colors.bg }]}>
                   {items.map((e, idx) => (
                     <View key={e.id}>
-                      <ExpenseRow expense={e} onTap={() => setEditingExpense(e)} onPayCard={handleCardPayment} />
+                      <ExpenseRow expense={e} onTap={() => setEditingExpense(e)} onPayCard={handleCardPayment} accountNames={new Set(data?.accountNames ?? [])} />
                       {idx < items.length - 1 && <View style={styles.divider} />}
                     </View>
                   ))}
@@ -413,7 +417,7 @@ export default function HistoryScreen() {
             <Text style={[styles.emptyText, { paddingVertical: 24 }]}>이날은 내역이 없었어요 🌿</Text>
           ) : selectedItems.map((e, idx) => (
             <View key={e.id}>
-              <ExpenseRow expense={e} onTap={() => setEditingExpense(e)} onPayCard={handleCardPayment} />
+              <ExpenseRow expense={e} onTap={() => setEditingExpense(e)} onPayCard={handleCardPayment} accountNames={new Set(data?.accountNames ?? [])} />
               {idx < selectedItems.length - 1 && <View style={styles.divider} />}
             </View>
           ))}
@@ -515,11 +519,11 @@ export default function HistoryScreen() {
   );
 }
 
-function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: () => void; onPayCard?: (e: Expense) => void }) {
+function ExpenseRow({ expense, onTap, onPayCard, accountNames = new Set<string>() }: { expense: Expense; onTap: () => void; onPayCard?: (e: Expense) => void; accountNames?: Set<string> }) {
   const expType = expense.type ?? 'expense';
   const isIncome = expType === 'income';
   const isTransfer = expType === 'savings' || expType === 'transfer';
-  const isCard = !isIncome && !isTransfer && (expense.payment_method ?? '').includes('카드');
+  const isCard = !isIncome && !isTransfer && !accountNames.has(expense.payment_method ?? '') && (expense.payment_method ?? '').includes('카드');
 
   if (isTransfer) {
     const parts = expense.name.includes('→') ? expense.name.split('→').map(s => s.trim()) : [expense.name, ''];
