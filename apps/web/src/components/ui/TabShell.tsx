@@ -1,6 +1,6 @@
 'use client'
 import { usePathname } from 'next/navigation'
-import { Suspense, memo, useEffect } from 'react'
+import { Suspense, memo, useLayoutEffect } from 'react'
 import HistoryDataLoader from '@/components/history/HistoryDataLoader'
 import AssetsDataLoader from '@/components/assets/AssetsDataLoader'
 import HomeDataLoader from '@/components/dashboard/HomeDataLoader'
@@ -12,8 +12,8 @@ const TAB_PATHS = ['/', '/history', '/assets', '/report', '/settings']
 function TabShellInner({ userId }: { userId: string }) {
   const pathname = usePathname()
 
-  // 탭 전환 시 스크롤 리셋 — display:none/block 방식에서 scroll position 공유 문제 방지
-  useEffect(() => {
+  // paint 전에 scroll 리셋 — PWA standalone은 pushState 시 scroll을 자동 리셋하지 않아서 직접 처리
+  useLayoutEffect(() => {
     if (TAB_PATHS.includes(pathname)) {
       window.scrollTo(0, 0)
     }
