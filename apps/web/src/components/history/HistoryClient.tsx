@@ -190,6 +190,9 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
     setExpenses(es => es.filter(e => e.id !== id))
     setEditingId(null)
     try { localStorage.removeItem('sp_history_v2') } catch {}
+    try { localStorage.removeItem('sp_home_v1') } catch {}
+    try { localStorage.removeItem('sp_assets_v2') } catch {}
+    try { localStorage.setItem('sp_assets_needs_refresh', '1') } catch {}
     const { error } = await supabase.from('expenses').delete().eq('id', id)
     if (error && prev) {
       // 실패 시 롤백
@@ -205,6 +208,9 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
     setAlertMsg('✅ 저장됐어요')
     setTimeout(() => setAlertMsg(''), 1500)
     try { localStorage.removeItem('sp_history_v2') } catch {}
+    try { localStorage.removeItem('sp_home_v1') } catch {}
+    try { localStorage.removeItem('sp_assets_v2') } catch {}
+    try { localStorage.setItem('sp_assets_needs_refresh', '1') } catch {}
     const { error } = await supabase.from('expenses').update(updates).eq('id', id)
     if (error && prev) {
       setExpenses(es => es.map(e => e.id === id ? prev : e))
@@ -348,7 +354,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
                         ? ((e.type === 'savings' || e.type === 'transfer')
                             ? <TransferEditRow expense={e} accounts={accounts} onSaveTransfer={(upd,of,ot,nf,nt,oa,na) => saveTransfer(e.id,upd,of,ot,nf,nt,oa,na)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} />
                             : <EditRow expense={e} onSave={u => saveExpense(e.id, u)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} paymentMethods={paymentMethods} userCategories={userCategories} cards={cards} accounts={accounts} />)
-                        : <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} onPayCard={handleCardPayment} />
+                        : <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} onPayCard={handleCardPayment} accountNames={new Set(accounts.map(a => a.name))} />
                       }
                       {idx < items.length - 1 && <div className="h-px bg-gray-50 mx-4" />}
                     </div>
@@ -405,11 +411,11 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
   )
 }
 
-function ExpenseRow({ expense, onTap, onPayCard }: { expense: Expense; onTap: () => void; onPayCard?: (e: Expense) => void }) {
+function ExpenseRow({ expense, onTap, onPayCard, accountNames = new Set<string>() }: { expense: Expense; onTap: () => void; onPayCard?: (e: Expense) => void; accountNames?: Set<string> }) {
   const type = expense.type ?? 'expense'
   const isIncome = type === 'income'
   const isTransfer = type === 'transfer' || type === 'savings'
-  const isCard = !isIncome && !isTransfer && (expense.payment_method ?? '').includes('카드')
+  const isCard = !isIncome && !isTransfer && !accountNames.has(expense.payment_method ?? '') && (expense.payment_method ?? '').includes('카드')
 
   if (isTransfer) {
     const parts = expense.name.includes('→') ? expense.name.split('→').map((s: string) => s.trim()) : [expense.name, '']
@@ -705,7 +711,7 @@ function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, to
                   ? ((e.type === 'savings' || e.type === 'transfer')
                       ? <TransferEditRow expense={e} accounts={accounts} onSaveTransfer={(upd,of,ot,nf,nt,oa,na) => onSaveTransfer(e.id,upd,of,ot,nf,nt,oa,na)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />
                       : <EditRow expense={e} onSave={u => onSave(e.id, u)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} paymentMethods={paymentMethods} userCategories={userCategories} cards={cards} accounts={accounts} />)
-                  : <ExpenseRow expense={e} onTap={() => onEdit(e.id)} onPayCard={onPayCard} />
+                  : <ExpenseRow expense={e} onTap={() => onEdit(e.id)} onPayCard={onPayCard} accountNames={new Set(accounts.map(a => a.name))} />
                 }
                 {idx < selectedItems.length - 1 && <div className="h-px bg-gray-50 mx-4" />}
               </div>
