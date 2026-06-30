@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useLayoutEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import ReportClient from './ReportClient'
 
@@ -23,6 +23,18 @@ export default function ReportDataLoader() {
   const searchParams = useSearchParams()
   const month = searchParams.get('month') ?? ''
   const [data, setData] = useState<any>(null)
+
+  // 페인트 전 캐시 즉시 적용 → skeleton 플래시 완전 제거
+  useLayoutEffect(() => {
+    const cacheKey = `sp_report_v1_${month || 'default'}`
+    try {
+      const cached = localStorage.getItem(cacheKey)
+      if (cached) {
+        const { d } = JSON.parse(cached)
+        setData(d)
+      }
+    } catch {}
+  }, [month])
 
   const load = useCallback(async (m: string) => {
     const cacheKey = `sp_report_v1_${m || 'default'}`

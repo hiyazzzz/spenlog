@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import { useSearchParams, usePathname } from 'next/navigation'
 import HistoryClient from './HistoryClient'
 
@@ -48,6 +48,17 @@ export default function HistoryDataLoader({ userId }: { userId: string }) {
   const [data, setData] = useState<HistoryData | null>(null)
   const searchParams = useSearchParams()
   const initialCategory = searchParams.get('category') ?? ''
+
+  // 페인트 전 캐시 즉시 적용 → skeleton 플래시 완전 제거
+  useLayoutEffect(() => {
+    try {
+      const cached = localStorage.getItem(CACHE_KEY)
+      if (cached) {
+        const { d } = JSON.parse(cached)
+        setData(d)
+      }
+    } catch {}
+  }, [])
 
   function fetchHistory(force = false) {
     if (!force) {

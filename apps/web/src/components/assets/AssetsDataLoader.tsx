@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useLayoutEffect, useState, Suspense } from 'react'
 import AssetsClient from './AssetsClient'
 
 const CACHE_KEY = 'sp_assets_v2'
@@ -47,13 +47,23 @@ function LoadingSkeleton() {
 export default function AssetsDataLoader({ userId }: { userId: string }) {
   const [data, setData] = useState<AssetsData | null>(null)
 
-  useEffect(() => {
-    // 캐시 확인
+  // 페인트 전 캐시 즉시 적용 → skeleton 플래시 완전 제거
+  useLayoutEffect(() => {
     try {
       const cached = localStorage.getItem(CACHE_KEY)
       if (cached) {
-        const { d, ts } = JSON.parse(cached)
+        const { d } = JSON.parse(cached)
         setData(d)
+      }
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    // TTL 체크 후 백그라운드 재검증
+    try {
+      const cached = localStorage.getItem(CACHE_KEY)
+      if (cached) {
+        const { ts } = JSON.parse(cached)
         if (Date.now() - ts < CACHE_TTL) return // 신선한 캐시 → fetch 스킵
       }
     } catch {}

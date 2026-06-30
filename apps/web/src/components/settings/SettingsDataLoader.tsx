@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import SettingsForm from './SettingsForm'
 
 const CACHE_KEY = 'sp_settings_v1'
@@ -8,12 +8,22 @@ const CACHE_TTL = 5 * 60 * 1000
 export default function SettingsDataLoader() {
   const [data, setData] = useState<any>(null)
 
+  // 페인트 전 캐시 즉시 적용 → skeleton 플래시 완전 제거
+  useLayoutEffect(() => {
+    try {
+      const cached = localStorage.getItem(CACHE_KEY)
+      if (cached) {
+        const { d } = JSON.parse(cached)
+        setData(d)
+      }
+    } catch {}
+  }, [])
+
   useEffect(() => {
     try {
       const cached = localStorage.getItem(CACHE_KEY)
       if (cached) {
-        const { d, ts } = JSON.parse(cached)
-        setData(d)
+        const { ts } = JSON.parse(cached)
         if (Date.now() - ts < CACHE_TTL) return
       }
     } catch {}
