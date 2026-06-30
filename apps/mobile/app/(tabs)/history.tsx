@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard, Alert, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard, Alert, Animated, Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { useDataCache } from '@/store/dataCache';
@@ -482,23 +483,13 @@ export default function HistoryScreen() {
       </Modal>
     )}
 
-    {/* 수정 풀스크린 모달 */}
+    {/* 수정 바텀시트 모달 */}
     {editingExpense && (
-      <Modal visible animationType="slide" onRequestClose={() => { Keyboard.dismiss(); setEditingExpense(null); }}>
-        <View style={{ flex: 1, backgroundColor: '#fff' }}>
-          <View style={styles.fullscreenHeader}>
-            <TouchableOpacity onPress={() => { Keyboard.dismiss(); setEditingExpense(null); }} style={styles.headerSideBtn}>
-              <Text style={styles.headerCancelText}>취소</Text>
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>{dayjs(editingExpense.date).format('M월 D일')} 수정</Text>
-            <View style={{ width: 48 }} />
-          </View>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 40 }}
-          >
+      <Modal visible transparent animationType="none" onRequestClose={() => setEditingExpense(null)}>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setEditingExpense(null)} />
+          <View style={styles.editSheet}>
+            <View style={styles.modalHandle} />
             {(editingExpense.type === 'savings' || editingExpense.type === 'transfer')
               ? <TransferEditRow
                   expense={editingExpense}
@@ -518,7 +509,7 @@ export default function HistoryScreen() {
                   onCancel={() => setEditingExpense(null)}
                 />
             }
-          </ScrollView>
+          </View>
         </View>
       </Modal>
     )}
@@ -691,6 +682,8 @@ function EditRow({ expense, categories, paymentMethods, cardNames, accountNames,
   const [category, setCategory] = useState(expense.category);
   const [type, setType] = useState<'expense' | 'income'>((expense.type ?? 'expense') === 'income' ? 'income' : 'expense');
   const [paymentMethod, setPaymentMethod] = useState(expense.payment_method ?? '');
+  const [date, setDate] = useState(new Date(expense.date));
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // 결제수단 그룹 아이템 구성 (카드 / 계좌 / 기타 수단 / 기타)
   const sortKo = (arr: string[]) => [...arr].sort((a, b) => a.localeCompare(b, 'ko'));
@@ -711,7 +704,21 @@ function EditRow({ expense, categories, paymentMethods, cardNames, accountNames,
   payGroupItems.push({ type: 'item', label: '기타', value: '기타' });
 
   return (
-    <View style={{ padding: 20 }}>
+    <View style={styles.editBox}>
+      {/* 헤더: 날짜 + 삭제 버튼 */}
+      <View style={styles.editHeaderRow}>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.gray500 }}>{dayjs(date).format('M월 D일')}</Text>
+        <TouchableOpacity
+          style={{ backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecdd3', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 }}
+          onPress={() => Alert.alert('삭제', '삭제하시겠습니까?', [
+            { text: '취소', style: 'cancel' },
+            { text: '삭제', style: 'destructive', onPress: onDelete },
+          ])}
+        >
+          <Text style={{ fontSize: 12, fontWeight: '600', color: '#ef4444' }}>삭제</Text>
+        </TouchableOpacity>
+      </View>
+      {/* 지출/수입 토글 */}
       <View style={styles.typeToggleRow}>
         {(['expense', 'income'] as const).map(t => (
           <TouchableOpacity key={t} style={[styles.typeToggleBtn, type === t && { backgroundColor: themeColors.primary }]} onPress={() => setType(t)}>
@@ -719,39 +726,12 @@ function EditRow({ expense, categories, paymentMethods, cardNames, accountNames,
           </TouchableOpacity>
         ))}
       </View>
-      <Text style={styles.fieldLabel}>항목명</Text>
-      <TextInput style={[styles.editInput, { marginBottom: 16 }]} value={name} onChangeText={setName} placeholder="항목명" placeholderTextColor={COLORS.gray400} returnKeyType="done" />
-      {type !== 'income' && (
-        <View style={{ marginBottom: 16 }}>
-          <Text style={[styles.fieldLabel, { marginBottom: 4 }]}>카테고리</Text>
-          <DropdownPicker
-            value={category}
-            options={categories}
-            onSelect={v => setCategory(v)}
-            placeholder="카테고리 선택"
-            themeColors={themeColors}
-          />
-        </View>
-      )}
-      <View style={{ marginBottom: 24 }}>
-        <Text style={[styles.fieldLabel, { marginBottom: 4 }]}>결제수단</Text>
-        <GroupedDropdownPicker
-          value={paymentMethod}
-          items={payGroupItems}
-          onSelect={v => setPaymentMethod(v)}
-          placeholder="없음 (선택 안 함)"
-        />
-        {paymentMethod !== '' && (
-          <TouchableOpacity onPress={() => setPaymentMethod('')} style={{ marginTop: 6 }}>
-            <Text style={{ fontSize: 11, color: COLORS.gray400 }}>✕ 선택 해제</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      {/* 금액 — 하단 고정, 키보드 바로 위 */}
-      <View style={styles.amountSection}>
-        <Text style={styles.fieldLabel}>금액</Text>
+      {/* 항목명 */}
+      <TextInput style={styles.editInput} value={name} onChangeText={setName} placeholder="항목명" placeholderTextColor={COLORS.gray400} returnKeyType="done" />
+      {/* 금액 + 원 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <TextInput
-          style={styles.amountInput}
+          style={[styles.editInput, { flex: 1, marginBottom: 0 }]}
           value={amount ? Number(amount).toLocaleString() : ''}
           onChangeText={v => setAmount(v.replace(/[^0-9]/g, ''))}
           keyboardType="numeric"
@@ -759,20 +739,81 @@ function EditRow({ expense, categories, paymentMethods, cardNames, accountNames,
           placeholderTextColor={COLORS.gray300}
           returnKeyType="done"
         />
-        <Text style={styles.amountUnit}>원</Text>
+        <Text style={{ fontSize: 14, color: COLORS.gray500, fontWeight: '600' }}>원</Text>
       </View>
-      <View style={[styles.formBtnRow, { marginTop: 24 }]}>
+      {/* 카테고리 + 날짜 2열 */}
+      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+        {type !== 'income' ? (
+          <View style={{ flex: 1 }}>
+            <DropdownPicker
+              value={category}
+              options={categories}
+              onSelect={v => setCategory(v)}
+              placeholder="카테고리"
+              themeColors={themeColors}
+            />
+          </View>
+        ) : (
+          <View style={{ flex: 1 }} />
+        )}
+        <TouchableOpacity
+          style={[styles.editInput, { flex: 1, marginBottom: 0, justifyContent: 'center', alignItems: 'center' }]}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Text style={{ fontSize: 14, color: COLORS.gray700 }}>{dayjs(date).format('M월 D일')}</Text>
+        </TouchableOpacity>
+      </View>
+      {showDatePicker && (
+        <>
+          <DateTimePicker
+            value={date}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            locale="ko-KR"
+            onChange={(_, selectedDate) => {
+              if (Platform.OS !== 'ios') setShowDatePicker(false);
+              if (selectedDate) setDate(selectedDate);
+            }}
+            style={{ marginBottom: 4 }}
+          />
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(false)}
+              style={{ alignSelf: 'flex-end', paddingHorizontal: 12, paddingVertical: 4, marginBottom: 8 }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.primary }}>완료</Text>
+            </TouchableOpacity>
+          )}
+        </>
+      )}
+      {/* 결제수단 */}
+      <View style={{ marginBottom: 8 }}>
+        <GroupedDropdownPicker
+          value={paymentMethod}
+          items={payGroupItems}
+          onSelect={v => setPaymentMethod(v)}
+          placeholder="결제수단 없음"
+        />
+        {paymentMethod !== '' && (
+          <TouchableOpacity onPress={() => setPaymentMethod('')} style={{ marginTop: 6 }}>
+            <Text style={{ fontSize: 11, color: COLORS.gray400 }}>✕ 선택 해제</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      {/* 저장 / 취소 버튼 */}
+      <View style={[styles.formBtnRow, { marginTop: 16 }]}>
         <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: themeColors.primary }]} onPress={() => onSave({
           name,
           amount: parseInt(amount) || expense.amount,
           category: category as any,
           type,
+          date: dayjs(date).format('YYYY-MM-DD'),
           payment_method: paymentMethod || null,
         })}>
           <Text style={styles.confirmBtnText}>저장</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteFormBtn} onPress={onDelete}>
-          <Text style={styles.deleteFormBtnText}>삭제</Text>
+        <TouchableOpacity style={styles.cancelFormBtn} onPress={onCancel}>
+          <Text style={styles.cancelFormBtnText}>취소</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -988,6 +1029,8 @@ const styles = StyleSheet.create({
   confirmBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   deleteFormBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: RADIUS.md, backgroundColor: COLORS.redBg, alignItems: 'center', justifyContent: 'center' },
   deleteFormBtnText: { fontSize: 13, fontWeight: '700', color: COLORS.red },
+  cancelFormBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.gray200, alignItems: 'center', justifyContent: 'center' },
+  cancelFormBtnText: { fontSize: 13, fontWeight: '600', color: COLORS.gray500 },
 
   calHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   calNavBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.gray200, alignItems: 'center', justifyContent: 'center' },

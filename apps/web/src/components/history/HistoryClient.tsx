@@ -58,11 +58,11 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
   const [sort, setSort] = useState<SortKey>('date_desc')
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [calMonth, setCalMonth] = useState(dayjs().format('YYYY-MM'))
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
   const pathname = usePathname()
-  // 다른 탭으로 이동 시 인라인 수정 폼 닫기
+  // 다른 탭으로 이동 시 수정 모달 닫기
   useEffect(() => {
-    if (pathname !== '/history') setEditingId(null)
+    if (pathname !== '/history') setEditingExpense(null)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname])
   const [confirmModal, setConfirmModal] = useState<{ title: string; lines: string[]; onConfirm: () => void } | null>(null)
@@ -188,7 +188,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
     // Optimistic: UI 먼저 업데이트
     const prev = expenses.find(e => e.id === id)
     setExpenses(es => es.filter(e => e.id !== id))
-    setEditingId(null)
+    setEditingExpense(null)
     try { localStorage.removeItem('sp_history_v2') } catch {}
     try { localStorage.removeItem('sp_home_v1') } catch {}
     try { localStorage.removeItem('sp_assets_v2') } catch {}
@@ -204,7 +204,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
     // Optimistic: UI 먼저 업데이트
     const prev = expenses.find(e => e.id === id)
     setExpenses(es => es.map(e => e.id === id ? { ...e, ...updates } : e))
-    setEditingId(null)
+    setEditingExpense(null)
     setAlertMsg('✅ 저장됐어요')
     setTimeout(() => setAlertMsg(''), 1500)
     try { localStorage.removeItem('sp_history_v2') } catch {}
@@ -222,7 +222,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
   async function saveTransfer(id: string, updates: Partial<Expense>, oldFromName: string, oldToName: string, newFromName: string, newToName: string, oldAmt: number, newAmt: number) {
     const prev = expenses.find(e => e.id === id)
     setExpenses(es => es.map(e => e.id === id ? { ...e, ...updates } : e))
-    setEditingId(null)
+    setEditingExpense(null)
     const { error } = await supabase.from('expenses').update(updates).eq('id', id)
     if (error && prev) {
       setExpenses(es => es.map(e => e.id === id ? prev : e))
@@ -350,12 +350,7 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
                 <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
                   {items.map((e, idx) => (
                     <div key={e.id}>
-                      {editingId === e.id
-                        ? ((e.type === 'savings' || e.type === 'transfer')
-                            ? <TransferEditRow expense={e} accounts={accounts} onSaveTransfer={(upd,of,ot,nf,nt,oa,na) => saveTransfer(e.id,upd,of,ot,nf,nt,oa,na)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} />
-                            : <EditRow expense={e} onSave={u => saveExpense(e.id, u)} onDelete={() => deleteExpense(e.id)} onCancel={() => setEditingId(null)} paymentMethods={paymentMethods} userCategories={userCategories} cards={cards} accounts={accounts} />)
-                        : <ExpenseRow expense={e} onTap={() => setEditingId(e.id)} onPayCard={handleCardPayment} accountNames={new Set(accounts.map(a => a.name))} />
-                      }
+                      <ExpenseRow expense={e} onTap={() => setEditingExpense(e)} onPayCard={handleCardPayment} accountNames={new Set(accounts.map(a => a.name))} />
                       {idx < items.length - 1 && <div className="h-px bg-gray-50 mx-4" />}
                     </div>
                   ))}
@@ -370,11 +365,8 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
         <CalendarView
           calMonth={calMonth} onChangeMonth={setCalMonth} calExpenseMap={calExpenseMap} calIncomeSet={calIncomeSet} today={today}
           selectedDate={selectedDate} onSelectDate={d => setSelectedDate(selectedDate === d ? null : d)}
-          expenses={expenses} editingId={editingId} onEdit={setEditingId}
-          onSave={saveExpense} onDelete={deleteExpense} onCancelEdit={() => setEditingId(null)}
-          accounts={accounts} cards={cards} onSaveTransfer={(id,upd,of,ot,nf,nt,oa,na) => saveTransfer(id,upd,of,ot,nf,nt,oa,na)}
-          onPayCard={handleCardPayment}
-          paymentMethods={paymentMethods} userCategories={userCategories}
+          expenses={expenses} onEdit={setEditingExpense}
+          accounts={accounts} onPayCard={handleCardPayment}
         />
       )}
       {/* 커스텀 카드 납부 확인 모달 */}
@@ -398,6 +390,36 @@ export default function HistoryClient({ userId, initialExpenses, paymentMethods,
                 style={{ flex: 1, padding: '14px 0', borderRadius: 14, border: 'none', background: 'var(--color-primary, #7c3aed)', fontSize: 15, fontWeight: 700, color: '#fff', cursor: 'pointer' }}
               >납부</button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* 수정 바텀시트 모달 */}
+      {editingExpense && (
+        <div
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 500, display: 'flex', alignItems: 'flex-end' }}
+          onClick={e => { if (e.target === e.currentTarget) setEditingExpense(null) }}
+        >
+          <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxHeight: '85vh', overflowY: 'auto', padding: '20px 20px 48px' }}>
+            <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', margin: '0 auto 20px' }} />
+            {(editingExpense.type === 'savings' || editingExpense.type === 'transfer')
+              ? <TransferEditRow
+                  expense={editingExpense}
+                  accounts={accounts}
+                  onSaveTransfer={(upd,of,ot,nf,nt,oa,na) => { saveTransfer(editingExpense.id,upd,of,ot,nf,nt,oa,na); setEditingExpense(null) }}
+                  onDelete={() => { deleteExpense(editingExpense.id); setEditingExpense(null) }}
+                  onCancel={() => setEditingExpense(null)}
+                />
+              : <EditRow
+                  expense={editingExpense}
+                  onSave={u => { saveExpense(editingExpense.id, u); setEditingExpense(null) }}
+                  onDelete={() => { deleteExpense(editingExpense.id); setEditingExpense(null) }}
+                  onCancel={() => setEditingExpense(null)}
+                  paymentMethods={paymentMethods}
+                  userCategories={userCategories}
+                  cards={cards}
+                  accounts={accounts}
+                />
+            }
           </div>
         </div>
       )}
@@ -480,6 +502,101 @@ function ExpenseRow({ expense, onTap, onPayCard, accountNames = new Set<string>(
   )
 }
 
+// ─── 커스텀 드롭다운 (web 전용) ────────────────────────────────────────────
+type WebGroupedItem = { type: 'header'; label: string } | { type: 'item'; label: string; value: string }
+
+function WebDropdownPicker({ value, options, onChange, placeholder = '선택하세요' }: {
+  value: string; options: string[]; onChange: (v: string) => void; placeholder?: string
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between',
+          padding: '10px 12px', borderRadius: 8, border: '1px solid #e5e7eb',
+          background: '#f9fafb', fontSize: 16, cursor: 'pointer', fontFamily: 'inherit',
+          color: value ? '#1f2937' : '#9ca3af' }}
+      >
+        <span>{value || placeholder}</span>
+        <span style={{ fontSize: 10, color: '#9ca3af', marginLeft: 8 }}>▾</span>
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 600 }} />
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff',
+            border: '1px solid #e5e7eb', borderRadius: 8, zIndex: 601,
+            maxHeight: 220, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.12)', marginTop: 2 }}>
+            {options.map(opt => (
+              <button key={opt} type="button"
+                onClick={() => { onChange(opt); setOpen(false) }}
+                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px',
+                  fontSize: 14, background: value === opt ? 'var(--color-primary)' : '#fff',
+                  color: value === opt ? '#fff' : '#374151', border: 'none', cursor: 'pointer',
+                  fontFamily: 'inherit', borderBottom: '1px solid #f3f4f6' }}>
+                {opt}{value === opt ? ' ✓' : ''}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function WebGroupedDropdownPicker({ value, items, onChange, placeholder = '선택하세요' }: {
+  value: string; items: WebGroupedItem[]; onChange: (v: string) => void; placeholder?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const selected = items.find(i => i.type === 'item' && i.value === value) as { type: 'item'; label: string; value: string } | undefined
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between',
+          padding: '10px 12px', borderRadius: 8, border: '1px solid #e5e7eb',
+          background: '#f9fafb', fontSize: 16, cursor: 'pointer', fontFamily: 'inherit',
+          color: selected ? '#1f2937' : '#9ca3af' }}
+      >
+        <span>{selected ? selected.label : placeholder}</span>
+        <span style={{ fontSize: 10, color: '#9ca3af', marginLeft: 8 }}>▾</span>
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 600 }} />
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff',
+            border: '1px solid #e5e7eb', borderRadius: 8, zIndex: 601,
+            maxHeight: 260, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.12)', marginTop: 2 }}>
+            {items.map((item, idx) => {
+              if (item.type === 'header') {
+                return (
+                  <div key={`h-${idx}`} style={{ padding: '6px 14px 4px', fontSize: 11, fontWeight: 700,
+                    color: '#6b7280', background: '#f9fafb', borderBottom: '1px solid #f3f4f6', letterSpacing: '0.05em' }}>
+                    {item.label}
+                  </div>
+                )
+              }
+              const active = value === item.value
+              return (
+                <button key={item.value} type="button"
+                  onClick={() => { onChange(item.value); setOpen(false) }}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px 10px 24px',
+                    fontSize: 14, background: active ? 'var(--color-primary)' : '#fff',
+                    color: active ? '#fff' : '#374151', border: 'none', cursor: 'pointer',
+                    fontFamily: 'inherit', borderBottom: '1px solid #f3f4f6' }}>
+                  {item.label}{active ? ' ✓' : ''}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 function EditRow({ expense, onSave, onDelete, onCancel, userCategories, paymentMethods, cards, accounts }: {
   expense: Expense
   onSave: (updates: Partial<Expense>) => void
@@ -493,73 +610,98 @@ function EditRow({ expense, onSave, onDelete, onCancel, userCategories, paymentM
   const [form, setForm] = useState({ ...expense, type: expense.type ?? 'expense', amount: expense.amount.toLocaleString(), payment_method: expense.payment_method ?? '' })
   function u(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
 
+  const catOptions = userCategories && userCategories.length > 0 ? userCategories : (CATEGORIES as readonly string[])
+
+  // 결제수단 그룹 아이템
+  const payItems: WebGroupedItem[] = [{ type: 'item', label: '없음', value: '' }]
+  if (cards.length > 0) {
+    payItems.push({ type: 'header', label: '카드' })
+    ;[...cards].sort((a, b) => a.name.localeCompare(b.name)).forEach(c => payItems.push({ type: 'item', label: c.name, value: c.name }))
+  }
+  if (accounts.length > 0) {
+    payItems.push({ type: 'header', label: '계좌' })
+    ;[...accounts].sort((a, b) => a.name.localeCompare(b.name)).forEach(a => payItems.push({ type: 'item', label: a.name, value: a.name }))
+  }
+  payItems.push({ type: 'header', label: '기타 수단' })
+  ;['현금', '기타'].forEach(m => payItems.push({ type: 'item', label: m, value: m }))
+
+  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 16, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const, background: '#fff' }
+
   return (
-    <div className="p-4 bg-gray-50">
-      <div className="flex justify-between items-center mb-3">
-        <span className="text-xs font-semibold text-gray-500">{dayjs(expense.date).format('M월 D일')}</span>
-        <button onClick={onCancel} className="text-xs text-gray-400">✕</button>
+    <div>
+      {/* 헤더: 날짜 + 삭제 버튼 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#6b7280' }}>{dayjs(expense.date).format('M월 D일')}</span>
+        <button
+          type="button"
+          onClick={() => { if (window.confirm('삭제하시겠습니까?')) onDelete() }}
+          style={{ fontSize: 12, fontWeight: 600, color: '#ef4444', background: '#fef2f2',
+            border: '1px solid #fecdd3', borderRadius: 8, padding: '4px 10px', cursor: 'pointer' }}
+        >삭제</button>
       </div>
-      <div className="space-y-2">
-        <div className="flex bg-white rounded-xl border border-gray-200 p-0.5">
-          {(['expense', 'income'] as const).map(t => (
-            <button key={t} onClick={() => u('type', t)}
-              className="flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors"
-              style={{ background: form.type === t ? 'var(--color-primary)' : 'transparent', color: form.type === t ? 'white' : '#9ca3af' }}>
-              {t === 'expense' ? '💸 지출' : '💰 수입'}
-            </button>
-          ))}
-        </div>
-        <input value={form.name} onChange={e => u('name', e.target.value)}
-          className="w-full text-sm px-3 py-2 rounded-xl bg-white border border-gray-200 outline-none" placeholder="항목명" />
+      {/* 지출/수입 토글 */}
+      <div style={{ display: 'flex', background: '#fff', borderRadius: 10, border: '1px solid #e5e7eb', padding: 2, marginBottom: 10 }}>
+        {(['expense', 'income'] as const).map(t => (
+          <button key={t} type="button" onClick={() => u('type', t)}
+            style={{ flex: 1, padding: '6px 0', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+              background: form.type === t ? 'var(--color-primary)' : 'transparent',
+              color: form.type === t ? '#fff' : '#9ca3af' }}>
+            {t === 'expense' ? '💸 지출' : '💰 수입'}
+          </button>
+        ))}
+      </div>
+      {/* 항목명 */}
+      <input value={form.name} onChange={e => u('name', e.target.value)}
+        style={{ ...inputStyle, marginBottom: 8 }} placeholder="항목명" />
+      {/* 금액 + 원 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <input type="text" inputMode="numeric" value={form.amount}
           onChange={e => { const n = e.target.value.replace(/[^0-9]/g, ''); u('amount', n ? Number(n).toLocaleString() : '') }}
-          className="w-full text-sm px-3 py-2 rounded-xl bg-white border border-gray-200 outline-none" placeholder="금액" />
+          style={{ ...inputStyle, flex: 1, marginBottom: 0 }} placeholder="0" />
+        <span style={{ fontSize: 14, color: '#6b7280', fontWeight: 600, whiteSpace: 'nowrap' }}>원</span>
+      </div>
+      {/* 카테고리 + 날짜 2열 */}
+      <div style={{ display: 'grid', gridTemplateColumns: form.type !== 'income' ? '1fr 1fr' : '1fr', gap: 8, marginBottom: 8 }}>
         {form.type !== 'income' && (
-          <select value={form.category} onChange={e => u('category', e.target.value)}
-            className="w-full text-sm px-3 py-2 rounded-xl bg-white border border-gray-200 outline-none cursor-pointer">
-            {(userCategories && userCategories.length > 0 ? userCategories : (CATEGORIES as readonly string[])).map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
+          <WebDropdownPicker
+            value={form.category}
+            options={catOptions as string[]}
+            onChange={v => u('category', v)}
+            placeholder="카테고리"
+          />
         )}
         <input type="date" value={form.date} onChange={e => u('date', e.target.value)}
-          className="w-full text-sm px-3 py-2 rounded-xl bg-white border border-gray-200 outline-none" />
-        <div>
-          <p className="text-[11px] text-gray-400 mb-1">결제수단</p>
-          <select value={form.payment_method} onChange={e => u('payment_method', e.target.value)}
-            className="w-full text-sm px-3 py-2 rounded-xl bg-white border border-gray-200 outline-none cursor-pointer">
-            <option value="">선택 안 함 (없음)</option>
-            {cards.length > 0 && (
-              <optgroup label="카드">
-                {[...cards].sort((a, b) => a.name.localeCompare(b.name)).map(c => (
-                  <option key={c.name} value={c.name}>{c.name}</option>
-                ))}
-              </optgroup>
-            )}
-            {accounts.length > 0 && (
-              <optgroup label="계좌">
-                {[...accounts].sort((a, b) => a.name.localeCompare(b.name)).map(a => (
-                  <option key={a.name} value={a.name}>{a.name}</option>
-                ))}
-              </optgroup>
-            )}
-            <optgroup label="기타 수단">
-              <option value="현금">현금</option>
-              <option value="기타">기타</option>
-            </optgroup>
-          </select>
-        </div>
+          style={{ ...inputStyle }} />
       </div>
-      <div className="flex gap-2 mt-3">
-        <button onClick={() => onSave({
+      {/* 결제수단 */}
+      <div style={{ marginBottom: 16 }}>
+        <WebGroupedDropdownPicker
+          value={form.payment_method}
+          items={payItems}
+          onChange={v => u('payment_method', v)}
+          placeholder="결제수단 없음"
+        />
+        {form.payment_method && (
+          <button type="button" onClick={() => u('payment_method', '')}
+            style={{ fontSize: 11, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', marginTop: 4, padding: 0 }}>
+            ✕ 선택 해제
+          </button>
+        )}
+      </div>
+      {/* 저장 / 취소 */}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button type="button" onClick={() => onSave({
           name: form.name,
           amount: parseInt(form.amount.replace(/,/g, '')) || expense.amount,
           category: form.category as any,
           date: form.date,
           payment_method: form.payment_method || null,
           type: form.type as 'expense' | 'income',
-        })} className="flex-1 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: 'var(--color-primary)' }}>저장</button>
-        <button onClick={onDelete} className="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-50 text-rose-400 border border-rose-100">삭제</button>
+        })} style={{ flex: 1, padding: '12px 0', borderRadius: 10, border: 'none', background: 'var(--color-primary)',
+          fontSize: 14, fontWeight: 700, color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>저장</button>
+        <button type="button" onClick={onCancel}
+          style={{ padding: '12px 20px', borderRadius: 10, border: '1px solid #e5e7eb', background: '#fff',
+            fontSize: 14, fontWeight: 600, color: '#6b7280', cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
       </div>
     </div>
   )
@@ -592,52 +734,57 @@ function TransferEditRow({ expense, accounts, onSaveTransfer, onDelete, onCancel
   const accNames = accounts.map(a => a.name)
   const selectStyle = { border: '1px solid #ddd6fe', background: 'white', borderRadius: 12, padding: '8px 12px', fontSize: 14, width: '100%', outline: 'none', appearance: 'none' as const, color: '#374151' }
 
+  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd6fe', fontSize: 16, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const, background: '#fff' }
+
   return (
-    <div className="p-4" style={{ background: '#f5f3ff' }}>
-      <div className="flex justify-between items-center mb-3">
-        <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: '#ede9fe', color: '#7c3aed' }}>🔄 이체</span>
-        <button onClick={onCancel} className="text-xs text-gray-400">✕</button>
+    <div>
+      {/* 헤더: 이체 배지 + 삭제 버튼 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 999, fontWeight: 700, background: '#ede9fe', color: '#7c3aed' }}>🔄 이체</span>
+        <button type="button"
+          onClick={() => { if (window.confirm('삭제하시겠습니까?')) onDelete() }}
+          style={{ fontSize: 12, fontWeight: 600, color: '#ef4444', background: '#fef2f2',
+            border: '1px solid #fecdd3', borderRadius: 8, padding: '4px 10px', cursor: 'pointer' }}>삭제</button>
       </div>
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <div className="flex-1 relative">
-            <select value={fromAcc} onChange={e => setFromAcc(e.target.value)} style={selectStyle}>
-              {accNames.length === 0 && <option value={origFrom}>{origFrom}</option>}
-              {accNames.map(n => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-          <span className="text-gray-400 text-sm flex-shrink-0">→</span>
-          <div className="flex-1 relative">
-            <select value={toAcc} onChange={e => setToAcc(e.target.value)} style={selectStyle}>
-              {accNames.length === 0 && <option value={origTo}>{origTo}</option>}
-              {accNames.map(n => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <select value={fromAcc} onChange={e => setFromAcc(e.target.value)} style={{ ...selectStyle, fontSize: 16 }}>
+          {accNames.length === 0 && <option value={origFrom}>{origFrom}</option>}
+          {accNames.map(n => <option key={n} value={n}>{n}</option>)}
+        </select>
+        <span style={{ color: '#9ca3af', flexShrink: 0 }}>→</span>
+        <select value={toAcc} onChange={e => setToAcc(e.target.value)} style={{ ...selectStyle, fontSize: 16 }}>
+          {accNames.length === 0 && <option value={origTo}>{origTo}</option>}
+          {accNames.map(n => <option key={n} value={n}>{n}</option>)}
+        </select>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <input type="text" inputMode="numeric" value={amount}
           onChange={e => { const n = e.target.value.replace(/[^0-9]/g, ''); setAmount(n ? Number(n).toLocaleString() : '') }}
-          className="w-full text-sm px-3 py-2 rounded-xl bg-white outline-none" style={{ border: '1px solid #ddd6fe' }} placeholder="금액" />
-        <input type="date" value={date} onChange={e => setDate(e.target.value)}
-          className="w-full text-sm px-3 py-2 rounded-xl bg-white outline-none" style={{ border: '1px solid #ddd6fe' }} />
+          style={{ ...inputStyle, flex: 1 }} placeholder="금액" />
+        <span style={{ fontSize: 14, color: '#6b7280', fontWeight: 600, whiteSpace: 'nowrap' }}>원</span>
       </div>
-      <div className="flex gap-2 mt-3">
-        <button onClick={handleSave} className="flex-1 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: '#7c3aed' }}>저장</button>
-        <button onClick={onDelete} className="px-4 py-2 rounded-xl text-sm font-semibold bg-rose-50 text-rose-400 border border-rose-100">삭제</button>
+      <input type="date" value={date} onChange={e => setDate(e.target.value)}
+        style={{ ...inputStyle, marginBottom: 16 }} />
+      <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 12 }}>* 금액 수정 시 계좌 잔액은 자동 반영되지 않아요</p>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button type="button" onClick={handleSave}
+          style={{ flex: 1, padding: '12px 0', borderRadius: 10, border: 'none', background: '#7c3aed',
+            fontSize: 14, fontWeight: 700, color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>저장</button>
+        <button type="button" onClick={onCancel}
+          style={{ padding: '12px 20px', borderRadius: 10, border: '1px solid #e5e7eb', background: '#fff',
+            fontSize: 14, fontWeight: 600, color: '#6b7280', cursor: 'pointer', fontFamily: 'inherit' }}>취소</button>
       </div>
     </div>
   )
 }
 
 
-function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, today, selectedDate, onSelectDate, expenses, editingId, onEdit, onSave, onDelete, onCancelEdit, accounts, cards, onSaveTransfer, onPayCard, paymentMethods, userCategories }: {
+function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, today, selectedDate, onSelectDate, expenses, onEdit, accounts, onPayCard }: {
   calMonth: string; onChangeMonth: (m: string) => void; calExpenseMap: Map<string, number>; calIncomeSet: Set<string>
   today: string; selectedDate: string | null; onSelectDate: (d: string) => void
-  expenses: Expense[]; editingId: string | null; onEdit: (id: string) => void
-  onSave: (id: string, u: Partial<Expense>) => void; onDelete: (id: string) => void; onCancelEdit: () => void
-  accounts: {id:string;name:string;balance:number}[]; cards: {name:string}[]
-  onSaveTransfer: (id: string, upd: Partial<Expense>, of:string, ot:string, nf:string, nt:string, oa:number, na:number) => void
+  expenses: Expense[]; onEdit: (e: Expense) => void
+  accounts: {id:string;name:string;balance:number}[]
   onPayCard?: (e: Expense) => void
-  paymentMethods: string[]; userCategories?: string[]
 }) {
   const startOfMonth = dayjs(calMonth).startOf('month')
   const daysInMonth = startOfMonth.daysInMonth()
@@ -707,12 +854,7 @@ function CalendarView({ calMonth, onChangeMonth, calExpenseMap, calIncomeSet, to
             ? <p className="text-center text-sm text-gray-400 py-8">이날은 내역이 없었어요 🌿</p>
             : selectedItems.map((e, idx) => (
               <div key={e.id}>
-                {editingId === e.id
-                  ? ((e.type === 'savings' || e.type === 'transfer')
-                      ? <TransferEditRow expense={e} accounts={accounts} onSaveTransfer={(upd,of,ot,nf,nt,oa,na) => onSaveTransfer(e.id,upd,of,ot,nf,nt,oa,na)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} />
-                      : <EditRow expense={e} onSave={u => onSave(e.id, u)} onDelete={() => onDelete(e.id)} onCancel={onCancelEdit} paymentMethods={paymentMethods} userCategories={userCategories} cards={cards} accounts={accounts} />)
-                  : <ExpenseRow expense={e} onTap={() => onEdit(e.id)} onPayCard={onPayCard} accountNames={new Set(accounts.map(a => a.name))} />
-                }
+                <ExpenseRow expense={e} onTap={() => onEdit(e)} onPayCard={onPayCard} accountNames={new Set(accounts.map(a => a.name))} />
                 {idx < selectedItems.length - 1 && <div className="h-px bg-gray-50 mx-4" />}
               </div>
             ))

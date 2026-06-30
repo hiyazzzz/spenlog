@@ -1,4 +1,6 @@
 @AGENTS.md
+답변은 한번에 정리해서 한번씩 보내기
+
 # Spenlog 코워크 필수 지침 v7
 > 마지막 업데이트: 2026-06-24
 > 이전 버전 대비 변경: 3순위 작업 4종 완료 처리 (온보딩 UI, 카드 루틴, 예산 AI 추천, 홈 UI 정돈)
@@ -386,3 +388,44 @@ git show HEAD:파일경로 | python3 -c "import sys; open('경로','wb').write(s
 **git lock 충돌 시:**
 - push_now.bat에 lock 삭제 코드 포함되어 있음
 - "Everything up-to-date" = 이미 push 성공, 다음 에러는 별개 커밋 필요
+
+**"Everything up-to-date" but push needed:**
+- virtiofs lock 삭제 불가 시: `git push origin <commit_hash>:refs/heads/main` 으로 직접 push
+
+---
+
+## 🔍 버그 디버깅 원칙 (2026-06-30 포스트모템 기반)
+
+> PWA 탭 전환 스켈레톤 버그를 3번 잘못 진단한 교훈으로 추가
+
+### 순서 원칙: 분석 → 가설 → 검증 → 수정
+
+코드 수정은 반드시 가설 검증 이후에 한다. 증상만 보고 바로 수정하지 말 것.
+
+```
+증상 구조화 → 관련 파일 전수 읽기 → 가설 1개 도출 → 검증 → 수정
+```
+
+### 1. 증상을 DOM/렌더링 구조로 먼저 매핑
+
+"무엇이 화면 어느 위치에 렌더링되는가"를 그린 후 착수.
+> 이번 버그: `<main>{children}<TabShell></main>` 구조를 처음에 확인했으면 loading.tsx를 바로 발견했을 것
+
+### 2. 관련 파일 전수 조사 후 착수
+
+수정 전에 관련 파일을 모두 읽는다. 특히 Next.js App Router 작업 시:
+- `Glob("**/loading.tsx")` — 자동 Suspense 경계 생성 파일
+- `Glob("**/layout.tsx")` — 렌더링 트리 구조 파악
+- `Glob("**/page.tsx")` — 각 라우트 실제 렌더 내용
+> 이번 버그: loading.tsx가 존재하는지 처음에 확인했어야 했음
+
+### 3. "플랫폼 차이"는 마지막 가설
+
+"A 환경에서만 발생"이라는 힌트를 플랫폼 고유 동작 차이로 단정하지 말 것.
+아키텍처/렌더링 레이어 차이일 가능성을 먼저 확인한다.
+> 이번 버그: "PWA에서만 발생" → pushState 스크롤 차이로 잘못 연결 → 실제론 loading.tsx 렌더링 구조 문제
+
+### 4. 같은 방향으로 2번 실패하면 원인이 다른 곳
+
+동일 가설로 수정했는데 2번 연속 효과 없으면 → 즉시 멈추고 코드 전체 재분석.
+> 이번 버그: useEffect → useLayoutEffect로만 바꾸며 3번 반복, 근본 원인은 다른 파일에 있었음
