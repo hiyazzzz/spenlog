@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import dayjs from 'dayjs'
@@ -509,11 +509,29 @@ function WebDropdownPicker({ value, options, onChange, placeholder = '선택하�
   value: string; options: string[]; onChange: (v: string) => void; placeholder?: string
 }) {
   const [open, setOpen] = useState(false)
+  const [panelPos, setPanelPos] = useState<{ top?: number; bottom?: number; left: number; width: number }>({ left: 0, width: 0 })
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const PANEL_MAX_H = 220
+
+  function handleToggle() {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - r.bottom
+      if (spaceBelow >= PANEL_MAX_H) {
+        setPanelPos({ top: r.bottom + 2, left: r.left, width: r.width })
+      } else {
+        setPanelPos({ bottom: window.innerHeight - r.top + 2, left: r.left, width: r.width })
+      }
+    }
+    setOpen(o => !o)
+  }
+
   return (
     <div style={{ position: 'relative' }}>
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={handleToggle}
         style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between',
           padding: '10px 12px', borderRadius: 8, border: '1px solid #e5e7eb',
           background: '#f9fafb', fontSize: 16, cursor: 'pointer', fontFamily: 'inherit',
@@ -525,9 +543,13 @@ function WebDropdownPicker({ value, options, onChange, placeholder = '선택하�
       {open && (
         <>
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 600 }} />
-          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff',
-            border: '1px solid #e5e7eb', borderRadius: 8, zIndex: 601,
-            maxHeight: 220, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.12)', marginTop: 2 }}>
+          <div style={{
+            position: 'fixed', top: panelPos.top, bottom: panelPos.bottom,
+            left: panelPos.left, width: panelPos.width,
+            backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: 8,
+            zIndex: 601, maxHeight: PANEL_MAX_H, overflowY: 'auto',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.12)'
+          }}>
             {options.map(opt => (
               <button key={opt} type="button"
                 onClick={() => { onChange(opt); setOpen(false) }}
@@ -549,12 +571,30 @@ function WebGroupedDropdownPicker({ value, items, onChange, placeholder = '선�
   value: string; items: WebGroupedItem[]; onChange: (v: string) => void; placeholder?: string
 }) {
   const [open, setOpen] = useState(false)
+  const [panelPos, setPanelPos] = useState<{ top?: number; bottom?: number; left: number; width: number }>({ left: 0, width: 0 })
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const PANEL_MAX_H = 260
   const selected = items.find(i => i.type === 'item' && i.value === value) as { type: 'item'; label: string; value: string } | undefined
+
+  function handleToggle() {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - r.bottom
+      if (spaceBelow >= PANEL_MAX_H) {
+        setPanelPos({ top: r.bottom + 2, left: r.left, width: r.width })
+      } else {
+        setPanelPos({ bottom: window.innerHeight - r.top + 2, left: r.left, width: r.width })
+      }
+    }
+    setOpen(o => !o)
+  }
+
   return (
     <div style={{ position: 'relative' }}>
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={handleToggle}
         style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between',
           padding: '10px 12px', borderRadius: 8, border: '1px solid #e5e7eb',
           background: '#f9fafb', fontSize: 16, cursor: 'pointer', fontFamily: 'inherit',
@@ -566,9 +606,13 @@ function WebGroupedDropdownPicker({ value, items, onChange, placeholder = '선�
       {open && (
         <>
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 600 }} />
-          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff',
-            border: '1px solid #e5e7eb', borderRadius: 8, zIndex: 601,
-            maxHeight: 260, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.12)', marginTop: 2 }}>
+          <div style={{
+            position: 'fixed', top: panelPos.top, bottom: panelPos.bottom,
+            left: panelPos.left, width: panelPos.width,
+            backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: 8,
+            zIndex: 601, maxHeight: PANEL_MAX_H, overflowY: 'auto',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.12)'
+          }}>
             {items.map((item, idx) => {
               if (item.type === 'header') {
                 return (

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard, Alert, Animated, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard, Alert, Animated, Platform, KeyboardAvoidingView } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
@@ -486,31 +486,40 @@ export default function HistoryScreen() {
     {/* 수정 바텀시트 모달 */}
     {editingExpense && (
       <Modal visible transparent animationType="none" onRequestClose={() => setEditingExpense(null)}>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setEditingExpense(null)} />
           <View style={styles.editSheet}>
             <View style={styles.modalHandle} />
-            {(editingExpense.type === 'savings' || editingExpense.type === 'transfer')
-              ? <TransferEditRow
-                  expense={editingExpense}
-                  onSave={u => handleSave(editingExpense.id, u)}
-                  onDelete={() => handleDelete(editingExpense)}
-                  onCancel={() => setEditingExpense(null)}
-                />
-              : <EditRow
-                  expense={editingExpense}
-                  categories={categories}
-                  paymentMethods={data.paymentMethods}
-                  cardNames={data.cardNames}
-                  accountNames={data.accountNames}
-                  themeColors={themeColors}
-                  onSave={u => { handleSave(editingExpense.id, u); setShowToast(true); setTimeout(() => setShowToast(false), 1500); }}
-                  onDelete={() => handleDelete(editingExpense)}
-                  onCancel={() => setEditingExpense(null)}
-                />
-            }
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 36 }}
+            >
+              {(editingExpense.type === 'savings' || editingExpense.type === 'transfer')
+                ? <TransferEditRow
+                    expense={editingExpense}
+                    onSave={u => handleSave(editingExpense.id, u)}
+                    onDelete={() => handleDelete(editingExpense)}
+                    onCancel={() => setEditingExpense(null)}
+                  />
+                : <EditRow
+                    expense={editingExpense}
+                    categories={categories}
+                    paymentMethods={data.paymentMethods}
+                    cardNames={data.cardNames}
+                    accountNames={data.accountNames}
+                    themeColors={themeColors}
+                    onSave={u => { handleSave(editingExpense.id, u); setShowToast(true); setTimeout(() => setShowToast(false), 1500); }}
+                    onDelete={() => handleDelete(editingExpense)}
+                    onCancel={() => setEditingExpense(null)}
+                  />
+              }
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     )}
     <SaveToast visible={showToast} />
@@ -598,7 +607,7 @@ function ExpenseRow({ expense, onTap, onPayCard, accountNames = new Set<string>(
   );
 }
 
-// ─── 드롭다운 피커 ─────────────────────────────────────────────────────────
+// ─── 드롭다운 피커 (인라인, 서브 모달 없음) ────────────────────────────────
 function DropdownPicker({
   value, options, onSelect, placeholder = '선택하세요', themeColors,
 }: {
@@ -610,38 +619,33 @@ function DropdownPicker({
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <>
+    <View>
       <TouchableOpacity
         style={[styles.inlineDropdownBtn, { borderColor: COLORS.gray200 }]}
-        onPress={() => setOpen(true)}
+        onPress={() => setOpen(o => !o)}
         activeOpacity={0.7}
       >
         <Text style={value ? styles.inlineDropdownValue : styles.inlineDropdownPlaceholder} numberOfLines={1}>
           {value || placeholder}
         </Text>
-        <Text style={{ fontSize: 10, color: COLORS.gray400, marginLeft: 6 }}>▾</Text>
+        <Text style={{ fontSize: 10, color: COLORS.gray400, marginLeft: 6 }}>{open ? '▴' : '▾'}</Text>
       </TouchableOpacity>
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <TouchableOpacity style={styles.dropdownOverlay} activeOpacity={1} onPress={() => setOpen(false)}>
-          <View style={styles.dropdownSheet}>
-            <View style={styles.dropdownHandle} />
-            <ScrollView style={{ maxHeight: 340 }} bounces={false}>
-              {options.map(opt => (
-                <TouchableOpacity
-                  key={opt}
-                  style={[styles.dropdownSheetItem, value === opt && { backgroundColor: themeColors.primary }]}
-                  onPress={() => { onSelect(opt); setOpen(false); }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.dropdownSheetItemText, value === opt && { color: '#fff', fontWeight: '700' }]}>{opt}</Text>
-                  {value === opt && <Text style={{ color: '#fff', fontSize: 13 }}>✓</Text>}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-    </>
+      {open && (
+        <View style={styles.inlineDropdownPanel}>
+          {options.map(opt => (
+            <TouchableOpacity
+              key={opt}
+              style={[styles.inlineDropdownItem, value === opt && { backgroundColor: themeColors.primary }]}
+              onPress={() => { onSelect(opt); setOpen(false); }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.inlineDropdownItemText, value === opt && { color: '#fff', fontWeight: '700' }]}>{opt}</Text>
+              {value === opt && <Text style={{ color: '#fff', fontSize: 13 }}>✓</Text>}
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -793,6 +797,7 @@ function EditRow({ expense, categories, paymentMethods, cardNames, accountNames,
           items={payGroupItems}
           onSelect={v => setPaymentMethod(v)}
           placeholder="결제수단 없음"
+          inline
         />
         {paymentMethod !== '' && (
           <TouchableOpacity onPress={() => setPaymentMethod('')} style={{ marginTop: 6 }}>
@@ -1064,10 +1069,13 @@ const styles = StyleSheet.create({
   amountInput: { fontSize: 32, fontWeight: '700', color: COLORS.gray800, paddingVertical: 8, letterSpacing: -0.5 },
   amountUnit: { fontSize: 18, color: COLORS.gray500, fontWeight: '500', marginTop: 2 },
 
-  // 인라인 드롭다운 (EditRow 내부)
+  // 인라인 드롭다운 (EditRow 내부, 서브 모달 없이 인라인 렌더링)
   inlineDropdownBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, paddingHorizontal: 10, backgroundColor: '#f8fafc', borderRadius: 8, borderWidth: 1 },
   inlineDropdownValue: { fontSize: 13, fontWeight: '600', color: '#374151', flex: 1 },
   inlineDropdownPlaceholder: { fontSize: 13, color: '#9ca3af', flex: 1 },
+  inlineDropdownPanel: { backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: COLORS.gray200, marginTop: 2, overflow: 'hidden', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6 },
+  inlineDropdownItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  inlineDropdownItemText: { fontSize: 13, color: COLORS.gray700 },
 
   // 드롭다운 오버레이 & 시트
   dropdownOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
@@ -1080,7 +1088,7 @@ const styles = StyleSheet.create({
   saveToast: { position: 'absolute' as const, bottom: 24, alignSelf: 'center' as const, backgroundColor: 'rgba(30,30,30,0.88)', paddingVertical: 10, paddingHorizontal: 22, borderRadius: 30 },
   saveToastText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   cardPaySheet: { backgroundColor: '#fff', borderRadius: 20, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: 24, paddingBottom: 40 },
-  editSheet: { backgroundColor: '#fff', borderRadius: 20, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: 20, paddingBottom: 0 },
+  editSheet: { backgroundColor: '#fff', borderRadius: 20, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: 20, paddingBottom: 0, maxHeight: '85%' },
   modalHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 20 },
   modalTitle: { fontSize: 17, fontWeight: '700', color: COLORS.gray800, marginBottom: 20 },
   cardPayInfoBox: { backgroundColor: '#fafafa', borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.gray100, padding: 14, marginBottom: 20 },
