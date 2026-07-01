@@ -2,7 +2,6 @@ import Anthropic from '@anthropic-ai/sdk'
 
 // Gemini 모델 우선순위 (stable → preview 순)
 const GEMINI_MODELS = [
-  'gemini-2.0-flash',
   'gemini-2.5-flash',
   'gemini-2.5-flash-preview-05-20',
   'gemini-1.5-flash',
