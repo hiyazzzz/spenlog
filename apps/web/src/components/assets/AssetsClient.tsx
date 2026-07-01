@@ -59,7 +59,7 @@ function InlineForm({ fields, onSave, onCancel }: {
   const [vals, setVals] = useState<Record<string, string>>(Object.fromEntries(fields.map(f => [f.key, ''])))
   const inp: React.CSSProperties = {
     width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb',
-    background: '#fafafa', fontSize: 13, color: '#374151', outline: 'none',
+    background: '#fafafa', fontSize: 16, color: '#374151', outline: 'none',
     boxSizing: 'border-box' as const, fontFamily: 'inherit',
   }
   return (
@@ -121,11 +121,11 @@ function FixedRow({ item, accountName, targetAccountName, onDelete, onEdit, isEd
 
   const selStyle: React.CSSProperties = {
     width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb',
-    fontSize: 13, outline: 'none', fontFamily: 'inherit', background: '#fafafa',
+    fontSize: 16, outline: 'none', fontFamily: 'inherit', background: '#fafafa',
     boxSizing: 'border-box' as const,
   }
   const labelStyle: React.CSSProperties = { fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 3 }
-  const inpStyle: React.CSSProperties = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const }
+  const inpStyle: React.CSSProperties = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 16, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const }
 
   if (isEditing) {
     return (
@@ -243,7 +243,7 @@ function BudgetRow({ category, budgetAmt, spent, onSave }: {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <input type="text" inputMode="numeric" value={val}
               onChange={e => setVal(fmt(e.target.value))}
-              style={{ width: 100, padding: '4px 8px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 12, outline: 'none', fontFamily: 'inherit' }}
+              style={{ width: 100, padding: '4px 8px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 16, outline: 'none', fontFamily: 'inherit' }}
               autoFocus />
             <button onClick={() => { onSave(parse(val)); setEditing(false) }}
               style={{ fontSize: 11, padding: '4px 8px', borderRadius: 8, border: 'none', background: 'var(--color-primary)', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>저장</button>
@@ -284,7 +284,7 @@ function AccountRow({ acc, sb, onDelete, onUpdated, isEditing, onStartEdit, onCl
   useEffect(() => {
     if (isEditing) setVals({ name: acc.name, bank: acc.bank, type: acc.type ?? '입출금', balance: fmt(String(acc.balance ?? 0)) })
   }, [isEditing])
-  const inp: React.CSSProperties = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const }
+  const inp: React.CSSProperties = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 16, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const }
   const lbl: React.CSSProperties = { fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 3, marginTop: 6 }
   if (isEditing) return (
     <div style={{ padding: 12, borderRadius: 12, background: '#f9fafb', marginBottom: 8 }}>
@@ -786,7 +786,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <input type="text" inputMode="numeric" value={income}
                   onChange={e => setIncome(fmt(e.target.value))}
-                  style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fafafa', fontSize: 14, outline: 'none', fontFamily: 'inherit' }} />
+                  style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fafafa', fontSize: 16, outline: 'none', fontFamily: 'inherit' }} />
                 <span style={{ fontSize: 14, color: '#6b7280' }}>원</span>
               </div>
             </div>
@@ -795,7 +795,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <input type="text" inputMode="numeric" value={savingGoal}
                   onChange={e => setSavingGoal(fmt(e.target.value))}
-                  style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fafafa', fontSize: 14, outline: 'none', fontFamily: 'inherit' }} />
+                  style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', background: '#fafafa', fontSize: 16, outline: 'none', fontFamily: 'inherit' }} />
                 <span style={{ fontSize: 14, color: '#6b7280' }}>원</span>
               </div>
             </div>
@@ -854,7 +854,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                   style={{
                     width: '100%', padding: '10px 36px 10px 12px',
                     borderRadius: 10, border: '1.5px solid #6ee7b7',
-                    fontSize: 14, outline: 'none', fontFamily: 'inherit',
+                    fontSize: 16, outline: 'none', fontFamily: 'inherit',
                     background: '#fff', boxSizing: 'border-box',
                   }}
                 />
@@ -973,14 +973,14 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
                         <label style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 3 }}>{label}</label>
                         <input value={val} onChange={e => setter(numeric ? e.target.value.replace(/[^0-9]/g, '') : e.target.value)}
                           placeholder={key === 'billingStart' ? '미입력 시 매달 1일 기준' : label} inputMode={numeric ? 'numeric' : undefined}
-                          style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const, display: 'block' }} />
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 16, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const, display: 'block' }} />
                       </div>
                     )
                   })}
                   <div style={{ marginBottom: 6 }}>
                     <label style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 3 }}>연결 계좌/카드</label>
                     <select value={cardEditLinkedAccountId} onChange={e => setCardEditLinkedAccountId(e.target.value)}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const, display: 'block', background: '#fff' }}>
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 16, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const, display: 'block', background: '#fff' }}>
                       <option value="">선택</option>
                       {localAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                     </select>
@@ -1218,7 +1218,7 @@ export default function AssetsClient({ profile, userId, accounts, cards, fixedCo
               value={cardPayMemo} onChange={e => setCardPayMemo(e.target.value)}
               style={{
                 width: '100%', padding: '12px', borderRadius: 12,
-                border: '1.5px solid #e5e7eb', fontSize: 14,
+                border: '1.5px solid #e5e7eb', fontSize: 16,
                 outline: 'none', fontFamily: 'inherit', background: '#fafafa',
                 boxSizing: 'border-box' as const,
               }}

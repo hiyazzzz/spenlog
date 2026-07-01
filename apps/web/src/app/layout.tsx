@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import localFont from "next/font/local";
 import DarkModeInit from "@/components/ui/DarkModeInit";
@@ -13,6 +13,11 @@ export const metadata: Metadata = {
   title: "Spenlog",
   description: "AI 가계부 — 자연어로 기록하는 나의 소비",
   manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
