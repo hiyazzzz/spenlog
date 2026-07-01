@@ -156,7 +156,7 @@ export default function HomeScreen() {
   if (loading) {
     return (
       <View style={[styles.screen, styles.center]}>
-        <ActivityIndicator color={COLORS.primary} />
+        <ActivityIndicator color={themeColors.primary} />
       </View>
     );
   }
@@ -300,7 +300,7 @@ export default function HomeScreen() {
         <View style={styles.cardHeaderRow}>
           <Text style={[styles.cardTitle, { color: colors.gray800 }]}>카테고리 현황</Text>
           <TouchableOpacity onPress={() => router.push('/category')}>
-            <Text style={styles.linkText}>카테고리 관리 →</Text>
+            <Text style={[styles.linkText, { color: themeColors.primaryMid }]}>카테고리 관리 →</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.grid}>
@@ -367,7 +367,7 @@ export default function HomeScreen() {
         <View style={styles.cardHeaderRow}>
           <Text style={[styles.cardTitle, { color: colors.gray800 }]}>최근 지출 내역</Text>
           <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
-            <Text style={styles.linkText}>전체 보기 →</Text>
+            <Text style={[styles.linkText, { color: themeColors.primaryMid }]}>전체 보기 →</Text>
           </TouchableOpacity>
         </View>
         {recentExpenses.length === 0 ? (
@@ -425,7 +425,7 @@ export default function HomeScreen() {
               {confirmItems.map((item, idx) => (
                 editingIdx === idx ? (
                   <View key={idx} style={styles.confirmCard}>
-                    <Text style={styles.confirmBadge}>#{idx + 1} 수정</Text>
+                    <Text style={[styles.confirmBadge, { color: themeColors.primary }]}>#{idx + 1} 수정</Text>
                     <View style={styles.confirmTypeToggle}>
                       {(['expense', 'income'] as const).map(t => (
                         <TouchableOpacity
@@ -513,7 +513,7 @@ export default function HomeScreen() {
                   <View key={idx} style={styles.confirmCard}>
                     <View style={styles.confirmCardHeader}>
                       <View style={[styles.confirmBadgeWrap, { flexDirection: 'row', gap: 6 }]}>
-                        <Text style={styles.confirmBadge}>#{idx + 1} 자동</Text>
+                        <Text style={[styles.confirmBadge, { color: themeColors.primary }]}>#{idx + 1} 자동</Text>
                         <Text style={[styles.confirmBadge, item.type === 'income' ? styles.confirmBadgeIncome : styles.confirmBadgeExpense]}>
                           {item.type === 'income' ? '💰 수입' : '💸 지출'}
                         </Text>
@@ -598,6 +598,7 @@ function buildConfirmPaymentItems(cardNames: string[], accountNames: string[]): 
 }
 
 function ConfirmJSDatePicker({ date, onChange, onClose }: { date: Date; onChange: (d: Date) => void; onClose: () => void }) {
+  const { themeColors: pickTheme } = useThemeColors();
   const d = dayjs(date);
   const adj = (unit: 'year' | 'month' | 'date', delta: number) => {
     if (unit === 'date') { onChange(d.add(delta, 'day').toDate()); return; }
@@ -625,7 +626,7 @@ function ConfirmJSDatePicker({ date, onChange, onClose }: { date: Date; onChange
           </View>
         ))}
       </View>
-      <TouchableOpacity onPress={onClose} style={confirmPickerStyles.doneBtn}>
+      <TouchableOpacity onPress={onClose} style={[confirmPickerStyles.doneBtn, { backgroundColor: pickTheme.primary }]}>
         <Text style={confirmPickerStyles.doneTxt}>완료</Text>
       </TouchableOpacity>
     </View>
