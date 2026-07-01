@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard, Alert, Animated, Platform, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard, Alert, Animated, Platform, KeyboardAvoidingView, Dimensions } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
@@ -608,6 +608,9 @@ function ExpenseRow({ expense, onTap, onPayCard, accountNames = new Set<string>(
 }
 
 // ─── 드롭다운 피커 (인라인, 서브 모달 없음) ────────────────────────────────
+const DROPDOWN_PANEL_MAX = 220;
+const GROUPED_PANEL_MAX = 300;
+
 function DropdownPicker({
   value, options, onSelect, placeholder = '선택하세요', themeColors,
 }: {
@@ -618,11 +621,52 @@ function DropdownPicker({
   themeColors: ReturnType<typeof getThemeColors>;
 }) {
   const [open, setOpen] = useState(false);
+  const [flipUp, setFlipUp] = useState(false);
+  const [panelMaxH, setPanelMaxH] = useState(DROPDOWN_PANEL_MAX);
+  const btnRef = useRef<View>(null);
+
+  function handlePress() {
+    if (open) { setOpen(false); return; }
+    const screenH = Dimensions.get('window').height;
+    btnRef.current?.measure((_x, _y, _w, h, _px, pageY) => {
+      const spaceBelow = screenH - pageY - h - 12;
+      const spaceAbove = pageY - 12;
+      if (spaceBelow >= DROPDOWN_PANEL_MAX || spaceBelow >= spaceAbove) {
+        setFlipUp(false);
+        setPanelMaxH(Math.max(80, Math.min(spaceBelow, DROPDOWN_PANEL_MAX)));
+      } else {
+        setFlipUp(true);
+        setPanelMaxH(Math.max(80, Math.min(spaceAbove, DROPDOWN_PANEL_MAX)));
+      }
+      setOpen(true);
+    });
+  }
+
+  const panel = (
+    <View style={[styles.inlineDropdownPanel, { maxHeight: panelMaxH }, flipUp ? { marginBottom: 2, marginTop: 0 } : { marginTop: 2, marginBottom: 0 }]}>
+      <ScrollView bounces={false} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+        {options.map(opt => (
+          <TouchableOpacity
+            key={opt}
+            style={[styles.inlineDropdownItem, value === opt && { backgroundColor: themeColors.primary }]}
+            onPress={() => { onSelect(opt); setOpen(false); }}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.inlineDropdownItemText, value === opt && { color: '#fff', fontWeight: '700' }]}>{opt}</Text>
+            {value === opt && <Text style={{ color: '#fff', fontSize: 13 }}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
   return (
     <View>
+      {open && flipUp && panel}
       <TouchableOpacity
+        ref={btnRef}
         style={[styles.inlineDropdownBtn, { borderColor: COLORS.gray200 }]}
-        onPress={() => setOpen(o => !o)}
+        onPress={handlePress}
         activeOpacity={0.7}
       >
         <Text style={value ? styles.inlineDropdownValue : styles.inlineDropdownPlaceholder} numberOfLines={1}>
@@ -630,21 +674,7 @@ function DropdownPicker({
         </Text>
         <Text style={{ fontSize: 10, color: COLORS.gray400, marginLeft: 6 }}>{open ? '▴' : '▾'}</Text>
       </TouchableOpacity>
-      {open && (
-        <View style={styles.inlineDropdownPanel}>
-          {options.map(opt => (
-            <TouchableOpacity
-              key={opt}
-              style={[styles.inlineDropdownItem, value === opt && { backgroundColor: themeColors.primary }]}
-              onPress={() => { onSelect(opt); setOpen(false); }}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.inlineDropdownItemText, value === opt && { color: '#fff', fontWeight: '700' }]}>{opt}</Text>
-              {value === opt && <Text style={{ color: '#fff', fontSize: 13 }}>✓</Text>}
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
+      {open && !flipUp && panel}
     </View>
   );
 }

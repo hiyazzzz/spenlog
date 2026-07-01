@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Dimensions } from 'react-native';
 import { COLORS, RADIUS } from '@/constants/theme';
+
+const GROUPED_PANEL_MAX = 300;
 
 export type GroupedItem =
   | { type: 'header'; label: string }
@@ -18,6 +20,26 @@ export default function GroupedDropdownPicker({
   value, items, onSelect, placeholder = '선택하세요', inline = false,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [flipUp, setFlipUp] = useState(false);
+  const [panelMaxH, setPanelMaxH] = useState(GROUPED_PANEL_MAX);
+  const btnRef = useRef<View>(null);
+
+  function handleInlinePress() {
+    if (open) { setOpen(false); return; }
+    const screenH = Dimensions.get('window').height;
+    btnRef.current?.measure((_x, _y, _w, h, _px, pageY) => {
+      const spaceBelow = screenH - pageY - h - 12;
+      const spaceAbove = pageY - 12;
+      if (spaceBelow >= GROUPED_PANEL_MAX || spaceBelow >= spaceAbove) {
+        setFlipUp(false);
+        setPanelMaxH(Math.max(80, Math.min(spaceBelow, GROUPED_PANEL_MAX)));
+      } else {
+        setFlipUp(true);
+        setPanelMaxH(Math.max(80, Math.min(spaceAbove, GROUPED_PANEL_MAX)));
+      }
+      setOpen(true);
+    });
+  }
 
   const listContent = items.map((item, idx) => {
     if (item.type === 'header') {
@@ -44,19 +66,23 @@ export default function GroupedDropdownPicker({
   });
 
   if (inline) {
+    const panelView = (
+      <View style={[styles.inlinePanel, { maxHeight: panelMaxH }, flipUp ? { marginBottom: 2, marginTop: 0 } : { marginTop: 4, marginBottom: 0 }]}>
+        <ScrollView bounces={false} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+          {listContent}
+        </ScrollView>
+      </View>
+    );
     return (
       <View>
-        <TouchableOpacity style={styles.btn} onPress={() => setOpen(o => !o)} activeOpacity={0.7}>
+        {open && flipUp && panelView}
+        <TouchableOpacity ref={btnRef} style={styles.btn} onPress={handleInlinePress} activeOpacity={0.7}>
           <Text style={value ? styles.value : styles.placeholder} numberOfLines={1}>
             {value || placeholder}
           </Text>
           <Text style={styles.arrow}>{open ? '▴' : '▾'}</Text>
         </TouchableOpacity>
-        {open && (
-          <View style={styles.inlinePanel}>
-            {listContent}
-          </View>
-        )}
+        {open && !flipUp && panelView}
       </View>
     );
   }
