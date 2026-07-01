@@ -256,7 +256,7 @@ export default function HistoryScreen() {
   if (loading) {
     return (
       <View style={[styles.screen, styles.center]}>
-        <ActivityIndicator color={COLORS.primary} />
+        <ActivityIndicator color={themeColors.primary} />
       </View>
     );
   }
@@ -592,7 +592,7 @@ export default function HistoryScreen() {
       <InputAccessoryView nativeID="editRowKbd">
         <View style={styles.kbdBar}>
           <TouchableOpacity onPress={Keyboard.dismiss} style={styles.kbdBarBtn}>
-            <Text style={styles.kbdBarBtnText}>완료</Text>
+            <Text style={[styles.kbdBarBtnText, { color: themeColors.primary }]}>완료</Text>
           </TouchableOpacity>
         </View>
       </InputAccessoryView>
@@ -782,6 +782,7 @@ function SaveToast({ visible }: { visible: boolean }) {
 function CalendarPicker({ date, onChange, onClose }: {
   date: Date; onChange: (d: Date) => void; onClose: () => void;
 }) {
+  const { themeColors: calThemeColors } = useThemeColors();
   const [viewMonth, setViewMonth] = useState(() => dayjs(date).startOf('month'));
   const selected = dayjs(date);
 
@@ -820,7 +821,7 @@ function CalendarPicker({ date, onChange, onClose }: {
             return (
               <TouchableOpacity
                 key={day}
-                style={[styles.calPickerCell, isSelected && styles.calPickerCellSelected]}
+                style={[styles.calPickerCell, isSelected && styles.calPickerCellSelected, isSelected && { backgroundColor: calThemeColors.primary }]}
                 onPress={() => { onChange(thisDate.toDate()); onClose(); }}
                 activeOpacity={0.7}
               >

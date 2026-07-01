@@ -85,6 +85,7 @@ function Section({
 }
 
 function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
+  const { themeColors: loadingThemeColors } = useThemeColors();
   const [userId, setUserId] = useState<string | null>(null);
   const [data, setData] = useState<AssetsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -211,7 +212,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
   if (loading) {
     return (
       <View style={[sharedStyles.panel, sharedStyles.center]}>
-        <ActivityIndicator color={COLORS.primary} />
+        <ActivityIndicator color={loadingThemeColors.primary} />
       </View>
     );
   }
@@ -1075,7 +1076,7 @@ function FixedCostsPanel({ themeColors }: { themeColors: ReturnType<typeof getTh
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <View style={[sharedStyles.panel, sharedStyles.center]}><ActivityIndicator color={COLORS.primary} /></View>;
+  if (loading) return <View style={[sharedStyles.panel, sharedStyles.center]}><ActivityIndicator color={themeColors.primary} /></View>;
   if (error || !data) return <View style={[sharedStyles.panel, sharedStyles.center]}><Text style={sharedStyles.emptyText}>{error ?? '오류가 발생했어요'}</Text></View>;
 
   const expenseItems = data.fixedCosts.filter(f => (f.kind ?? '고정지출') === '고정지출');
@@ -1438,7 +1439,7 @@ function BudgetPanel({ themeColors }: { themeColors: ReturnType<typeof getThemeC
   if (loading) {
     return (
       <View style={[sharedStyles.panel, sharedStyles.center]}>
-        <ActivityIndicator color={COLORS.primary} />
+        <ActivityIndicator color={themeColors.primary} />
       </View>
     );
   }
@@ -1574,7 +1575,7 @@ function BudgetPanel({ themeColors }: { themeColors: ReturnType<typeof getThemeC
           </View>
           <TouchableOpacity style={budgetStyles.aiRecommendBtn} onPress={handleAiRecommend} disabled={aiLoading}>
             {aiLoading ? (
-              <ActivityIndicator size="small" color={COLORS.primary} />
+              <ActivityIndicator size="small" color={themeColors.primary} />
             ) : (
               <Text style={budgetStyles.aiRecommendBtnText}>✨ 내 소비 패턴으로 AI 추천받기</Text>
             )}

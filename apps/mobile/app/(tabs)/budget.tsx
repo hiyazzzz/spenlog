@@ -87,7 +87,7 @@ export default function BudgetScreen() {
   if (loading) {
     return (
       <View style={[styles.screen, styles.center]}>
-        <ActivityIndicator color={COLORS.primary} />
+        <ActivityIndicator color={themeColors.primary} />
       </View>
     );
   }
@@ -230,7 +230,7 @@ export default function BudgetScreen() {
           </View>
           <TouchableOpacity style={styles.aiRecommendBtn} onPress={handleAiRecommend} disabled={aiLoading}>
             {aiLoading ? (
-              <ActivityIndicator size="small" color={COLORS.primary} />
+              <ActivityIndicator size="small" color={themeColors.primary} />
             ) : (
               <Text style={styles.aiRecommendBtnText}>✨ 내 소비 패턴으로 AI 추천받기</Text>
             )}
