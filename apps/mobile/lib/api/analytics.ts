@@ -78,19 +78,22 @@ export async function getAnalyticsData(userId: string, month?: string): Promise<
     .map(([day, amount]) => ({ day, amount }))
     .sort((a, b) => a.day - b.day);
 
-  // 카테고리별
+  // 카테고리별 (null → '기타' coalesce)
+  const normCat = (cat: string | null | undefined): string => cat || '기타';
   const userCatNames = (categoriesData ?? []).map(c => c.name);
   const expenseCats = [...new Set([
-    ...thisFiltered.map(e => e.category),
-    ...lastFiltered.map(e => e.category),
+    ...thisFiltered.map(e => normCat(e.category)),
+    ...lastFiltered.map(e => normCat(e.category)),
   ])];
-  const allCats = userCatNames.length > 0 ? userCatNames : expenseCats;
+  const baseCats = userCatNames.length > 0 ? userCatNames : expenseCats;
+  const hasUncategorized = [...thisFiltered, ...lastFiltered].some(e => !e.category);
+  const allCats = hasUncategorized && !baseCats.includes('기타') ? [...baseCats, '기타'] : baseCats;
 
   const categoryData: CategoryData[] = allCats
     .map(cat => ({
       cat,
-      thisAmt: thisFiltered.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0),
-      lastAmt: lastFiltered.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0),
+      thisAmt: thisFiltered.filter(e => normCat(e.category) === cat).reduce((s, e) => s + e.amount, 0),
+      lastAmt: lastFiltered.filter(e => normCat(e.category) === cat).reduce((s, e) => s + e.amount, 0),
     }))
     .filter(c => c.thisAmt > 0 || c.lastAmt > 0)
     .sort((a, b) => b.thisAmt - a.thisAmt);

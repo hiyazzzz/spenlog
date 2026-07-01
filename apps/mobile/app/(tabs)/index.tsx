@@ -449,7 +449,10 @@ export default function HomeScreen() {
                       <View style={{ marginBottom: 6 }}>
                         <GroupedDropdownPicker
                           value={editCategory}
-                          items={data.categories.map(c => ({ type: 'item' as const, label: c.name, value: c.name }))}
+                          items={[
+                            ...data.categories.map(c => ({ type: 'item' as const, label: c.name, value: c.name })),
+                            { type: 'item' as const, label: '없음', value: '없음' },
+                          ]}
                           onSelect={setEditCategory}
                           placeholder="카테고리 선택"
                           inline
@@ -495,7 +498,7 @@ export default function HomeScreen() {
                         updated[idx] = {
                           ...updated[idx],
                           name: editName,
-                          category: editType === 'income' ? '수입' : editCategory,
+                          category: editType === 'income' ? '수입' : (editCategory === '없음' ? null : editCategory),
                           amount: parseInt(editAmount) || updated[idx].amount,
                           type: editType,
                           date: editDate || updated[idx].date,

@@ -53,18 +53,22 @@ export async function GET(request: Request) {
   const savingPct = savingGoal > 0 ? Math.min(Math.round((savedAmount / savingGoal) * 100), 100) : 0
   const spendingDiff = prevTotalSpent > 0 ? Math.round(((totalSpent - prevTotalSpent) / prevTotalSpent) * 100) : null
 
+  const normCat = (cat: string | null | undefined): string => cat || '기타'
   const userCatNames = (categoriesData ?? []).map((c: any) => c.name)
+  const isExp = (e: any) => (e.type ?? 'expense') === 'expense'
   const expenseCatNames = [...new Set([
-    ...(expenses ?? []).filter(e => (e.type ?? 'expense') === 'expense').map(e => e.category),
-    ...(prevExpenses ?? []).filter((e: any) => (e.type ?? 'expense') === 'expense').map((e: any) => e.category),
+    ...(expenses ?? []).filter(isExp).map((e: any) => normCat(e.category)),
+    ...(prevExpenses ?? []).filter(isExp).map((e: any) => normCat(e.category)),
     ...(budgets ?? []).map((b: any) => b.category),
   ])]
-  const reportCategories = userCatNames.length > 0 ? userCatNames : expenseCatNames
+  const baseCats = userCatNames.length > 0 ? userCatNames : expenseCatNames
+  const hasUncategorized = [...(expenses ?? []), ...(prevExpenses ?? [])].some((e: any) => isExp(e) && !e.category)
+  const reportCategories = hasUncategorized && !baseCats.includes('기타') ? [...baseCats, '기타'] : baseCats
 
   const catData = reportCategories.map((cat: string) => {
-    const amount = expenses?.filter(e => e.category === cat && (e.type ?? 'expense') === 'expense').reduce((s, e) => s + e.amount, 0) ?? 0
-    const prevAmount = prevExpenses?.filter((e: any) => e.category === cat).reduce((s: number, e: any) => s + e.amount, 0) ?? 0
-    const budget = budgets?.find(b => b.category === cat)?.amount ?? 0
+    const amount = expenses?.filter((e: any) => normCat(e.category) === cat && isExp(e)).reduce((s: number, e: any) => s + e.amount, 0) ?? 0
+    const prevAmount = prevExpenses?.filter((e: any) => normCat(e.category) === cat && isExp(e)).reduce((s: number, e: any) => s + e.amount, 0) ?? 0
+    const budget = budgets?.find((b: any) => b.category === cat)?.amount ?? 0
     const budgetPct = budget > 0 ? Math.min(Math.round((amount / budget) * 100), 100) : 0
     const prevDiff = prevAmount > 0 ? Math.round(((amount - prevAmount) / prevAmount) * 100) : null
     return { cat, amount, prevAmount, budget, budgetPct, prevDiff }

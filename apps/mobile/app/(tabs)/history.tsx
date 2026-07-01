@@ -924,7 +924,7 @@ function EditRow({ expense, categories, paymentMethods, cardNames, accountNames,
           <View style={{ flex: 1 }}>
             <DropdownPicker
               value={category}
-              options={categories}
+              options={[...categories, '없음']}
               onSelect={v => setCategory(v)}
               placeholder="카테고리"
               themeColors={themeColors}
@@ -967,7 +967,7 @@ function EditRow({ expense, categories, paymentMethods, cardNames, accountNames,
         <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: themeColors.primary }]} onPress={() => onSave({
           name,
           amount: parseInt(amount) || expense.amount,
-          category: category as any,
+          category: (category === '없음' ? null : category) as any,
           type,
           date: dayjs(date).format('YYYY-MM-DD'),
           payment_method: paymentMethod || null,
