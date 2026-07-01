@@ -659,9 +659,10 @@ function ExpenseRow({ expense, onTap, onPayCard, accountNames = new Set<string>(
             {onPayCard && (
               <TouchableOpacity
                 onPress={() => onPayCard(expense)}
-                style={{ backgroundColor: '#fed7aa', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{ backgroundColor: '#fed7aa', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 }}
               >
-                <Text style={{ fontSize: 10, color: '#c2410c', fontWeight: '600' }}>납부</Text>
+                <Text style={{ fontSize: 13, color: '#c2410c', fontWeight: '600' }}>납부</Text>
               </TouchableOpacity>
             )}
           </View>
