@@ -379,7 +379,7 @@ export default function AddExpenseScreen() {
           <Text style={styles.fieldLabel}>카테고리</Text>
           <DropdownPicker
             value={category}
-            options={[...categories, '없음']}
+            options={['없음', ...categories]}
             onSelect={setCategory}
             placeholder="카테고리 선택"
           />

@@ -654,7 +654,7 @@ function EditRow({ expense, onSave, onDelete, onCancel, userCategories, paymentM
   const [form, setForm] = useState({ ...expense, category: (expense.category as string | null) ?? '없음', type: expense.type ?? 'expense', amount: expense.amount.toLocaleString(), payment_method: expense.payment_method ?? '' })
   function u(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
 
-  const catOptions = [...(userCategories && userCategories.length > 0 ? userCategories : (CATEGORIES as readonly string[])), '없음']
+  const catOptions = ['없음', ...(userCategories && userCategories.length > 0 ? userCategories : (CATEGORIES as readonly string[]))]
 
   // 결제수단 그룹 아이템
   const payItems: WebGroupedItem[] = [{ type: 'item', label: '없음', value: '' }]

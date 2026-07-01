@@ -450,8 +450,8 @@ export default function HomeScreen() {
                         <GroupedDropdownPicker
                           value={editCategory}
                           items={[
-                            ...data.categories.map(c => ({ type: 'item' as const, label: c.name, value: c.name })),
                             { type: 'item' as const, label: '없음', value: '없음' },
+                            ...data.categories.map(c => ({ type: 'item' as const, label: c.name, value: c.name })),
                           ]}
                           onSelect={setEditCategory}
                           placeholder="카테고리 선택"

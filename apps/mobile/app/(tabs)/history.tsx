@@ -195,12 +195,11 @@ export default function HistoryScreen() {
       Alert.alert('저장 실패', '저장 중 오류가 발생했어요');
       return;
     }
-    setData(d => {
-      if (!d) return d;
-      const next = { ...d, expenses: d.expenses.map(e => e.id === id ? { ...e, ...updates } : e) };
+    if (data) {
+      const next = { ...data, expenses: data.expenses.map(e => e.id === id ? { ...e, ...updates } : e) };
+      setData(next);
       useDataCache.getState().setHistory(next);
-      return next;
-    });
+    }
     useDataCache.getState().setHome(null);
     useDataCache.getState().setAssets(null);
     setEditingExpense(null);
@@ -933,7 +932,7 @@ function EditRow({ expense, categories, paymentMethods, cardNames, accountNames,
           <View style={{ flex: 1 }}>
             <DropdownPicker
               value={category}
-              options={[...categories, '없음']}
+              options={['없음', ...categories]}
               onSelect={v => setCategory(v)}
               placeholder="카테고리"
               themeColors={themeColors}
