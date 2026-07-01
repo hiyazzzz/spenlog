@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase'
 import { monthString } from '@/lib/date'
 import type { Budget } from '@spenlog/types'
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://spenlog.vercel.app'
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://spenlog-nr7t.vercel.app'
 
 const DEFAULT_BUDGET_CATEGORIES = ['생활비', '고정비', '활동비', '친목비', '예비비']
 

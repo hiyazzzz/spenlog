@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase'
 import dayjs from 'dayjs'
 import type { User } from '@spenlog/types'
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://spenlog.vercel.app'
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://spenlog-nr7t.vercel.app'
 
 export interface CatData {
   cat: string
