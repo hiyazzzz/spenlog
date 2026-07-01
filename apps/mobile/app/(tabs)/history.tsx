@@ -19,8 +19,6 @@ type ViewMode = 'list' | 'calendar';
 type SortKey = 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc';
 type TypeFilter = '' | 'expense' | 'income' | 'savings' | 'transfer';
 
-const PAYMENT_OPTIONS = ['카드', '현금', '카카오페이', '네이버페이', '토스', '계좌이체'];
-
 export default function HistoryScreen() {
   const router = useRouter();
   const { themeColors, tabBg } = useThemeColors();
@@ -48,6 +46,24 @@ export default function HistoryScreen() {
     const hide = Keyboard.addListener('keyboardWillHide', () => setKbdH(0));
     return () => { show.remove(); hide.remove(); };
   }, []);
+
+  // 필터 드롭다운 오버레이용 refs / 위치 상태
+  const typeFilterRef = useRef<any>(null);
+  const catFilterRef = useRef<any>(null);
+  const payFilterRef = useRef<any>(null);
+  const sortFilterRef = useRef<any>(null);
+  const [filterPanelPos, setFilterPanelPos] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  function openFilter(key: 'type' | 'cat' | 'pay' | 'sort') {
+    if (activeDropdown === key) { setActiveDropdown(null); setFilterPanelPos(null); return; }
+    const refs: Record<string, React.RefObject<any>> = {
+      type: typeFilterRef, cat: catFilterRef, pay: payFilterRef, sort: sortFilterRef,
+    };
+    refs[key].current?.measure((_x: number, _y: number, w: number, h: number, px: number, py: number) => {
+      setFilterPanelPos({ top: py + h + 4, left: px, width: w });
+      setActiveDropdown(key);
+    });
+  }
 
   const [cardPayModal, setCardPayModal] = useState<{
     payMethod: string; monthTotal: number; alreadyPaid: number; remaining: number;
@@ -112,11 +128,13 @@ export default function HistoryScreen() {
       if (search && !e.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (filterCat && e.category !== filterCat) return false;
       if (filterPay && e.payment_method !== filterPay) return false;
-      if (filterType === 'savings') {
-        const et = e.type ?? 'expense';
-        if (et !== 'savings' && et !== 'transfer') return false;
-      } else if (filterType && (e.type ?? 'expense') !== filterType) {
-        return false;
+      if (filterType) {
+        const t = e.type ?? 'expense';
+        if (filterType === 'transfer') {
+          if (t !== 'transfer' && t !== 'savings') return false;
+        } else {
+          if (t !== filterType) return false;
+        }
       }
       return true;
     });
@@ -298,66 +316,53 @@ export default function HistoryScreen() {
         )}
       </View>
 
-      {/* 필터 드롭다운 4개 */}
+      {/* 필터 드롭다운 4개 — 오버레이 방식 */}
       <View style={styles.filterRow}>
-        {([
-          { key: 'type' as const, label: filterType === '' ? '유형' : filterType === 'expense' ? '지출' : filterType === 'income' ? '수입' : '저축이체', active: filterType !== '' },
-          { key: 'cat' as const, label: filterCat === '' ? '카테고리' : filterCat, active: filterCat !== '' },
-          { key: 'pay' as const, label: filterPay === '' ? '결제수단' : filterPay, active: filterPay !== '' },
-          { key: 'sort' as const, label: sort === 'date_desc' ? '최신순' : sort === 'date_asc' ? '오래된순' : sort === 'amount_desc' ? '금액↓' : '금액↑', active: sort !== 'date_desc' },
-        ]).map(d => (
-          <TouchableOpacity
-            key={d.key}
-            style={[styles.dropdownBtn, (d.active || activeDropdown === d.key) && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
-            onPress={() => setActiveDropdown(prev => prev === d.key ? null : d.key)}
-          >
-            <Text style={[styles.dropdownBtnText, (d.active || activeDropdown === d.key) && { color: '#fff' }]} numberOfLines={1}>{d.label}</Text>
-            <Text style={[styles.dropdownArrow, (d.active || activeDropdown === d.key) && { color: '#fff' }]}>▾</Text>
-          </TouchableOpacity>
-        ))}
+        <TouchableOpacity
+          ref={typeFilterRef}
+          style={[styles.dropdownBtn, (filterType !== '' || activeDropdown === 'type') && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
+          onPress={() => openFilter('type')}
+        >
+          <Text style={[styles.dropdownBtnText, (filterType !== '' || activeDropdown === 'type') && { color: '#fff' }]} numberOfLines={1}>
+            {filterType === '' ? '유형' : filterType === 'expense' ? '지출' : filterType === 'income' ? '수입' : '이체'}
+          </Text>
+          <Text style={[styles.dropdownArrow, (filterType !== '' || activeDropdown === 'type') && { color: '#fff' }]}>▾</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          ref={catFilterRef}
+          style={[styles.dropdownBtn, (filterCat !== '' || activeDropdown === 'cat') && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
+          onPress={() => openFilter('cat')}
+        >
+          <Text style={[styles.dropdownBtnText, (filterCat !== '' || activeDropdown === 'cat') && { color: '#fff' }]} numberOfLines={1}>
+            {filterCat === '' ? '카테고리' : filterCat}
+          </Text>
+          <Text style={[styles.dropdownArrow, (filterCat !== '' || activeDropdown === 'cat') && { color: '#fff' }]}>▾</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          ref={payFilterRef}
+          style={[styles.dropdownBtn, (filterPay !== '' || activeDropdown === 'pay') && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
+          onPress={() => openFilter('pay')}
+        >
+          <Text style={[styles.dropdownBtnText, (filterPay !== '' || activeDropdown === 'pay') && { color: '#fff' }]} numberOfLines={1}>
+            {filterPay === '' ? '결제수단' : filterPay}
+          </Text>
+          <Text style={[styles.dropdownArrow, (filterPay !== '' || activeDropdown === 'pay') && { color: '#fff' }]}>▾</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          ref={sortFilterRef}
+          style={[styles.dropdownBtn, (sort !== 'date_desc' || activeDropdown === 'sort') && { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]}
+          onPress={() => openFilter('sort')}
+        >
+          <Text style={[styles.dropdownBtnText, (sort !== 'date_desc' || activeDropdown === 'sort') && { color: '#fff' }]} numberOfLines={1}>
+            {sort === 'date_desc' ? '최신순' : sort === 'date_asc' ? '오래된순' : sort === 'amount_desc' ? '금액↓' : '금액↑'}
+          </Text>
+          <Text style={[styles.dropdownArrow, (sort !== 'date_desc' || activeDropdown === 'sort') && { color: '#fff' }]}>▾</Text>
+        </TouchableOpacity>
       </View>
       {hasFilter && (
-        <TouchableOpacity style={[styles.resetChip, { marginBottom: 8, alignSelf: 'flex-start' }]} onPress={() => { setSearch(''); setFilterCat(''); setFilterPay(''); setFilterType(''); setFilterMonth(''); setActiveDropdown(null); }}>
+        <TouchableOpacity style={[styles.resetChip, { marginBottom: 8, alignSelf: 'flex-start' }]} onPress={() => { setSearch(''); setFilterCat(''); setFilterPay(''); setFilterType(''); setActiveDropdown(null); setFilterPanelPos(null); }}>
           <Text style={styles.resetChipText}>초기화 ✕</Text>
         </TouchableOpacity>
-      )}
-
-      {/* 드롭다운 패널 */}
-      {activeDropdown === 'type' && (
-        <View style={styles.dropdownPanel}>
-          {([['', '전체'], ['expense', '지출'], ['income', '수입'], ['savings', '저축이체']] as [TypeFilter, string][]).map(([v, l]) => (
-            <TouchableOpacity key={v} style={[styles.dropdownOpt, filterType === v && { backgroundColor: themeColors.primaryLight }]} onPress={() => { setFilterType(v); setActiveDropdown(null); }}>
-              <Text style={[styles.dropdownOptText, filterType === v && { color: themeColors.primary, fontWeight: '700' }]}>{l}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-      {activeDropdown === 'cat' && (
-        <View style={styles.dropdownPanel}>
-          {([['', '카테고리 전체'], ...categories.map(c => [c, c])] as [string, string][]).map(([v, l]) => (
-            <TouchableOpacity key={v} style={[styles.dropdownOpt, filterCat === v && { backgroundColor: themeColors.primaryLight }]} onPress={() => { setFilterCat(v as any); setActiveDropdown(null); }}>
-              <Text style={[styles.dropdownOptText, filterCat === v && { color: themeColors.primary, fontWeight: '700' }]}>{l}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-      {activeDropdown === 'pay' && (
-        <View style={styles.dropdownPanel}>
-          {([['', '결제수단 전체'], ...PAYMENT_OPTIONS.map(p => [p, p])] as [string, string][]).map(([v, l]) => (
-            <TouchableOpacity key={v} style={[styles.dropdownOpt, filterPay === v && { backgroundColor: themeColors.primaryLight }]} onPress={() => { setFilterPay(v); setActiveDropdown(null); }}>
-              <Text style={[styles.dropdownOptText, filterPay === v && { color: themeColors.primary, fontWeight: '700' }]}>{l}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-      {activeDropdown === 'sort' && (
-        <View style={styles.dropdownPanel}>
-          {([['date_desc', '최신순'], ['date_asc', '오래된순'], ['amount_desc', '금액 높은순'], ['amount_asc', '금액 낮은순']] as [SortKey, string][]).map(([v, l]) => (
-            <TouchableOpacity key={v} style={[styles.dropdownOpt, sort === v && { backgroundColor: themeColors.primaryLight }]} onPress={() => { setSort(v); setActiveDropdown(null); }}>
-              <Text style={[styles.dropdownOptText, sort === v && { color: themeColors.primary, fontWeight: '700' }]}>{l}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
       )}
 
       {view === 'list' && (
@@ -528,6 +533,61 @@ export default function HistoryScreen() {
         </View>
       </Modal>
     )}
+    {/* 필터 드롭다운 오버레이 Modal */}
+    <Modal
+      visible={activeDropdown !== null && filterPanelPos !== null}
+      transparent
+      animationType="none"
+      onRequestClose={() => { setActiveDropdown(null); setFilterPanelPos(null); }}
+    >
+      <View style={{ flex: 1 }}>
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={() => { setActiveDropdown(null); setFilterPanelPos(null); }}
+        />
+        {filterPanelPos && (
+          <View style={[styles.filterOverlayPanel, {
+            position: 'absolute',
+            top: filterPanelPos.top,
+            left: filterPanelPos.left,
+            minWidth: Math.max(filterPanelPos.width, 150),
+          }]}>
+            <ScrollView bounces={false} nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ maxHeight: 260 }}>
+              {activeDropdown === 'type' && (
+                ([['', '전체'], ['expense', '지출'], ['income', '수입'], ['transfer', '이체']] as [TypeFilter, string][]).map(([v, l]) => (
+                  <TouchableOpacity key={v} style={[styles.dropdownOpt, filterType === v && { backgroundColor: themeColors.primaryLight }]} onPress={() => { setFilterType(v); setActiveDropdown(null); setFilterPanelPos(null); }}>
+                    <Text style={[styles.dropdownOptText, filterType === v && { color: themeColors.primary, fontWeight: '700' }]}>{l}</Text>
+                  </TouchableOpacity>
+                ))
+              )}
+              {activeDropdown === 'cat' && (
+                ([['', '카테고리 전체'], ...categories.map(c => [c, c])] as [string, string][]).map(([v, l]) => (
+                  <TouchableOpacity key={v} style={[styles.dropdownOpt, filterCat === v && { backgroundColor: themeColors.primaryLight }]} onPress={() => { setFilterCat(v as any); setActiveDropdown(null); setFilterPanelPos(null); }}>
+                    <Text style={[styles.dropdownOptText, filterCat === v && { color: themeColors.primary, fontWeight: '700' }]}>{l}</Text>
+                  </TouchableOpacity>
+                ))
+              )}
+              {activeDropdown === 'pay' && (
+                ([['', '결제수단 전체'], ...data.paymentMethods.map(p => [p, p])] as [string, string][]).map(([v, l]) => (
+                  <TouchableOpacity key={v} style={[styles.dropdownOpt, filterPay === v && { backgroundColor: themeColors.primaryLight }]} onPress={() => { setFilterPay(v); setActiveDropdown(null); setFilterPanelPos(null); }}>
+                    <Text style={[styles.dropdownOptText, filterPay === v && { color: themeColors.primary, fontWeight: '700' }]}>{l}</Text>
+                  </TouchableOpacity>
+                ))
+              )}
+              {activeDropdown === 'sort' && (
+                ([['date_desc', '최신순'], ['date_asc', '오래된순'], ['amount_desc', '금액 높은순'], ['amount_asc', '금액 낮은순']] as [SortKey, string][]).map(([v, l]) => (
+                  <TouchableOpacity key={v} style={[styles.dropdownOpt, sort === v && { backgroundColor: themeColors.primaryLight }]} onPress={() => { setSort(v); setActiveDropdown(null); setFilterPanelPos(null); }}>
+                    <Text style={[styles.dropdownOptText, sort === v && { color: themeColors.primary, fontWeight: '700' }]}>{l}</Text>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        )}
+      </View>
+    </Modal>
+
     {Platform.OS === 'ios' && (
       <InputAccessoryView nativeID="editRowKbd">
         <View style={styles.kbdBar}>
@@ -1153,6 +1213,11 @@ const styles = StyleSheet.create({
   dropdownBtnText: { fontSize: 11, fontWeight: '600', color: COLORS.gray600, flexShrink: 1 },
   dropdownArrow: { fontSize: 9, color: COLORS.gray400 },
   dropdownPanel: { backgroundColor: '#fff', borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.gray100, marginBottom: 8, overflow: 'hidden' },
+  filterOverlayPanel: {
+    backgroundColor: '#fff', borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.gray100,
+    overflow: 'hidden', elevation: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 8,
+  },
   dropdownOpt: { paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: COLORS.gray50 },
   dropdownOptText: { fontSize: 13, color: COLORS.gray700 },
 
