@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ko'
@@ -48,6 +48,7 @@ export default function ReportClient({
   const [catTab, setCatTab] = useState<'bar' | 'pie'>('bar')
   const [btnOpacity, setBtnOpacity] = useState(1)
   const [contentOpacity, setContentOpacity] = useState(0)
+  const catDragStart = useRef<number | null>(null)
 
   const monthLabel = dayjs(currentMonth).format('YYYY년 M월')
   const isOldest = prevMonth < dayjs().subtract(6, 'month').format('YYYY-MM')
@@ -214,18 +215,17 @@ export default function ReportClient({
           const sortedCats = catData.filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount)
           const totalCatAmt = sortedCats.reduce((s, c) => s + c.amount, 0)
           return (
-            <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-4">
-              <div className="flex gap-1 mb-4 p-0.5 rounded-lg" style={{ backgroundColor: '#f3f4f6' }}>
-                {(['bar', 'pie'] as const).map(t => (
-                  <button key={t} onClick={() => setCatTab(t)}
-                    className="flex-1 py-1.5 rounded-md text-xs font-semibold transition-colors"
-                    style={catTab === t
-                      ? { background: 'var(--color-primary)', color: '#fff' }
-                      : { background: 'transparent', color: '#9ca3af' }}>
-                    {t === 'bar' ? '카테고리별 지출' : '카테고리 비율'}
-                  </button>
-                ))}
-              </div>
+            <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-4"
+              onPointerDown={e => { catDragStart.current = e.clientX; }}
+              onPointerUp={e => {
+                if (catDragStart.current === null) return;
+                const delta = e.clientX - catDragStart.current;
+                catDragStart.current = null;
+                if (delta < -40) setCatTab('pie');
+                else if (delta > 40) setCatTab('bar');
+              }}
+              style={{ userSelect: 'none', cursor: 'grab' }}
+            >
 
               {catTab === 'bar' && (
                 <div className="space-y-4">
@@ -300,6 +300,16 @@ export default function ReportClient({
                   </>
                 )
               )}
+
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 12 }}>
+                {(['bar', 'pie'] as const).map(t => (
+                  <button key={t} onClick={() => setCatTab(t)} style={{
+                    width: 6, height: 6, borderRadius: 3, border: 'none', padding: 0, cursor: 'pointer',
+                    backgroundColor: catTab === t ? 'var(--color-primary)' : '#e5e7eb',
+                    transition: 'background-color 0.2s',
+                  }} />
+                ))}
+              </div>
             </div>
           )
         })()}

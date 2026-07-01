@@ -26,6 +26,8 @@ export default function ReportScreen() {
   const [catTab, setCatTab] = useState<'bar' | 'pie'>('bar');
   const buttonAnim = useRef(new Animated.Value(1)).current;
   const contentAnim = useRef(new Animated.Value(0)).current;
+  const catScrollRef = useRef<ScrollView>(null);
+  const [catPageWidth, setCatPageWidth] = useState(0);
 
   const load = useCallback(async (m?: string) => {
     try {
@@ -105,6 +107,7 @@ export default function ReportScreen() {
     buttonAnim.setValue(1);
     contentAnim.setValue(0);
     setCatTab('bar');
+    catScrollRef.current?.scrollTo({ x: 0, animated: false });
   }, [month]);
 
   if (loading) {
@@ -288,111 +291,124 @@ export default function ReportScreen() {
           </View>
 
           <View style={styles.card}>
-            <View style={styles.catTabRow}>
-              <TouchableOpacity
-                style={[styles.catTabBtn, catTab === 'bar' && { backgroundColor: themeColors.primary }]}
-                onPress={() => setCatTab('bar')}
+            <View onLayout={e => setCatPageWidth(p => p || e.nativeEvent.layout.width)}>
+              <ScrollView
+                ref={catScrollRef}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={e => {
+                  const page = Math.round(e.nativeEvent.contentOffset.x / catPageWidth);
+                  setCatTab(page === 0 ? 'bar' : 'pie');
+                }}
               >
-                <Text style={[styles.catTabBtnText, catTab === 'bar' && styles.catTabBtnTextActive]}>카테고리별 지출</Text>
+                <View style={{ width: catPageWidth }}>
+                  {catData.filter(c => c.amount > 0).length === 0 ? (
+                    <Text style={[styles.emptyText, { paddingVertical: 16 }]}>이달은 기록된 지출이 없어요</Text>
+                  ) : (
+                    <View style={{ gap: 16 }}>
+                      {[...catData].filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount).map(c => {
+                        const over = c.budget > 0 && c.amount > c.budget;
+                        const barColor = c.budgetPct >= 90 ? COLORS.red : c.budgetPct >= 70 ? COLORS.amber : themeColors.primary;
+                        return (
+                          <View key={c.cat}>
+                            <View style={styles.catRow}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Text style={styles.catName}>{c.cat}</Text>
+                                {c.prevDiff !== null && (
+                                  <View style={[
+                                    styles.prevDiffBadge,
+                                    Math.abs(c.prevDiff) >= 20
+                                      ? { backgroundColor: c.prevDiff > 0 ? COLORS.redBg : COLORS.greenBg }
+                                      : { backgroundColor: COLORS.gray100 },
+                                  ]}>
+                                    <Text style={[
+                                      styles.prevDiffText,
+                                      Math.abs(c.prevDiff) >= 20
+                                        ? { color: c.prevDiff > 0 ? COLORS.red : COLORS.green }
+                                        : { color: COLORS.gray400 },
+                                    ]}>
+                                      {c.prevDiff > 0 ? '▲' : '▼'}{Math.abs(c.prevDiff)}%{c.prevDiff >= 20 ? ' ⚠️' : ''}
+                                    </Text>
+                                  </View>
+                                )}
+                              </View>
+                              <Text style={styles.catAmount}>{formatCurrency(c.amount)}</Text>
+                            </View>
+                            {c.budget > 0 ? (
+                              <>
+                                <View style={styles.thinTrack}>
+                                  <View style={[styles.thinFill, { width: `${c.budgetPct}%`, backgroundColor: barColor }]} />
+                                </View>
+                                <Text style={styles.catSub}>예산 대비 {c.budgetPct}%{over ? ' (초과)' : ''}</Text>
+                              </>
+                            ) : (
+                              <View style={styles.thinTrack}>
+                                <View style={[styles.thinFill, {
+                                  width: `${totalSpent > 0 ? Math.round((c.amount / totalSpent) * 100) : 0}%`,
+                                  backgroundColor: COLORS.gray300,
+                                }]} />
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+                <View style={{ width: catPageWidth }}>
+                  {donutData.length === 0 ? (
+                    <Text style={[styles.emptyText, { paddingVertical: 16 }]}>이달은 기록된 지출이 없어요</Text>
+                  ) : (
+                    <>
+                      <View style={styles.donutBarRow}>
+                        {donutData.map((item, i) => (
+                          <View
+                            key={item.cat}
+                            style={[
+                              styles.donutBarSegment,
+                              {
+                                flex: item.thisAmt,
+                                backgroundColor: CAT_COLORS[i % CAT_COLORS.length],
+                                borderRadius: i === 0 ? 4 : i === donutData.length - 1 ? 4 : 0,
+                              },
+                            ]}
+                          />
+                        ))}
+                      </View>
+                      <View style={{ gap: 8, marginTop: 12 }}>
+                        {donutData.map((item, i) => (
+                          <View key={item.cat} style={styles.legendRow}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                              <View style={[styles.legendDot, { backgroundColor: CAT_COLORS[i % CAT_COLORS.length] }]} />
+                              <Text style={styles.legendLabel}>{item.cat}</Text>
+                            </View>
+                            <Text style={styles.legendPct}>
+                              {Math.round((item.thisAmt / analyticsData!.thisTotal) * 100)}%
+                            </Text>
+                            <Text style={styles.legendAmt}>{formatCurrency(item.thisAmt)}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </>
+                  )}
+                </View>
+              </ScrollView>
+            </View>
+            <View style={styles.catDotRow}>
+              <TouchableOpacity
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => { catScrollRef.current?.scrollTo({ x: 0, animated: true }); setCatTab('bar'); }}
+              >
+                <View style={[styles.catDot, catTab === 'bar' && { backgroundColor: themeColors.primary }]} />
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.catTabBtn, catTab === 'pie' && { backgroundColor: themeColors.primary }]}
-                onPress={() => setCatTab('pie')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => { catScrollRef.current?.scrollTo({ x: catPageWidth, animated: true }); setCatTab('pie'); }}
               >
-                <Text style={[styles.catTabBtnText, catTab === 'pie' && styles.catTabBtnTextActive]}>카테고리 비율</Text>
+                <View style={[styles.catDot, catTab === 'pie' && { backgroundColor: themeColors.primary }]} />
               </TouchableOpacity>
             </View>
-
-            {catTab === 'bar' && (catData.filter(c => c.amount > 0).length === 0 ? (
-              <Text style={[styles.emptyText, { paddingVertical: 16 }]}>이달은 기록된 지출이 없어요</Text>
-            ) : (
-              <View style={{ gap: 16 }}>
-                {[...catData].filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount).map(c => {
-                  const over = c.budget > 0 && c.amount > c.budget;
-                  const barColor = c.budgetPct >= 90 ? COLORS.red : c.budgetPct >= 70 ? COLORS.amber : themeColors.primary;
-                  return (
-                    <View key={c.cat}>
-                      <View style={styles.catRow}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Text style={styles.catName}>{c.cat}</Text>
-                          {c.prevDiff !== null && (
-                            <View style={[
-                              styles.prevDiffBadge,
-                              Math.abs(c.prevDiff) >= 20
-                                ? { backgroundColor: c.prevDiff > 0 ? COLORS.redBg : COLORS.greenBg }
-                                : { backgroundColor: COLORS.gray100 },
-                            ]}>
-                              <Text style={[
-                                styles.prevDiffText,
-                                Math.abs(c.prevDiff) >= 20
-                                  ? { color: c.prevDiff > 0 ? COLORS.red : COLORS.green }
-                                  : { color: COLORS.gray400 },
-                              ]}>
-                                {c.prevDiff > 0 ? '▲' : '▼'}{Math.abs(c.prevDiff)}%{c.prevDiff >= 20 ? ' ⚠️' : ''}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                        <Text style={styles.catAmount}>{formatCurrency(c.amount)}</Text>
-                      </View>
-                      {c.budget > 0 ? (
-                        <>
-                          <View style={styles.thinTrack}>
-                            <View style={[styles.thinFill, { width: `${c.budgetPct}%`, backgroundColor: barColor }]} />
-                          </View>
-                          <Text style={styles.catSub}>예산 대비 {c.budgetPct}%{over ? ' (초과)' : ''}</Text>
-                        </>
-                      ) : (
-                        <View style={styles.thinTrack}>
-                          <View style={[styles.thinFill, {
-                            width: `${totalSpent > 0 ? Math.round((c.amount / totalSpent) * 100) : 0}%`,
-                            backgroundColor: COLORS.gray300,
-                          }]} />
-                        </View>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-            ))}
-
-            {catTab === 'pie' && (
-              donutData.length === 0 ? (
-                <Text style={[styles.emptyText, { paddingVertical: 16 }]}>이달은 기록된 지출이 없어요</Text>
-              ) : (
-                <>
-                  <View style={styles.donutBarRow}>
-                    {donutData.map((item, i) => (
-                      <View
-                        key={item.cat}
-                        style={[
-                          styles.donutBarSegment,
-                          {
-                            flex: item.thisAmt,
-                            backgroundColor: CAT_COLORS[i % CAT_COLORS.length],
-                            borderRadius: i === 0 ? 4 : i === donutData.length - 1 ? 4 : 0,
-                          },
-                        ]}
-                      />
-                    ))}
-                  </View>
-                  <View style={{ gap: 8, marginTop: 12 }}>
-                    {donutData.map((item, i) => (
-                      <View key={item.cat} style={styles.legendRow}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                          <View style={[styles.legendDot, { backgroundColor: CAT_COLORS[i % CAT_COLORS.length] }]} />
-                          <Text style={styles.legendLabel}>{item.cat}</Text>
-                        </View>
-                        <Text style={styles.legendPct}>
-                          {Math.round((item.thisAmt / analyticsData!.thisTotal) * 100)}%
-                        </Text>
-                        <Text style={styles.legendAmt}>{formatCurrency(item.thisAmt)}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </>
-              )
-            )}
           </View>
 
           {threeMonths && threeMonths[0].total > 0 && (
@@ -521,10 +537,8 @@ const styles = StyleSheet.create({
   patternValue: { fontSize: 11, fontWeight: '700', color: COLORS.gray700, width: 80, textAlign: 'right' },
   patternComment: { fontSize: 11, color: COLORS.gray500, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.gray50 },
 
-  catTabRow: { flexDirection: 'row', gap: 4, marginBottom: 12, backgroundColor: COLORS.gray100, borderRadius: RADIUS.md, padding: 3 },
-  catTabBtn: { flex: 1, paddingVertical: 6, borderRadius: RADIUS.sm, alignItems: 'center' },
-  catTabBtnText: { fontSize: 11, fontWeight: '600', color: COLORS.gray400 },
-  catTabBtnTextActive: { color: '#fff' },
+  catDotRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 12 },
+  catDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.gray200 },
 
   coachBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: RADIUS.lg, backgroundColor: COLORS.primary },
   coachBtnText: { fontSize: 11, fontWeight: '700', color: '#fff' },
