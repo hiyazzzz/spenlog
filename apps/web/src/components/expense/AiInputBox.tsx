@@ -92,7 +92,7 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
             user_id: userId,
             name: p.name,
             amount: p.amount,
-            category: p.category,
+            category: p.category === '없음' ? null : p.category,
             date: p.date,
             payment_method: p.payment_method,
             memo: p.memo,
@@ -147,7 +147,7 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
     try {
       const { error: saveErr } = await supabase.from('expenses').insert({
         user_id: userId, name: inlineForm.name.trim(), amount,
-        category: inlineForm.category, date: new Date().toISOString().split('T')[0],
+        category: inlineForm.category === '없음' ? null : inlineForm.category, date: new Date().toISOString().split('T')[0],
         payment_method: inlineForm.payment_method, source: 'manual', type: 'expense',
       })
       if (!saveErr) {
@@ -231,7 +231,7 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
               <div>
                 <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 6 }}>카테고리</p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {cats.filter(c => c !== '수입').map(cat => (
+                  {[...cats.filter(c => c !== '수입'), '없음'].map(cat => (
                     <button key={cat}
                       onClick={() => setInlineForm(p => ({ ...p, category: cat }))}
                       style={{
@@ -382,7 +382,7 @@ export default function AiInputBox({ userId, compact, userCategories }: { userId
                     <div>
                       <p className="text-xs font-semibold mb-1.5" style={{ color: '#6366f1' }}>{TEXTS.ai.labelCategory}</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {cats.filter(c => c !== '수입').map(cat => (
+                        {[...cats.filter(c => c !== '수입'), '없음'].map(cat => (
                           <button key={cat} onClick={() => updatePreview(idx, 'category', cat)}
                             className="text-xs px-3 py-1.5 rounded-full border transition-all"
                             style={{

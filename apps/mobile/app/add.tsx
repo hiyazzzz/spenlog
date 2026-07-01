@@ -242,7 +242,7 @@ export default function AddExpenseScreen() {
       const { error: saveErr } = await addExpense(userId, {
         name: name.trim(),
         amount: amt,
-        category: type === 'income' ? '수입' : (category || DEFAULT_CATEGORIES[0]),
+        category: (type === 'income' ? '수입' : (category === '없음' ? null : (category || DEFAULT_CATEGORIES[0]))) as string,
         date,
         payment_method: pm,
         memo: memo.trim() || null,
@@ -379,7 +379,7 @@ export default function AddExpenseScreen() {
           <Text style={styles.fieldLabel}>카테고리</Text>
           <DropdownPicker
             value={category}
-            options={categories}
+            options={[...categories, '없음']}
             onSelect={setCategory}
             placeholder="카테고리 선택"
           />
