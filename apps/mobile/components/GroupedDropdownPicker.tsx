@@ -20,22 +20,22 @@ export default function GroupedDropdownPicker({
   value, items, onSelect, placeholder = '선택하세요', inline = false,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [flipUp, setFlipUp] = useState(false);
   const [panelMaxH, setPanelMaxH] = useState(GROUPED_PANEL_MAX);
-  const btnRef = useRef<View>(null);
+  const [panelPos, setPanelPos] = useState<{ top?: number; bottom?: number; left: number; width: number }>({ left: 0, width: 0 });
+  const btnRef = useRef<any>(null);
 
   function handleInlinePress() {
     if (open) { setOpen(false); return; }
     const screenH = Dimensions.get('window').height;
-    btnRef.current?.measure((_x, _y, _w, h, _px, pageY) => {
-      const spaceBelow = screenH - pageY - h - 12;
-      const spaceAbove = pageY - 12;
+    btnRef.current?.measure((_x: number, _y: number, w: number, h: number, px: number, py: number) => {
+      const spaceBelow = screenH - py - h - 12;
+      const spaceAbove = py - 12;
+      const maxH = Math.max(80, Math.min(Math.max(spaceBelow, spaceAbove), GROUPED_PANEL_MAX));
+      setPanelMaxH(maxH);
       if (spaceBelow >= GROUPED_PANEL_MAX || spaceBelow >= spaceAbove) {
-        setFlipUp(false);
-        setPanelMaxH(Math.max(80, Math.min(spaceBelow, GROUPED_PANEL_MAX)));
+        setPanelPos({ top: py + h + 2, left: px, width: w });
       } else {
-        setFlipUp(true);
-        setPanelMaxH(Math.max(80, Math.min(spaceAbove, GROUPED_PANEL_MAX)));
+        setPanelPos({ bottom: screenH - py + 2, left: px, width: w });
       }
       setOpen(true);
     });
@@ -66,24 +66,31 @@ export default function GroupedDropdownPicker({
   });
 
   if (inline) {
-    const panelView = (
-      <View style={[styles.inlinePanel, { maxHeight: panelMaxH }, flipUp ? { marginBottom: 2, marginTop: 0 } : { marginTop: 4, marginBottom: 0 }]}>
-        <ScrollView bounces={false} nestedScrollEnabled showsVerticalScrollIndicator={false}>
-          {listContent}
-        </ScrollView>
-      </View>
-    );
     return (
-      <View>
-        {open && flipUp && panelView}
+      <>
         <TouchableOpacity ref={btnRef} style={styles.btn} onPress={handleInlinePress} activeOpacity={0.7}>
           <Text style={value ? styles.value : styles.placeholder} numberOfLines={1}>
             {value || placeholder}
           </Text>
           <Text style={styles.arrow}>{open ? '▴' : '▾'}</Text>
         </TouchableOpacity>
-        {open && !flipUp && panelView}
-      </View>
+        <Modal visible={open} transparent animationType="none" onRequestClose={() => setOpen(false)}>
+          <View style={{ flex: 1 }}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setOpen(false)} />
+            <View style={[styles.overlayPanel, {
+              position: 'absolute',
+              left: panelPos.left,
+              width: panelPos.width,
+              maxHeight: panelMaxH,
+              ...(panelPos.top !== undefined ? { top: panelPos.top } : { bottom: panelPos.bottom }),
+            }]}>
+              <ScrollView bounces={false} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                {listContent}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      </>
     );
   }
 
@@ -129,7 +136,6 @@ const styles = StyleSheet.create({
     width: 36, height: 4, borderRadius: 2,
     backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 8,
   },
-  // 그룹 헤더: 선택 불가, 회색 배경 + 작은 라벨
   headerRow: {
     paddingHorizontal: 20, paddingVertical: 7,
     backgroundColor: COLORS.gray50,
@@ -139,7 +145,6 @@ const styles = StyleSheet.create({
   headerText: {
     fontSize: 11, fontWeight: '700', color: COLORS.gray500, letterSpacing: 0.6,
   },
-  // 선택 가능 항목: 들여쓰기로 헤더와 구분
   itemRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingVertical: 13, paddingHorizontal: 28,
@@ -148,9 +153,9 @@ const styles = StyleSheet.create({
   itemRowActive: { backgroundColor: COLORS.primary },
   itemText: { fontSize: 14, color: COLORS.gray700 },
   itemTextActive: { color: '#fff', fontWeight: '700' },
-  inlinePanel: {
+  overlayPanel: {
     backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: COLORS.gray200,
-    marginTop: 4, overflow: 'hidden', elevation: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6,
+    overflow: 'hidden', elevation: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 8,
   },
 });

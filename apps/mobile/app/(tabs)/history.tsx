@@ -11,7 +11,9 @@ import { recordCardPayment } from '@/lib/api/routine';
 import { getHistoryData, updateExpense, type HistoryData } from '@/lib/api/history';
 import { deleteExpense } from '@/lib/api/expenses';
 import type { Expense } from '@spenlog/types';
-import GroupedDropdownPicker from '@/components/GroupedDropdownPicker';
+import GroupedDropdownPicker, { type GroupedItem } from '@/components/GroupedDropdownPicker';
+
+const { height: WINDOW_H } = Dimensions.get('window');
 
 type ViewMode = 'list' | 'calendar';
 type SortKey = 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc';
@@ -39,6 +41,14 @@ export default function HistoryScreen() {
   const [calMonth, setCalMonth] = useState(dayjs().format('YYYY-MM'));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<'type' | 'cat' | 'pay' | 'sort' | null>(null);
+  const [kbdH, setKbdH] = useState(0);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', e => setKbdH(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardWillHide', () => setKbdH(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
   const [cardPayModal, setCardPayModal] = useState<{
     payMethod: string; monthTotal: number; alreadyPaid: number; remaining: number;
     accountName: string; matchedCard: any; thisMonth: string; userId: string; refreshFn: () => void;
@@ -487,13 +497,12 @@ export default function HistoryScreen() {
       <Modal visible transparent animationType="none" onRequestClose={() => setEditingExpense(null)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setEditingExpense(null)} />
-          <View style={styles.editSheet}>
+          <View style={[styles.editSheet, kbdH > 0 && { maxHeight: WINDOW_H - kbdH - 20, marginBottom: kbdH }]}>
             <View style={styles.modalHandle} />
             <ScrollView
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 36 }}
-              automaticallyAdjustKeyboardInsets
             >
               {(editingExpense.type === 'savings' || editingExpense.type === 'transfer')
                 ? <TransferEditRow
@@ -613,9 +622,8 @@ function ExpenseRow({ expense, onTap, onPayCard, accountNames = new Set<string>(
   );
 }
 
-// ─── 드롭다운 피커 (인라인, 서브 모달 없음) ────────────────────────────────
+// ─── 드롭다운 피커 (Modal 오버레이 — 옆 칸 높이에 영향 없음) ──────────────
 const DROPDOWN_PANEL_MAX = 220;
-const GROUPED_PANEL_MAX = 300;
 
 function DropdownPicker({
   value, options, onSelect, placeholder = '선택하세요', themeColors,
@@ -627,48 +635,29 @@ function DropdownPicker({
   themeColors: ReturnType<typeof getThemeColors>;
 }) {
   const [open, setOpen] = useState(false);
-  const [flipUp, setFlipUp] = useState(false);
   const [panelMaxH, setPanelMaxH] = useState(DROPDOWN_PANEL_MAX);
-  const btnRef = useRef<View>(null);
+  const [panelPos, setPanelPos] = useState<{ top?: number; bottom?: number; left: number; width: number }>({ left: 0, width: 0 });
+  const btnRef = useRef<any>(null);
 
   function handlePress() {
     if (open) { setOpen(false); return; }
     const screenH = Dimensions.get('window').height;
-    btnRef.current?.measure((_x, _y, _w, h, _px, pageY) => {
-      const spaceBelow = screenH - pageY - h - 12;
-      const spaceAbove = pageY - 12;
+    btnRef.current?.measure((_x: number, _y: number, w: number, h: number, px: number, py: number) => {
+      const spaceBelow = screenH - py - h - 12;
+      const spaceAbove = py - 12;
+      const maxH = Math.max(80, Math.min(Math.max(spaceBelow, spaceAbove), DROPDOWN_PANEL_MAX));
+      setPanelMaxH(maxH);
       if (spaceBelow >= DROPDOWN_PANEL_MAX || spaceBelow >= spaceAbove) {
-        setFlipUp(false);
-        setPanelMaxH(Math.max(80, Math.min(spaceBelow, DROPDOWN_PANEL_MAX)));
+        setPanelPos({ top: py + h + 2, left: px, width: w });
       } else {
-        setFlipUp(true);
-        setPanelMaxH(Math.max(80, Math.min(spaceAbove, DROPDOWN_PANEL_MAX)));
+        setPanelPos({ bottom: screenH - py + 2, left: px, width: w });
       }
       setOpen(true);
     });
   }
 
-  const panel = (
-    <View style={[styles.inlineDropdownPanel, { maxHeight: panelMaxH }, flipUp ? { marginBottom: 2, marginTop: 0 } : { marginTop: 2, marginBottom: 0 }]}>
-      <ScrollView bounces={false} nestedScrollEnabled showsVerticalScrollIndicator={false}>
-        {options.map(opt => (
-          <TouchableOpacity
-            key={opt}
-            style={[styles.inlineDropdownItem, value === opt && { backgroundColor: themeColors.primary }]}
-            onPress={() => { onSelect(opt); setOpen(false); }}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.inlineDropdownItemText, value === opt && { color: '#fff', fontWeight: '700' }]}>{opt}</Text>
-            {value === opt && <Text style={{ color: '#fff', fontSize: 13 }}>✓</Text>}
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  );
-
   return (
-    <View>
-      {open && flipUp && panel}
+    <>
       <TouchableOpacity
         ref={btnRef}
         style={[styles.inlineDropdownBtn, { borderColor: COLORS.gray200 }]}
@@ -680,8 +669,33 @@ function DropdownPicker({
         </Text>
         <Text style={{ fontSize: 10, color: COLORS.gray400, marginLeft: 6 }}>{open ? '▴' : '▾'}</Text>
       </TouchableOpacity>
-      {open && !flipUp && panel}
-    </View>
+      <Modal visible={open} transparent animationType="none" onRequestClose={() => setOpen(false)}>
+        <View style={{ flex: 1 }}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setOpen(false)} />
+          <View style={[styles.inlineDropdownPanel, {
+            position: 'absolute',
+            left: panelPos.left,
+            width: panelPos.width,
+            maxHeight: panelMaxH,
+            ...(panelPos.top !== undefined ? { top: panelPos.top } : { bottom: panelPos.bottom }),
+          }]}>
+            <ScrollView bounces={false} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+              {options.map(opt => (
+                <TouchableOpacity
+                  key={opt}
+                  style={[styles.inlineDropdownItem, value === opt && { backgroundColor: themeColors.primary }]}
+                  onPress={() => { onSelect(opt); setOpen(false); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.inlineDropdownItemText, value === opt && { color: '#fff', fontWeight: '700' }]}>{opt}</Text>
+                  {value === opt && <Text style={{ color: '#fff', fontSize: 13 }}>✓</Text>}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -704,40 +718,63 @@ function SaveToast({ visible }: { visible: boolean }) {
   );
 }
 
-// ─── JS 전용 날짜 피커 (네이티브 모듈 없이 Expo Go 동작) ──────────────────────
-function JSDatePicker({ date, onChange, onClose }: {
+// ─── 캘린더 팝업 피커 (월 그리드, ◀▶ 월 이동, 날짜 탭 선택) ─────────────────
+function CalendarPicker({ date, onChange, onClose }: {
   date: Date; onChange: (d: Date) => void; onClose: () => void;
 }) {
-  const d = dayjs(date);
-  const adj = (unit: 'year' | 'month' | 'date', delta: number) => {
-    if (unit === 'date') { onChange(d.add(delta, 'day').toDate()); return; }
-    const y = unit === 'year' ? d.year() + delta : d.year();
-    const m = unit === 'month' ? d.month() + delta : d.month();
-    const maxDay = dayjs(new Date(y, m, 1)).daysInMonth();
-    onChange(new Date(y, m, Math.min(d.date(), maxDay)));
-  };
+  const [viewMonth, setViewMonth] = useState(() => dayjs(date).startOf('month'));
+  const selected = dayjs(date);
+
+  const daysInMonth = viewMonth.daysInMonth();
+  const firstDow = viewMonth.day(); // 0=Sun
+  const cells: (number | null)[] = [...Array(firstDow).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+  // pad to complete last row
+  while (cells.length % 7 !== 0) cells.push(null);
+
   return (
-    <View style={styles.jsDatePicker}>
-      <View style={styles.jsDatePickerRow}>
-        {([
-          { unit: 'year' as const, label: `${d.year()}년` },
-          { unit: 'month' as const, label: `${d.month() + 1}월` },
-          { unit: 'date' as const, label: `${d.date()}일` },
-        ]).map(({ unit, label }) => (
-          <View key={unit} style={styles.jsDatePickerCell}>
-            <TouchableOpacity onPress={() => adj(unit, -1)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}>
-              <Text style={styles.jsDatePickerArrow}>◀</Text>
-            </TouchableOpacity>
-            <Text style={styles.jsDatePickerLabel}>{label}</Text>
-            <TouchableOpacity onPress={() => adj(unit, 1)} hitSlop={{ top: 10, bottom: 10, left: 4, right: 10 }}>
-              <Text style={styles.jsDatePickerArrow}>▶</Text>
-            </TouchableOpacity>
-          </View>
+    <View style={styles.calPickerWrapper}>
+      {/* 헤더: ◀ YYYY년 MM월 ▶ */}
+      <View style={styles.calPickerHeader}>
+        <TouchableOpacity onPress={() => setViewMonth(m => m.subtract(1, 'month'))} hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}>
+          <Text style={styles.calPickerNav}>◀</Text>
+        </TouchableOpacity>
+        <Text style={styles.calPickerMonthLabel}>{viewMonth.format('YYYY년 M월')}</Text>
+        <TouchableOpacity onPress={() => setViewMonth(m => m.add(1, 'month'))} hitSlop={{ top: 8, bottom: 8, left: 8, right: 12 }}>
+          <Text style={styles.calPickerNav}>▶</Text>
+        </TouchableOpacity>
+      </View>
+      {/* 요일 헤더 */}
+      <View style={styles.calPickerWeekRow}>
+        {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (
+          <Text key={d} style={[styles.calPickerWeekDay, i === 0 && { color: COLORS.red }, i === 6 && { color: '#3b82f6' }]}>{d}</Text>
         ))}
       </View>
-      <TouchableOpacity onPress={onClose} style={styles.jsDatePickerDoneBtn}>
-        <Text style={styles.jsDatePickerDoneText}>완료</Text>
-      </TouchableOpacity>
+      {/* 날짜 그리드 */}
+      {Array.from({ length: cells.length / 7 }, (_, wi) => (
+        <View key={wi} style={styles.calPickerRow}>
+          {cells.slice(wi * 7, wi * 7 + 7).map((day, di) => {
+            if (!day) return <View key={di} style={styles.calPickerCell} />;
+            const thisDate = viewMonth.date(day);
+            const isSelected = thisDate.isSame(selected, 'day');
+            const dow = di; // 0=Sun
+            return (
+              <TouchableOpacity
+                key={day}
+                style={[styles.calPickerCell, isSelected && styles.calPickerCellSelected]}
+                onPress={() => { onChange(thisDate.toDate()); onClose(); }}
+                activeOpacity={0.7}
+              >
+                <Text style={[
+                  styles.calPickerDayText,
+                  isSelected && { color: '#fff', fontWeight: '700' },
+                  !isSelected && dow === 0 && { color: COLORS.red },
+                  !isSelected && dow === 6 && { color: '#3b82f6' },
+                ]}>{day}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ))}
     </View>
   );
 }
@@ -843,7 +880,7 @@ function EditRow({ expense, categories, paymentMethods, cardNames, accountNames,
         </TouchableOpacity>
       </View>
       {showDatePicker && (
-        <JSDatePicker
+        <CalendarPicker
           date={date}
           onChange={setDate}
           onClose={() => setShowDatePicker(false)}
@@ -1156,14 +1193,17 @@ const styles = StyleSheet.create({
   cardPayInfoValue: { fontSize: 13, fontWeight: '700', color: COLORS.gray800 },
   cardPayAccountNote: { fontSize: 11, color: COLORS.gray400, marginTop: 8, textAlign: 'center' },
 
-  // JS 날짜 피커
-  jsDatePicker: { backgroundColor: '#f8fafc', borderRadius: 10, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: COLORS.gray200 },
-  jsDatePickerRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
-  jsDatePickerCell: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 6, borderWidth: 1, borderColor: COLORS.gray200 },
-  jsDatePickerArrow: { fontSize: 13, color: COLORS.gray400, paddingHorizontal: 2 },
-  jsDatePickerLabel: { fontSize: 13, fontWeight: '700', color: COLORS.gray800, minWidth: 36, textAlign: 'center' },
-  jsDatePickerDoneBtn: { alignSelf: 'center', paddingHorizontal: 24, paddingVertical: 6, borderRadius: 20, backgroundColor: COLORS.primary },
-  jsDatePickerDoneText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  // 캘린더 팝업 피커
+  calPickerWrapper: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: COLORS.gray200, padding: 10, marginBottom: 8, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6 },
+  calPickerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  calPickerNav: { fontSize: 14, color: COLORS.gray500, paddingHorizontal: 6 },
+  calPickerMonthLabel: { fontSize: 13, fontWeight: '700', color: COLORS.gray800 },
+  calPickerWeekRow: { flexDirection: 'row', marginBottom: 4 },
+  calPickerWeekDay: { flex: 1, textAlign: 'center', fontSize: 10, color: COLORS.gray400, paddingVertical: 3 },
+  calPickerRow: { flexDirection: 'row' },
+  calPickerCell: { flex: 1, height: 34, alignItems: 'center', justifyContent: 'center' },
+  calPickerCellSelected: { backgroundColor: COLORS.primary, borderRadius: 17 },
+  calPickerDayText: { fontSize: 12, color: COLORS.gray700 },
 
   // 키보드 액세서리 바
   kbdBar: { backgroundColor: '#f3f4f6', flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderTopWidth: 1, borderTopColor: COLORS.gray200 },

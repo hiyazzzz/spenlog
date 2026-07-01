@@ -446,7 +446,7 @@ function AssetsPanel({ onNavigate }: { onNavigate: (tab: SubTab) => void }) {
   const showSetupBanner = accounts.length === 0 && cards.length === 0 && fixedCosts.length === 0;
 
   return (
-    <ScrollView style={sharedStyles.panel} contentContainerStyle={sharedStyles.content} keyboardShouldPersistTaps="handled" onScrollBeginDrag={closeAllEditing}>
+    <ScrollView style={sharedStyles.panel} contentContainerStyle={sharedStyles.content} keyboardShouldPersistTaps="handled" onScrollBeginDrag={closeAllEditing} automaticallyAdjustKeyboardInsets>
       {/* 초기 설정 가이드 배너 */}
       {showSetupBanner && (
         <View style={[assetStyles.setupBanner, { backgroundColor: themeColors.primaryLight, borderColor: themeColors.primary + '33' }]}>
