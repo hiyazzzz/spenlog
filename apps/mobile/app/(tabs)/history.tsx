@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard, Alert, Animated, Platform, KeyboardAvoidingView, Dimensions } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Keyboard, Alert, Animated, Platform, InputAccessoryView, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { useDataCache } from '@/store/dataCache';
@@ -486,10 +485,7 @@ export default function HistoryScreen() {
     {/* 수정 바텀시트 모달 */}
     {editingExpense && (
       <Modal visible transparent animationType="none" onRequestClose={() => setEditingExpense(null)}>
-        <KeyboardAvoidingView
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setEditingExpense(null)} />
           <View style={styles.editSheet}>
             <View style={styles.modalHandle} />
@@ -497,6 +493,7 @@ export default function HistoryScreen() {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 36 }}
+              automaticallyAdjustKeyboardInsets
             >
               {(editingExpense.type === 'savings' || editingExpense.type === 'transfer')
                 ? <TransferEditRow
@@ -519,8 +516,17 @@ export default function HistoryScreen() {
               }
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
+    )}
+    {Platform.OS === 'ios' && (
+      <InputAccessoryView nativeID="editRowKbd">
+        <View style={styles.kbdBar}>
+          <TouchableOpacity onPress={Keyboard.dismiss} style={styles.kbdBarBtn}>
+            <Text style={styles.kbdBarBtnText}>완료</Text>
+          </TouchableOpacity>
+        </View>
+      </InputAccessoryView>
     )}
     <SaveToast visible={showToast} />
     </>
@@ -698,6 +704,44 @@ function SaveToast({ visible }: { visible: boolean }) {
   );
 }
 
+// ─── JS 전용 날짜 피커 (네이티브 모듈 없이 Expo Go 동작) ──────────────────────
+function JSDatePicker({ date, onChange, onClose }: {
+  date: Date; onChange: (d: Date) => void; onClose: () => void;
+}) {
+  const d = dayjs(date);
+  const adj = (unit: 'year' | 'month' | 'date', delta: number) => {
+    if (unit === 'date') { onChange(d.add(delta, 'day').toDate()); return; }
+    const y = unit === 'year' ? d.year() + delta : d.year();
+    const m = unit === 'month' ? d.month() + delta : d.month();
+    const maxDay = dayjs(new Date(y, m, 1)).daysInMonth();
+    onChange(new Date(y, m, Math.min(d.date(), maxDay)));
+  };
+  return (
+    <View style={styles.jsDatePicker}>
+      <View style={styles.jsDatePickerRow}>
+        {([
+          { unit: 'year' as const, label: `${d.year()}년` },
+          { unit: 'month' as const, label: `${d.month() + 1}월` },
+          { unit: 'date' as const, label: `${d.date()}일` },
+        ]).map(({ unit, label }) => (
+          <View key={unit} style={styles.jsDatePickerCell}>
+            <TouchableOpacity onPress={() => adj(unit, -1)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}>
+              <Text style={styles.jsDatePickerArrow}>◀</Text>
+            </TouchableOpacity>
+            <Text style={styles.jsDatePickerLabel}>{label}</Text>
+            <TouchableOpacity onPress={() => adj(unit, 1)} hitSlop={{ top: 10, bottom: 10, left: 4, right: 10 }}>
+              <Text style={styles.jsDatePickerArrow}>▶</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
+      <TouchableOpacity onPress={onClose} style={styles.jsDatePickerDoneBtn}>
+        <Text style={styles.jsDatePickerDoneText}>완료</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 const EXTRA_PAY_METHODS = ['현금', '계좌이체'];
 
 function EditRow({ expense, categories, paymentMethods, cardNames, accountNames, themeColors, onSave, onDelete, onCancel }: {
@@ -761,7 +805,7 @@ function EditRow({ expense, categories, paymentMethods, cardNames, accountNames,
         ))}
       </View>
       {/* 항목명 */}
-      <TextInput style={styles.editInput} value={name} onChangeText={setName} placeholder="항목명" placeholderTextColor={COLORS.gray400} returnKeyType="done" />
+      <TextInput style={styles.editInput} value={name} onChangeText={setName} placeholder="항목명" placeholderTextColor={COLORS.gray400} returnKeyType="done" inputAccessoryViewID={Platform.OS === 'ios' ? 'editRowKbd' : undefined} />
       {/* 금액 + 원 */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <TextInput
@@ -772,6 +816,7 @@ function EditRow({ expense, categories, paymentMethods, cardNames, accountNames,
           placeholder="0"
           placeholderTextColor={COLORS.gray300}
           returnKeyType="done"
+          inputAccessoryViewID={Platform.OS === 'ios' ? 'editRowKbd' : undefined}
         />
         <Text style={{ fontSize: 14, color: COLORS.gray500, fontWeight: '600' }}>원</Text>
       </View>
@@ -798,27 +843,11 @@ function EditRow({ expense, categories, paymentMethods, cardNames, accountNames,
         </TouchableOpacity>
       </View>
       {showDatePicker && (
-        <>
-          <DateTimePicker
-            value={date}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            locale="ko-KR"
-            onChange={(_, selectedDate) => {
-              if (Platform.OS !== 'ios') setShowDatePicker(false);
-              if (selectedDate) setDate(selectedDate);
-            }}
-            style={{ marginBottom: 4 }}
-          />
-          {Platform.OS === 'ios' && (
-            <TouchableOpacity
-              onPress={() => setShowDatePicker(false)}
-              style={{ alignSelf: 'flex-end', paddingHorizontal: 12, paddingVertical: 4, marginBottom: 8 }}
-            >
-              <Text style={{ fontSize: 14, fontWeight: '600', color: COLORS.primary }}>완료</Text>
-            </TouchableOpacity>
-          )}
-        </>
+        <JSDatePicker
+          date={date}
+          onChange={setDate}
+          onClose={() => setShowDatePicker(false)}
+        />
       )}
       {/* 결제수단 */}
       <View style={{ marginBottom: 8 }}>
@@ -1126,4 +1155,18 @@ const styles = StyleSheet.create({
   cardPayInfoLabel: { fontSize: 13, color: COLORS.gray500 },
   cardPayInfoValue: { fontSize: 13, fontWeight: '700', color: COLORS.gray800 },
   cardPayAccountNote: { fontSize: 11, color: COLORS.gray400, marginTop: 8, textAlign: 'center' },
+
+  // JS 날짜 피커
+  jsDatePicker: { backgroundColor: '#f8fafc', borderRadius: 10, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: COLORS.gray200 },
+  jsDatePickerRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
+  jsDatePickerCell: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 6, borderWidth: 1, borderColor: COLORS.gray200 },
+  jsDatePickerArrow: { fontSize: 13, color: COLORS.gray400, paddingHorizontal: 2 },
+  jsDatePickerLabel: { fontSize: 13, fontWeight: '700', color: COLORS.gray800, minWidth: 36, textAlign: 'center' },
+  jsDatePickerDoneBtn: { alignSelf: 'center', paddingHorizontal: 24, paddingVertical: 6, borderRadius: 20, backgroundColor: COLORS.primary },
+  jsDatePickerDoneText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+  // 키보드 액세서리 바
+  kbdBar: { backgroundColor: '#f3f4f6', flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderTopWidth: 1, borderTopColor: COLORS.gray200 },
+  kbdBarBtn: { paddingHorizontal: 10, paddingVertical: 4 },
+  kbdBarBtnText: { fontSize: 15, fontWeight: '600', color: COLORS.primary },
 });
