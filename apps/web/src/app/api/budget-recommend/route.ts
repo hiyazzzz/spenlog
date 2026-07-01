@@ -43,7 +43,7 @@ async function callGemini(prompt: string): Promise<string> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 500, temperature: 0.5 },
+        generationConfig: { maxOutputTokens: 1500, temperature: 0.5, thinkingConfig: { thinkingBudget: 0 } },
       }),
     }
   )
@@ -136,6 +136,4 @@ JSON만 출력. 설명 없음.
     return NextResponse.json({ amounts, reason, usedFallback, hasHistory })
   } catch (e) {
     console.error('[budget-recommend]', e)
-    return NextResponse.json({ error: 'API_ERROR' }, { status: 500 })
-  }
-}
+    return NextResponse.json({ error

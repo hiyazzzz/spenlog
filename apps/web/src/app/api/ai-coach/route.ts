@@ -60,7 +60,7 @@ JSON만 출력. 설명 금지.
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 400, temperature: 0.7 },
+          generationConfig: { maxOutputTokens: 1500, temperature: 0.7, thinkingConfig: { thinkingBudget: 0 } },
         }),
         signal: geminiController.signal,
       }
