@@ -190,8 +190,17 @@ export default function HistoryScreen() {
   }
 
   async function handleSave(id: string, updates: Partial<Expense>) {
-    await updateExpense(id, updates);
-    setData(d => d ? { ...d, expenses: d.expenses.map(e => e.id === id ? { ...e, ...updates } : e) } : d);
+    const { error } = await updateExpense(id, updates);
+    if (error) {
+      Alert.alert('저장 실패', '저장 중 오류가 발생했어요');
+      return;
+    }
+    setData(d => {
+      if (!d) return d;
+      const next = { ...d, expenses: d.expenses.map(e => e.id === id ? { ...e, ...updates } : e) };
+      useDataCache.getState().setHistory(next);
+      return next;
+    });
     useDataCache.getState().setHome(null);
     useDataCache.getState().setAssets(null);
     setEditingExpense(null);
@@ -641,7 +650,7 @@ function ExpenseRow({ expense, onTap, onPayCard, accountNames = new Set<string>(
             </View>
             <Text style={styles.rowName} numberOfLines={1}>{expense.name}</Text>
             <Text style={styles.rowMeta}>
-              {expense.category}{expense.payment_method ? ` · ${expense.payment_method}` : ''}
+              {expense.category ?? '없음'}{expense.payment_method ? ` · ${expense.payment_method}` : ''}
             </Text>
           </View>
           <View style={{ alignItems: 'flex-end', gap: 4 }}>
@@ -672,7 +681,7 @@ function ExpenseRow({ expense, onTap, onPayCard, accountNames = new Set<string>(
           )}
         </View>
         <Text style={styles.rowMeta}>
-          {expense.category}{expense.payment_method ? ` · ${expense.payment_method}` : ''}
+          {expense.category ?? '없음'}{expense.payment_method ? ` · ${expense.payment_method}` : ''}
         </Text>
       </View>
       <Text style={[styles.rowAmount, { color: isIncome ? COLORS.green : '#ef4444' }]}>
@@ -855,7 +864,7 @@ function EditRow({ expense, categories, paymentMethods, cardNames, accountNames,
 }) {
   const [name, setName] = useState(expense.name);
   const [amount, setAmount] = useState(String(expense.amount));
-  const [category, setCategory] = useState(expense.category);
+  const [category, setCategory] = useState<string>((expense.category as string | null) ?? '없음');
   const [type, setType] = useState<'expense' | 'income'>((expense.type ?? 'expense') === 'income' ? 'income' : 'expense');
   const [paymentMethod, setPaymentMethod] = useState(expense.payment_method ?? '');
   const [date, setDate] = useState(new Date(expense.date));

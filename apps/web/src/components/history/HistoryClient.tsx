@@ -651,7 +651,7 @@ function EditRow({ expense, onSave, onDelete, onCancel, userCategories, paymentM
   cards: {name:string}[]
   accounts: {id:string;name:string;balance:number}[]
 }) {
-  const [form, setForm] = useState({ ...expense, type: expense.type ?? 'expense', amount: expense.amount.toLocaleString(), payment_method: expense.payment_method ?? '' })
+  const [form, setForm] = useState({ ...expense, category: (expense.category as string | null) ?? '없음', type: expense.type ?? 'expense', amount: expense.amount.toLocaleString(), payment_method: expense.payment_method ?? '' })
   function u(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
 
   const catOptions = [...(userCategories && userCategories.length > 0 ? userCategories : (CATEGORIES as readonly string[])), '없음']
