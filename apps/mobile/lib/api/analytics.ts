@@ -24,7 +24,7 @@ export interface AnalyticsData {
 }
 
 export async function getAnalyticsData(userId: string, month?: string): Promise<AnalyticsData> {
-  const currentMonth = month ?? dayjs().format('YYYY-MM');
+  const currentMonth = month ?? dayjs().subtract(1, 'month').format('YYYY-MM');
   const prevMonth = dayjs(currentMonth).subtract(1, 'month').format('YYYY-MM');
   const nextMonthStart = dayjs(currentMonth).add(1, 'month').format('YYYY-MM');
 

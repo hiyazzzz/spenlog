@@ -45,10 +45,19 @@ export default function ReportClient({
   const [loadingCoach, setLoadingCoach] = useState(false)
   const [coachError, setCoachError] = useState('')
   const [coachErrorCode, setCoachErrorCode] = useState<'NO_DATA' | 'API_ERROR' | 'PREMIUM_REQUIRED' | ''>('')
+  const [catTab, setCatTab] = useState<'bar' | 'pie'>('bar')
+  const [btnOpacity, setBtnOpacity] = useState(1)
+  const [contentOpacity, setContentOpacity] = useState(0)
 
   const monthLabel = dayjs(currentMonth).format('YYYY년 M월')
   const isOldest = prevMonth < dayjs().subtract(6, 'month').format('YYYY-MM')
   const canGoNext = currentMonth < maxMonth
+
+  function loadCoachWithAnim() {
+    setBtnOpacity(0)
+    setTimeout(() => setContentOpacity(1), 200)
+    loadCoach()
+  }
 
   async function loadCoach() {
     if (coach) return
@@ -199,54 +208,101 @@ export default function ReportClient({
           </div>
         )}
 
-        {/* [4] 카테고리별 지출 */}
-        <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-4">
-          <p className="text-xs text-gray-400 mb-4">📊 카테고리별 지출</p>
-          <div className="space-y-4">
-            {catData.filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount).map(c => {
-              const over = c.budget > 0 && c.amount > c.budget
-              const barColor = c.budgetPct >= 90 ? '#ef4444' : c.budgetPct >= 70 ? '#f59e0b' : 'var(--color-primary)'
-              return (
-                <div key={c.cat}>
-                  <div className="flex justify-between items-center mb-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-gray-700">{c.cat}</span>
-                      {c.prevDiff !== null && (
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full
-                          ${Math.abs(c.prevDiff) >= 20
-                            ? c.prevDiff > 0 ? 'bg-rose-50 text-rose-400' : 'bg-emerald-50 text-emerald-500'
-                            : 'bg-gray-100 text-gray-400'}`}>
-                          {c.prevDiff > 0 ? '▲' : '▼'}{Math.abs(c.prevDiff)}%
-                          {c.prevDiff >= 20 && ' ⚠️'}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-sm font-bold text-gray-800">{c.amount.toLocaleString()}원</span>
-                  </div>
-                  {c.budget > 0 ? (
-                    <>
-                      <div className="bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                        <div className="h-full rounded-full transition-all duration-500"
-                          style={{ width: `${c.budgetPct}%`, background: barColor }} />
+        {/* [4] 카테고리별 지출 + 비율 (탭 전환) */}
+        {(() => {
+          const catColors = ['#6B1E2E', '#C4748A', '#E8A4B0', '#A85C6E', '#D4848E', '#7E3A4C', '#F0B0BC']
+          const sortedCats = catData.filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount)
+          const totalCatAmt = sortedCats.reduce((s, c) => s + c.amount, 0)
+          return (
+            <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-4">
+              <div className="flex gap-1 mb-4 p-0.5 rounded-lg" style={{ backgroundColor: '#f3f4f6' }}>
+                {(['bar', 'pie'] as const).map(t => (
+                  <button key={t} onClick={() => setCatTab(t)}
+                    className="flex-1 py-1.5 rounded-md text-xs font-semibold transition-colors"
+                    style={catTab === t
+                      ? { background: 'var(--color-primary)', color: '#fff' }
+                      : { background: 'transparent', color: '#9ca3af' }}>
+                    {t === 'bar' ? '카테고리별 지출' : '카테고리 비율'}
+                  </button>
+                ))}
+              </div>
+
+              {catTab === 'bar' && (
+                <div className="space-y-4">
+                  {sortedCats.map(c => {
+                    const over = c.budget > 0 && c.amount > c.budget
+                    const barColor = c.budgetPct >= 90 ? '#ef4444' : c.budgetPct >= 70 ? '#f59e0b' : 'var(--color-primary)'
+                    return (
+                      <div key={c.cat}>
+                        <div className="flex justify-between items-center mb-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-gray-700">{c.cat}</span>
+                            {c.prevDiff !== null && (
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full
+                                ${Math.abs(c.prevDiff) >= 20
+                                  ? c.prevDiff > 0 ? 'bg-rose-50 text-rose-400' : 'bg-emerald-50 text-emerald-500'
+                                  : 'bg-gray-100 text-gray-400'}`}>
+                                {c.prevDiff > 0 ? '▲' : '▼'}{Math.abs(c.prevDiff)}%
+                                {c.prevDiff >= 20 && ' ⚠️'}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-sm font-bold text-gray-800">{c.amount.toLocaleString()}원</span>
+                        </div>
+                        {c.budget > 0 ? (
+                          <>
+                            <div className="bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-500"
+                                style={{ width: `${c.budgetPct}%`, background: barColor }} />
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-0.5">
+                              예산 대비 {c.budgetPct}% {over && '(초과)'}
+                            </p>
+                          </>
+                        ) : (
+                          <div className="bg-gray-100 rounded-full h-1 overflow-hidden">
+                            <div className="h-full rounded-full bg-gray-300"
+                              style={{ width: `${totalSpent > 0 ? Math.round((c.amount / totalSpent) * 100) : 0}%` }} />
+                          </div>
+                        )}
                       </div>
-                      <p className="text-[10px] text-gray-400 mt-0.5">
-                        예산 대비 {c.budgetPct}% {over && '(초과)'}
-                      </p>
-                    </>
-                  ) : (
-                    <div className="bg-gray-100 rounded-full h-1 overflow-hidden">
-                      <div className="h-full rounded-full bg-gray-300"
-                        style={{ width: `${totalSpent > 0 ? Math.round((c.amount / totalSpent) * 100) : 0}%` }} />
-                    </div>
+                    )
+                  })}
+                  {sortedCats.length === 0 && (
+                    <p className="text-sm text-gray-400 text-center py-4">이달은 기록된 지출이 없어요</p>
                   )}
                 </div>
-              )
-            })}
-            {catData.every(c => c.amount === 0) && (
-              <p className="text-sm text-gray-400 text-center py-4">이달은 기록된 지출이 없어요</p>
-            )}
-          </div>
-        </div>
+              )}
+
+              {catTab === 'pie' && (
+                sortedCats.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">이달은 기록된 지출이 없어요</p>
+                ) : (
+                  <>
+                    <div className="flex h-4 rounded overflow-hidden gap-px mb-4">
+                      {sortedCats.map((c, i) => (
+                        <div key={c.cat} style={{ flex: c.amount, backgroundColor: catColors[i % catColors.length] }} />
+                      ))}
+                    </div>
+                    <div className="space-y-2">
+                      {sortedCats.map((c, i) => (
+                        <div key={c.cat} className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: catColors[i % catColors.length] }} />
+                          <span className="text-xs text-gray-600 flex-1">{c.cat}</span>
+                          <span className="text-xs font-bold text-gray-800 w-8 text-right">
+                            {totalCatAmt > 0 ? Math.round((c.amount / totalCatAmt) * 100) : 0}%
+                          </span>
+                          <span className="text-xs text-gray-500 w-20 text-right">{c.amount.toLocaleString()}원</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )
+              )}
+            </div>
+          )
+        })()}
 
         {/* [5] 3개월 패턴 */}
         {threeMonths && threeMonths[0].total > 0 && (
@@ -280,23 +336,22 @@ export default function ReportClient({
 
         {/* [6] AI 코치 */}
         <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs text-gray-400">🤖 AI 코치</p>
-            {!coach && !coachError && (
-              <button onClick={loadCoach} disabled={loadingCoach}
-                className="text-xs px-3 py-1.5 rounded-xl text-white font-semibold disabled:opacity-60"
-                style={{ background: 'var(--color-primary)' }}>
-                {loadingCoach ? '분석 중...' : 'AI 코치 받기'}
-              </button>
-            )}
-          </div>
+          <p className="text-xs text-gray-400 mb-3">🤖 AI 코치</p>
 
-          {/* 로딩 스켈레톤 */}
+          {!coach && !coachError && !loadingCoach && (
+            <div style={{ opacity: btnOpacity, transition: 'opacity 0.2s ease', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 0' }}>
+              <button onClick={loadCoachWithAnim}
+                className="text-xs px-5 py-2 rounded-xl text-white font-semibold"
+                style={{ background: 'var(--color-primary)' }}>
+                AI 코치 받기
+              </button>
+              <p className="text-xs text-gray-400 mt-2">AI가 이번 달 소비 패턴을 분석해드려요</p>
+            </div>
+          )}
+
           {loadingCoach && (
-            <div className="space-y-3 py-2">
-              <p className="text-xs text-center" style={{ color: 'var(--color-primary-mid)' }}>
-                AI가 분석 중이에요...
-              </p>
+            <div style={{ opacity: contentOpacity, transition: 'opacity 0.3s ease' }} className="space-y-3 py-2">
+              <p className="text-xs text-center" style={{ color: 'var(--color-primary-mid)' }}>AI가 분석 중이에요...</p>
               {[1, 2, 3].map(i => (
                 <div key={i} className="animate-pulse">
                   <div className="h-3 bg-gray-100 rounded w-24 mb-2" />
@@ -307,7 +362,6 @@ export default function ReportClient({
             </div>
           )}
 
-          {/* 에러 케이스별 UI */}
           {coachError && !loadingCoach && (
             <div className="text-center py-4">
               <p className="text-sm text-gray-500 mb-3">{coachError}</p>
@@ -333,8 +387,8 @@ export default function ReportClient({
             </div>
           )}
 
-          {coach ? (
-            <div className="space-y-4">
+          {coach && (
+            <div style={{ opacity: contentOpacity, transition: 'opacity 0.3s ease' }} className="space-y-4">
               {([
                 { step: '1', title: '패턴 진단', content: coach.step1 },
                 { step: '2', title: '동기부여', content: coach.step2 },
@@ -345,7 +399,6 @@ export default function ReportClient({
                   <p className="text-sm text-gray-600 leading-relaxed">{c}</p>
                 </div>
               ))}
-
               <div className="pt-3 border-t border-gray-50">
                 {hasEnoughData ? (
                   <a href="/assets" className="block w-full py-3 rounded-xl text-center text-sm font-semibold text-white"
@@ -353,17 +406,9 @@ export default function ReportClient({
                     다음 달 예산 AI 추천받기
                   </a>
                 ) : (
-                  <div className="text-center">
-                    <p className="text-xs text-gray-400">
-                      데이터가 쌓이면 예산 AI 추천이 활성화돼요
-                    </p>
-                  </div>
+                  <p className="text-xs text-gray-400 text-center">데이터가 쌓이면 예산 AI 추천이 활성화돼요</p>
                 )}
               </div>
-            </div>
-          ) : !loadingCoach && !coachError && (
-            <div className="text-center py-4">
-              <p className="text-sm text-gray-400">AI가 이번 달 소비 패턴을 분석해드려요</p>
             </div>
           )}
         </div>

@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useDataCache } from '@/store/dataCache';
 import dayjs from 'dayjs';
@@ -23,6 +23,9 @@ export default function ReportScreen() {
   const [coachLoading, setCoachLoading] = useState(false);
   const [coachErrorCode, setCoachErrorCode] = useState<CoachErrorCode | ''>('');
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [catTab, setCatTab] = useState<'bar' | 'pie'>('bar');
+  const buttonAnim = useRef(new Animated.Value(1)).current;
+  const contentAnim = useRef(new Animated.Value(0)).current;
 
   const load = useCallback(async (m?: string) => {
     try {
@@ -90,6 +93,19 @@ export default function ReportScreen() {
     else if (result.errorCode) setCoachErrorCode(result.errorCode);
     setCoachLoading(false);
   }
+
+  function loadCoachWithAnim() {
+    Animated.timing(buttonAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+      Animated.timing(contentAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+    });
+    loadCoach();
+  }
+
+  useEffect(() => {
+    buttonAnim.setValue(1);
+    contentAnim.setValue(0);
+    setCatTab('bar');
+  }, [month]);
 
   if (loading) {
     return (
@@ -205,20 +221,25 @@ export default function ReportScreen() {
           )}
 
           <View style={styles.card}>
-            <View style={styles.coachHeaderRow}>
-              <Text style={styles.cardLabel}>🤖 AI 코치</Text>
-              {!coach && !coachErrorCode && (
-                <TouchableOpacity style={[styles.coachBtn, { backgroundColor: themeColors.primary }]} onPress={loadCoach} disabled={coachLoading}>
-                  <Text style={styles.coachBtnText}>{coachLoading ? '분석 중...' : 'AI 코치 받기'}</Text>
+            <Text style={styles.cardLabel}>🤖 AI 코치</Text>
+
+            {!coach && !coachErrorCode && !coachLoading && (
+              <Animated.View style={{ opacity: buttonAnim, alignItems: 'center', paddingVertical: 16 }}>
+                <TouchableOpacity
+                  style={[styles.coachBtn, { backgroundColor: themeColors.primary }]}
+                  onPress={loadCoachWithAnim}
+                >
+                  <Text style={styles.coachBtnText}>AI 코치 받기</Text>
                 </TouchableOpacity>
-              )}
-            </View>
+                <Text style={[styles.emptyText, { marginTop: 8 }]}>AI가 이번 달 소비 패턴을 분석해드려요</Text>
+              </Animated.View>
+            )}
 
             {coachLoading && (
-              <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-                <ActivityIndicator color={COLORS.primaryMid} />
+              <Animated.View style={{ opacity: contentAnim, paddingVertical: 16, alignItems: 'center' }}>
+                <ActivityIndicator color={themeColors.primaryMid} />
                 <Text style={[styles.emptyText, { marginTop: 8 }]}>AI가 분석 중이에요...</Text>
-              </View>
+              </Animated.View>
             )}
 
             {!!coachErrorCode && !coachLoading && (
@@ -241,8 +262,8 @@ export default function ReportScreen() {
               </View>
             )}
 
-            {coach ? (
-              <View style={{ gap: 14 }}>
+            {coach && (
+              <Animated.View style={{ opacity: contentAnim, gap: 14 }}>
                 {([
                   { step: '1', title: '패턴 진단', content: coach.step1 },
                   { step: '2', title: '동기부여', content: coach.step2 },
@@ -262,17 +283,27 @@ export default function ReportScreen() {
                     <Text style={[styles.emptyText, { textAlign: 'center' }]}>데이터가 쌓이면 예산 AI 추천이 활성화돼요</Text>
                   )}
                 </View>
-              </View>
-            ) : !coachLoading && !coachErrorCode && (
-              <View style={{ paddingVertical: 12, alignItems: 'center' }}>
-                <Text style={styles.emptyText}>AI가 이번 달 소비 패턴을 분석해드려요</Text>
-              </View>
+              </Animated.View>
             )}
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.cardLabel}>📊 카테고리별 지출</Text>
-            {catData.filter(c => c.amount > 0).length === 0 ? (
+            <View style={styles.catTabRow}>
+              <TouchableOpacity
+                style={[styles.catTabBtn, catTab === 'bar' && { backgroundColor: themeColors.primary }]}
+                onPress={() => setCatTab('bar')}
+              >
+                <Text style={[styles.catTabBtnText, catTab === 'bar' && styles.catTabBtnTextActive]}>카테고리별 지출</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.catTabBtn, catTab === 'pie' && { backgroundColor: themeColors.primary }]}
+                onPress={() => setCatTab('pie')}
+              >
+                <Text style={[styles.catTabBtnText, catTab === 'pie' && styles.catTabBtnTextActive]}>카테고리 비율</Text>
+              </TouchableOpacity>
+            </View>
+
+            {catTab === 'bar' && (catData.filter(c => c.amount > 0).length === 0 ? (
               <Text style={[styles.emptyText, { paddingVertical: 16 }]}>이달은 기록된 지출이 없어요</Text>
             ) : (
               <View style={{ gap: 16 }}>
@@ -323,6 +354,44 @@ export default function ReportScreen() {
                   );
                 })}
               </View>
+            ))}
+
+            {catTab === 'pie' && (
+              donutData.length === 0 ? (
+                <Text style={[styles.emptyText, { paddingVertical: 16 }]}>이달은 기록된 지출이 없어요</Text>
+              ) : (
+                <>
+                  <View style={styles.donutBarRow}>
+                    {donutData.map((item, i) => (
+                      <View
+                        key={item.cat}
+                        style={[
+                          styles.donutBarSegment,
+                          {
+                            flex: item.thisAmt,
+                            backgroundColor: CAT_COLORS[i % CAT_COLORS.length],
+                            borderRadius: i === 0 ? 4 : i === donutData.length - 1 ? 4 : 0,
+                          },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                  <View style={{ gap: 8, marginTop: 12 }}>
+                    {donutData.map((item, i) => (
+                      <View key={item.cat} style={styles.legendRow}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                          <View style={[styles.legendDot, { backgroundColor: CAT_COLORS[i % CAT_COLORS.length] }]} />
+                          <Text style={styles.legendLabel}>{item.cat}</Text>
+                        </View>
+                        <Text style={styles.legendPct}>
+                          {Math.round((item.thisAmt / analyticsData!.thisTotal) * 100)}%
+                        </Text>
+                        <Text style={styles.legendAmt}>{formatCurrency(item.thisAmt)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )
             )}
           </View>
 
@@ -387,41 +456,6 @@ export default function ReportScreen() {
             </View>
           )}
 
-          {/* 카테고리 비율 */}
-          {donutData.length > 0 && (
-            <View style={styles.card}>
-              <Text style={styles.cardLabel}>🥧 카테고리 비율</Text>
-              <View style={styles.donutBarRow}>
-                {donutData.map((item, i) => (
-                  <View
-                    key={item.cat}
-                    style={[
-                      styles.donutBarSegment,
-                      {
-                        flex: item.thisAmt,
-                        backgroundColor: CAT_COLORS[i % CAT_COLORS.length],
-                        borderRadius: i === 0 ? 4 : i === donutData.length - 1 ? 4 : 0,
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
-              <View style={{ gap: 8, marginTop: 12 }}>
-                {donutData.map((item, i) => (
-                  <View key={item.cat} style={styles.legendRow}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                      <View style={[styles.legendDot, { backgroundColor: CAT_COLORS[i % CAT_COLORS.length] }]} />
-                      <Text style={styles.legendLabel}>{item.cat}</Text>
-                    </View>
-                    <Text style={styles.legendPct}>
-                      {Math.round((item.thisAmt / analyticsData!.thisTotal) * 100)}%
-                    </Text>
-                    <Text style={styles.legendAmt}>{formatCurrency(item.thisAmt)}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
         </>
       )}
     </ScrollView>
@@ -487,7 +521,11 @@ const styles = StyleSheet.create({
   patternValue: { fontSize: 11, fontWeight: '700', color: COLORS.gray700, width: 80, textAlign: 'right' },
   patternComment: { fontSize: 11, color: COLORS.gray500, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.gray50 },
 
-  coachHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  catTabRow: { flexDirection: 'row', gap: 4, marginBottom: 12, backgroundColor: COLORS.gray100, borderRadius: RADIUS.md, padding: 3 },
+  catTabBtn: { flex: 1, paddingVertical: 6, borderRadius: RADIUS.sm, alignItems: 'center' },
+  catTabBtnText: { fontSize: 11, fontWeight: '600', color: COLORS.gray400 },
+  catTabBtnTextActive: { color: '#fff' },
+
   coachBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: RADIUS.lg, backgroundColor: COLORS.primary },
   coachBtnText: { fontSize: 11, fontWeight: '700', color: '#fff' },
   coachStepTitle: { fontSize: 12, fontWeight: '700', color: COLORS.gray700, marginBottom: 4 },
