@@ -11,6 +11,8 @@ import { parseAiInput, addExpenses } from '@/lib/api/expenses';
 import HomeEditModal from '@/components/HomeEditModal';
 import SlideUpModal from '@/components/SlideUpModal';
 import { useThemeStore } from '@/store/themeStore';
+import dayjs from 'dayjs';
+import GroupedDropdownPicker, { type GroupedItem } from '@/components/GroupedDropdownPicker';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -32,6 +34,9 @@ export default function HomeScreen() {
   const [editCategory, setEditCategory] = useState('');
   const [editAmount, setEditAmount] = useState('');
   const [editType, setEditType] = useState<'expense' | 'income'>('expense');
+  const [editDate, setEditDate] = useState('');
+  const [editPayment, setEditPayment] = useState('');
+  const [showEditDatePicker, setShowEditDatePicker] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -69,6 +74,9 @@ export default function HomeScreen() {
             budgets: [],
             categories: catNames.filter(n => n !== '수입').map(n => ({ name: n, color: null })),
             fixedCosts: [],
+            paymentMethods: [],
+            cardNames: [],
+            accountNames: [],
           } as unknown as HomeData);
         } else {
           // 비로그인 (게스트 아님): 환영 화면
@@ -437,34 +445,68 @@ export default function HomeScreen() {
                       onChangeText={setEditName}
                       placeholder="이름"
                     />
-                    {editType === 'expense' && (
+                    {editType === 'expense' && data && (
+                      <View style={{ marginBottom: 6 }}>
+                        <GroupedDropdownPicker
+                          value={editCategory}
+                          items={data.categories.map(c => ({ type: 'item' as const, label: c.name, value: c.name }))}
+                          onSelect={setEditCategory}
+                          placeholder="카테고리 선택"
+                          inline
+                        />
+                      </View>
+                    )}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                       <TextInput
-                        style={styles.confirmEditInput}
-                        value={editCategory}
-                        onChangeText={setEditCategory}
-                        placeholder="카테고리"
+                        style={[styles.confirmEditInput, { flex: 1, marginBottom: 0 }]}
+                        value={editAmount}
+                        onChangeText={setEditAmount}
+                        placeholder="금액"
+                        keyboardType="numeric"
+                      />
+                      <Text style={{ fontSize: 14, color: COLORS.gray700, fontWeight: '600' }}>원</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.confirmEditInput, { justifyContent: 'center' }]}
+                      onPress={() => setShowEditDatePicker(p => !p)}
+                    >
+                      <Text style={{ fontSize: 13, color: editDate ? COLORS.gray800 : COLORS.gray400 }}>{editDate || '날짜 선택'}</Text>
+                    </TouchableOpacity>
+                    {showEditDatePicker && (
+                      <ConfirmJSDatePicker
+                        date={new Date(editDate || Date.now())}
+                        onChange={d => setEditDate(dayjs(d).format('YYYY-MM-DD'))}
+                        onClose={() => setShowEditDatePicker(false)}
                       />
                     )}
-                    <TextInput
-                      style={styles.confirmEditInput}
-                      value={editAmount}
-                      onChangeText={setEditAmount}
-                      placeholder="금액"
-                      keyboardType="numeric"
-                    />
-                    <TouchableOpacity onPress={() => {
-                      const updated = [...confirmItems];
-                      updated[idx] = {
-                        ...updated[idx],
-                        name: editName,
-                        category: editType === 'income' ? '수입' : editCategory,
-                        amount: parseInt(editAmount) || updated[idx].amount,
-                        type: editType,
-                      };
-                      setConfirmItems(updated);
-                      setEditingIdx(null);
-                    }}>
-                      <Text style={{ color: COLORS.primary, fontWeight: '700', marginTop: 6 }}>완료</Text>
+                    <View style={{ marginBottom: 6 }}>
+                      <GroupedDropdownPicker
+                        value={editPayment}
+                        items={buildConfirmPaymentItems(data?.cardNames ?? [], data?.accountNames ?? [])}
+                        onSelect={setEditPayment}
+                        placeholder="결제수단 (선택)"
+                        inline
+                      />
+                    </View>
+                    <TouchableOpacity
+                      style={{ backgroundColor: COLORS.primary, borderRadius: RADIUS.md, paddingVertical: 10, alignItems: 'center', marginTop: 4 }}
+                      onPress={() => {
+                        const updated = [...confirmItems];
+                        updated[idx] = {
+                          ...updated[idx],
+                          name: editName,
+                          category: editType === 'income' ? '수입' : editCategory,
+                          amount: parseInt(editAmount) || updated[idx].amount,
+                          type: editType,
+                          date: editDate || updated[idx].date,
+                          payment_method: editPayment || undefined,
+                        };
+                        setConfirmItems(updated);
+                        setEditingIdx(null);
+                        setShowEditDatePicker(false);
+                      }}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>저장</Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -483,6 +525,9 @@ export default function HomeScreen() {
                           setEditCategory(item.category);
                           setEditAmount(String(item.amount));
                           setEditType(item.type === 'income' ? 'income' : 'expense');
+                          setEditDate(item.date ?? dayjs().format('YYYY-MM-DD'));
+                          setEditPayment(item.payment_method ?? '');
+                          setShowEditDatePicker(false);
                         }} style={styles.confirmActionBtn}>
                           <Text style={styles.confirmActionBtnText}>✏️ 수정</Text>
                         </TouchableOpacity>
@@ -541,6 +586,60 @@ export default function HomeScreen() {
     </View>
   );
 }
+
+const EXTRA_CONFIRM_PAY = ['현금', '계좌이체'];
+function buildConfirmPaymentItems(cardNames: string[], accountNames: string[]): GroupedItem[] {
+  return [
+    ...(cardNames.length > 0 ? [{ type: 'header' as const, label: '카드' }, ...cardNames.map(n => ({ type: 'item' as const, label: n, value: n }))] : []),
+    ...(accountNames.length > 0 ? [{ type: 'header' as const, label: '계좌' }, ...accountNames.map(n => ({ type: 'item' as const, label: n, value: n }))] : []),
+    { type: 'header' as const, label: '기타' },
+    ...EXTRA_CONFIRM_PAY.map(m => ({ type: 'item' as const, label: m, value: m })),
+  ];
+}
+
+function ConfirmJSDatePicker({ date, onChange, onClose }: { date: Date; onChange: (d: Date) => void; onClose: () => void }) {
+  const d = dayjs(date);
+  const adj = (unit: 'year' | 'month' | 'date', delta: number) => {
+    if (unit === 'date') { onChange(d.add(delta, 'day').toDate()); return; }
+    const y = unit === 'year' ? d.year() + delta : d.year();
+    const m = unit === 'month' ? d.month() + delta : d.month();
+    const maxDay = dayjs(new Date(y, m, 1)).daysInMonth();
+    onChange(new Date(y, m, Math.min(d.date(), maxDay)));
+  };
+  return (
+    <View style={confirmPickerStyles.wrap}>
+      <View style={confirmPickerStyles.row}>
+        {([
+          { unit: 'year' as const, label: `${d.year()}년` },
+          { unit: 'month' as const, label: `${d.month() + 1}월` },
+          { unit: 'date' as const, label: `${d.date()}일` },
+        ]).map(({ unit, label }) => (
+          <View key={unit} style={confirmPickerStyles.cell}>
+            <TouchableOpacity onPress={() => adj(unit, -1)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}>
+              <Text style={confirmPickerStyles.arrow}>◀</Text>
+            </TouchableOpacity>
+            <Text style={confirmPickerStyles.label}>{label}</Text>
+            <TouchableOpacity onPress={() => adj(unit, 1)} hitSlop={{ top: 10, bottom: 10, left: 4, right: 10 }}>
+              <Text style={confirmPickerStyles.arrow}>▶</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
+      <TouchableOpacity onPress={onClose} style={confirmPickerStyles.doneBtn}>
+        <Text style={confirmPickerStyles.doneTxt}>완료</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+const confirmPickerStyles = StyleSheet.create({
+  wrap: { backgroundColor: '#f8fafc', borderRadius: 10, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: COLORS.gray200 },
+  row: { flexDirection: 'row', gap: 6, marginBottom: 8 },
+  cell: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 6, borderWidth: 1, borderColor: COLORS.gray200 },
+  arrow: { fontSize: 13, color: COLORS.gray400, paddingHorizontal: 2 },
+  label: { fontSize: 13, fontWeight: '700', color: COLORS.gray800, minWidth: 36, textAlign: 'center' },
+  doneBtn: { alignSelf: 'center', paddingHorizontal: 24, paddingVertical: 6, borderRadius: 20, backgroundColor: COLORS.primary },
+  doneTxt: { fontSize: 13, fontWeight: '700', color: '#fff' },
+});
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.bg },

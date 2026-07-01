@@ -8,17 +8,22 @@ export interface HomeData {
   budgets: Budget[]
   categories: { name: string; color: string | null }[]
   fixedCosts: Pick<FixedCost, 'amount' | 'kind'>[]
+  paymentMethods: string[]
+  cardNames: string[]
+  accountNames: string[]
 }
 
 export async function getHomeData(userId: string): Promise<HomeData> {
   const thisMonth = monthString()
 
   const [
-    { data: profile, error: profileError },
-    { data: expenses, error: expensesError },
-    { data: budgets, error: budgetsError },
-    { data: categories, error: categoriesError },
-    { data: fixedCosts, error: fixedCostsError },
+    { data: profile },
+    { data: expenses },
+    { data: budgets },
+    { data: categories },
+    { data: fixedCosts },
+    { data: cards },
+    { data: accs },
   ] = await Promise.all([
     supabase.from('users').select('*').eq('id', userId).single(),
     supabase.from('expenses').select('*').eq('user_id', userId)
@@ -26,7 +31,16 @@ export async function getHomeData(userId: string): Promise<HomeData> {
     supabase.from('budgets').select('*').eq('user_id', userId).eq('month', thisMonth),
     supabase.from('categories').select('name, color').eq('user_id', userId).eq('is_hidden', false).order('sort_order'),
     supabase.from('fixed_costs').select('amount, kind').eq('user_id', userId),
+    supabase.from('cards').select('name').eq('user_id', userId),
+    supabase.from('accounts').select('name').eq('user_id', userId),
   ])
+
+  const cardNames = (cards ?? []).map((c: { name: string }) => c.name)
+  const accountNames = (accs ?? []).map((a: { name: string }) => a.name)
+  const paymentMethods = [...new Set([
+    ...cardNames,
+    ...(expenses ?? []).map((e: Expense) => e.payment_method).filter(Boolean),
+  ])] as string[]
 
   return {
     profile: (profile as User) ?? null,
@@ -34,6 +48,9 @@ export async function getHomeData(userId: string): Promise<HomeData> {
     budgets: (budgets as Budget[]) ?? [],
     categories: categories ?? [],
     fixedCosts: (fixedCosts as Pick<FixedCost, 'amount' | 'kind'>[]) ?? [],
+    paymentMethods,
+    cardNames,
+    accountNames,
   }
 }
 
