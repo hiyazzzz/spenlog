@@ -35,6 +35,7 @@ export interface ReportData {
   maxTotal: number
   patternComment: string
   hasEnoughData: boolean
+  hasCoachCache: boolean
 }
 
 export async function getReportData(userId: string, month?: string): Promise<ReportData> {
@@ -54,6 +55,7 @@ export async function getReportData(userId: string, month?: string): Promise<Rep
     { data: prev2Expenses },
     { data: budgets },
     { data: categoriesData },
+    { data: cachedReport },
   ] = await Promise.all([
     supabase.from('users').select('*').eq('id', userId).single(),
     supabase.from('expenses').select('*').eq('user_id', userId)
@@ -64,14 +66,16 @@ export async function getReportData(userId: string, month?: string): Promise<Rep
       .gte('date', `${prev2Month}-01`).lt('date', `${prevMonth}-01`),
     supabase.from('budgets').select('*').eq('user_id', userId).eq('month', safeMonth),
     supabase.from('categories').select('name').eq('user_id', userId).eq('is_hidden', false).order('sort_order'),
+    supabase.from('reports').select('ai_coach').eq('user_id', userId).eq('year_month', safeMonth).single(),
   ])
 
   const totalSpent = expenses?.filter((e: any) => (e.type ?? 'expense') === 'expense').reduce((s: number, e: any) => s + e.amount, 0) ?? 0
   const prevTotalSpent = prevExpenses?.filter((e: any) => (e.type ?? 'expense') === 'expense').reduce((s: number, e: any) => s + e.amount, 0) ?? 0
   const prev2TotalSpent = prev2Expenses?.filter((e: any) => (e.type ?? 'expense') === 'expense').reduce((s: number, e: any) => s + e.amount, 0) ?? 0
-  const income = profile?.income ?? 0
   const savingGoal = profile?.saving_goal ?? 0
-  const savedAmount = income > 0 ? Math.max(0, income - totalSpent) : 0
+
+  // 실제 저축 기록 합산 (홈화면과 동일 기준)
+  const savedAmount = expenses?.filter((e: any) => e.type === 'savings').reduce((s: number, e: any) => s + e.amount, 0) ?? 0
   const savingPct = savingGoal > 0 ? Math.min(Math.round((savedAmount / savingGoal) * 100), 100) : 0
   const spendingDiff = prevTotalSpent > 0 ? Math.round(((totalSpent - prevTotalSpent) / prevTotalSpent) * 100) : null
 
@@ -126,6 +130,7 @@ export async function getReportData(userId: string, month?: string): Promise<Rep
     maxTotal,
     patternComment,
     hasEnoughData: prevTotalSpent > 0,
+    hasCoachCache: !!(cachedReport?.ai_coach),
   }
 }
 
@@ -135,7 +140,7 @@ export interface Coach {
   step3: string
 }
 
-export type CoachErrorCode = 'NO_DATA' | 'API_ERROR' | 'PREMIUM_REQUIRED'
+export type CoachErrorCode = 'NO_DATA' | 'API_ERROR' | 'PREMIUM_REQUIRED' | 'MONTH_NOT_COMPLETE'
 
 export interface CoachResult {
   coach?: Coach
@@ -160,7 +165,7 @@ export async function getAiCoach(userId: string, report: ReportData): Promise<Co
           prevTotalSpent: report.prevTotalSpent,
           savingGoal: report.savingGoal,
           savedAmount: report.savedAmount,
-          catData: report.catData.map(c => ({ cat: c.cat, amount: c.amount, prevAmount: c.prevAmount })),
+          catData: report.catData.map(c => ({ cat: c.cat, amount: c.amount, prevAmount: c.prevAmount, budget: c.budget })),
         }),
         signal: controller.signal,
       })
@@ -170,6 +175,7 @@ export async function getAiCoach(userId: string, report: ReportData): Promise<Co
     const data = await res.json()
     if (data.coach) return { coach: data.coach }
     if (data.error === 'PREMIUM_REQUIRED') return { errorCode: 'PREMIUM_REQUIRED' }
+    if (data.error === 'MONTH_NOT_COMPLETE') return { errorCode: 'MONTH_NOT_COMPLETE' }
     return { errorCode: 'API_ERROR' }
   } catch {
     return { errorCode: 'API_ERROR' }

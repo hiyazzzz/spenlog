@@ -22,6 +22,7 @@ export default function ReportScreen() {
   const [coach, setCoach] = useState<Coach | null>(null);
   const [coachLoading, setCoachLoading] = useState(false);
   const [coachErrorCode, setCoachErrorCode] = useState<CoachErrorCode | ''>('');
+  const [hasCoachCache, setHasCoachCache] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [catTab, setCatTab] = useState<'bar' | 'pie'>('bar');
   const buttonAnim = useRef(new Animated.Value(1)).current;
@@ -63,6 +64,7 @@ export default function ReportScreen() {
       setMonth(data.currentMonth);
       setCoach(null);
       setCoachErrorCode('');
+      setHasCoachCache(data.hasCoachCache);
     } catch (e) {
       setError(e instanceof Error ? e.message : '리포트를 불러오지 못했어요');
     } finally {
@@ -232,9 +234,11 @@ export default function ReportScreen() {
                   style={[styles.coachBtn, { backgroundColor: themeColors.primary }]}
                   onPress={loadCoachWithAnim}
                 >
-                  <Text style={styles.coachBtnText}>AI 코치 받기</Text>
+                  <Text style={styles.coachBtnText}>{hasCoachCache ? '🔓 AI 코치 보기' : '🔒 AI 코치 받기'}</Text>
                 </TouchableOpacity>
-                <Text style={[styles.emptyText, { marginTop: 8 }]}>AI가 이번 달 소비 패턴을 분석해드려요</Text>
+                <Text style={[styles.emptyText, { marginTop: 8 }]}>
+                  {hasCoachCache ? '이미 분석된 결과가 있어요' : 'AI가 이번 달 소비 패턴을 분석해드려요'}
+                </Text>
               </Animated.View>
             )}
 
@@ -250,6 +254,7 @@ export default function ReportScreen() {
                 <Text style={[styles.emptyText, { marginBottom: 12 }]}>
                   {coachErrorCode === 'NO_DATA' ? '이 달 기록된 지출이 없어요'
                     : coachErrorCode === 'PREMIUM_REQUIRED' ? '3개월 무료 체험이 끝났어요'
+                    : coachErrorCode === 'MONTH_NOT_COMPLETE' ? '이번 달이 끝나면 코치를 받을 수 있어요'
                     : 'AI 코치를 일시적으로 이용할 수 없어요'}
                 </Text>
                 {coachErrorCode === 'API_ERROR' && (

@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { isPremiumUnlocked } from '@/lib/premium'
+import dayjs from 'dayjs'
 
 interface CoachInput {
   yearMonth: string
@@ -7,25 +9,34 @@ interface CoachInput {
   prevTotalSpent: number
   savingGoal: number
   savedAmount: number
-  catData: { cat: string; amount: number; prevAmount: number }[]
+  catData: { cat: string; amount: number; prevAmount: number; budget?: number }[]
   userId?: string // 모바일 앱은 쿠키 세션이 없어 직접 전달
 }
 
 async function generateCoach(input: CoachInput): Promise<{ step1: string; step2: string; step3: string }> {
-  const topIncrease = [...input.catData]
-    .filter(c => c.prevAmount > 0)
-    .sort((a, b) => (b.amount - b.prevAmount) / b.prevAmount - (a.amount - a.prevAmount) / a.prevAmount)[0]
+  // 지출 금액 1위
+  const topSpending = [...input.catData]
+    .filter(c => c.amount > 0)
+    .sort((a, b) => b.amount - a.amount)[0]
+
+  // 예산 초과 1위 (초과 금액 기준)
+  const topOverBudget = [...input.catData]
+    .filter(c => (c.budget ?? 0) > 0 && c.amount > (c.budget ?? 0))
+    .sort((a, b) => (b.amount - (b.budget ?? 0)) - (a.amount - (a.budget ?? 0)))[0]
 
   const diff = input.prevTotalSpent > 0
     ? Math.round(((input.totalSpent - input.prevTotalSpent) / input.prevTotalSpent) * 100)
     : null
 
+  const monthLabel = dayjs(input.yearMonth).format('M월')
+
   const prompt = `당신은 친근한 한국어 가계부 AI 코치예요. 아래 데이터를 바탕으로 3단계 코칭 메시지를 JSON으로 작성해주세요.
 
 데이터:
-- 이번 달(${input.yearMonth}): ${input.totalSpent.toLocaleString()}원 지출
+- ${monthLabel}(${input.yearMonth}): ${input.totalSpent.toLocaleString()}원 지출
 - 전월 대비: ${diff !== null ? (diff > 0 ? `▲${diff}% 증가` : `▼${Math.abs(diff)}% 감소`) : '데이터 없음'}
-- 가장 많이 증가한 카테고리: ${topIncrease ? `${topIncrease.cat} (${topIncrease.prevAmount.toLocaleString()}원 → ${topIncrease.amount.toLocaleString()}원)` : '없음'}
+- 지출 금액 1위 카테고리: ${topSpending ? `${topSpending.cat} (${topSpending.amount.toLocaleString()}원)` : '없음'}
+- 예산 초과 1위 카테고리: ${topOverBudget ? `${topOverBudget.cat} (예산 ${(topOverBudget.budget ?? 0).toLocaleString()}원 → 실제 ${topOverBudget.amount.toLocaleString()}원)` : '없음'}
 - 저축 목표: ${input.savingGoal > 0 ? `${input.savingGoal.toLocaleString()}원` : '미설정'}
 - 실제 저축: ${input.savingGoal > 0 ? `${input.savedAmount.toLocaleString()}원 (${Math.round((input.savedAmount / input.savingGoal) * 100)}%)` : '미설정'}
 
@@ -64,6 +75,18 @@ export async function POST(req: Request) {
     const { yearMonth } = body
     const userId = user?.id ?? body.userId
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    // 완료된 달만 코치 생성 가능
+    const thisMonth = dayjs().format('YYYY-MM')
+    if (yearMonth >= thisMonth) {
+      return NextResponse.json({ error: 'MONTH_NOT_COMPLETE' }, { status: 400 })
+    }
+
+    // 프리미엄 체크 (NEXT_PUBLIC_PREMIUM_BYPASS=true 시 항상 통과)
+    const { data: u } = await supabase.from('users').select('*').eq('id', userId).single()
+    if (!isPremiumUnlocked(u)) {
+      return NextResponse.json({ error: 'PREMIUM_REQUIRED' }, { status: 403 })
+    }
 
     // 캐시 확인
     const { data: cached } = await supabase

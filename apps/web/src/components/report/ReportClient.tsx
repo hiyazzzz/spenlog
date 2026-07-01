@@ -44,7 +44,7 @@ export default function ReportClient({
   const [coach, setCoach] = useState<Coach | null>(cachedCoach)
   const [loadingCoach, setLoadingCoach] = useState(false)
   const [coachError, setCoachError] = useState('')
-  const [coachErrorCode, setCoachErrorCode] = useState<'NO_DATA' | 'API_ERROR' | 'PREMIUM_REQUIRED' | ''>('')
+  const [coachErrorCode, setCoachErrorCode] = useState<'NO_DATA' | 'API_ERROR' | 'PREMIUM_REQUIRED' | 'MONTH_NOT_COMPLETE' | ''>('')
   const [catTab, setCatTab] = useState<'bar' | 'pie'>('bar')
   const [btnOpacity, setBtnOpacity] = useState(1)
   const [contentOpacity, setContentOpacity] = useState(0)
@@ -78,7 +78,7 @@ export default function ReportClient({
         body: JSON.stringify({
           yearMonth: currentMonth,
           totalSpent, prevTotalSpent, savingGoal, savedAmount,
-          catData: catData.map(c => ({ cat: c.cat, amount: c.amount, prevAmount: c.prevAmount })),
+          catData: catData.map(c => ({ cat: c.cat, amount: c.amount, prevAmount: c.prevAmount, budget: c.budget })),
         }),
       })
       const data = await res.json()
