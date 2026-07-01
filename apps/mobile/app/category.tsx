@@ -4,7 +4,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
-import { COLORS, RADIUS, formatCurrency } from '@/constants/theme';
+import { COLORS, RADIUS, formatCurrency, useThemeColors } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
 import {
   ensureDefaultCategories, addCategory, renameCategory, hideCategory, restoreCategory,
@@ -24,6 +24,7 @@ async function saveGuestCats(cats: CategoryItem[]) {
 }
 
 export default function CategoryScreen() {
+  const { themeColors } = useThemeColors();
   const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
@@ -181,7 +182,7 @@ export default function CategoryScreen() {
           <View style={styles.rowBody}>
             {isEditing ? (
               <TextInput
-                style={styles.editInput}
+                style={[styles.editInput, { borderColor: themeColors.primaryLight }]}
                 value={editName}
                 onChangeText={setEditName}
                 maxLength={10}
@@ -229,14 +230,14 @@ export default function CategoryScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>카테고리 관리</Text>
         {reordering
-          ? <ActivityIndicator size="small" color={COLORS.primary} style={styles.backBtn} />
+          ? <ActivityIndicator size="small" color={themeColors.primary} style={styles.backBtn} />
           : <View style={styles.backBtn} />
         }
       </View>
 
       {loading ? (
         <View style={[styles.center, { flex: 1 }]}>
-          <ActivityIndicator color={COLORS.primary} />
+          <ActivityIndicator color={themeColors.primary} />
         </View>
       ) : error ? (
         <View style={[styles.center, { flex: 1 }]}>
@@ -257,7 +258,7 @@ export default function CategoryScreen() {
               {adding ? (
                 <View style={styles.addRow}>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { borderColor: themeColors.primaryLight }]}
                     placeholder="카테고리명"
                     placeholderTextColor={COLORS.gray400}
                     value={newName}
@@ -266,7 +267,7 @@ export default function CategoryScreen() {
                     autoFocus
                     onSubmitEditing={handleAdd}
                   />
-                  <TouchableOpacity style={styles.confirmBtn} onPress={handleAdd} disabled={saving || !newName.trim()}>
+                  <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: themeColors.primary }]} onPress={handleAdd} disabled={saving || !newName.trim()}>
                     <Text style={styles.confirmBtnText}>{saving ? '추가 중...' : '추가'}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.cancelBtn} onPress={() => { setAdding(false); setNewName(''); }}>
@@ -274,8 +275,8 @@ export default function CategoryScreen() {
                   </TouchableOpacity>
                 </View>
               ) : (
-                <TouchableOpacity style={styles.addBtn} onPress={() => setAdding(true)}>
-                  <Text style={styles.addBtnText}>+ 카테고리 추가</Text>
+                <TouchableOpacity style={[styles.addBtn, { borderColor: themeColors.primaryLight }]} onPress={() => setAdding(true)}>
+                  <Text style={[styles.addBtnText, { color: themeColors.primary }]}>+ 카테고리 추가</Text>
                 </TouchableOpacity>
               )}
 

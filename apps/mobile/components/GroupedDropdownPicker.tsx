@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Dimensions } from 'react-native';
-import { COLORS, RADIUS } from '@/constants/theme';
+import { COLORS, RADIUS, useThemeColors } from '@/constants/theme';
 
 const GROUPED_PANEL_MAX = 300;
 
@@ -19,6 +19,7 @@ interface Props {
 export default function GroupedDropdownPicker({
   value, items, onSelect, placeholder = '선택하세요', inline = false,
 }: Props) {
+  const { themeColors } = useThemeColors();
   const [open, setOpen] = useState(false);
   const [panelMaxH, setPanelMaxH] = useState(GROUPED_PANEL_MAX);
   const [panelPos, setPanelPos] = useState<{ top?: number; bottom?: number; left: number; width: number }>({ left: 0, width: 0 });
@@ -53,7 +54,7 @@ export default function GroupedDropdownPicker({
     return (
       <TouchableOpacity
         key={item.value}
-        style={[styles.itemRow, active && styles.itemRowActive]}
+        style={[styles.itemRow, active && styles.itemRowActive, active && { backgroundColor: themeColors.primary }]}
         onPress={() => { onSelect(item.value); setOpen(false); }}
         activeOpacity={0.7}
       >

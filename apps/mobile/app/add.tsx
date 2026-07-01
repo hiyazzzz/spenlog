@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Activi
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import dayjs from 'dayjs';
-import { COLORS, RADIUS } from '@/constants/theme';
+import { COLORS, RADIUS, useThemeColors } from '@/constants/theme';
 import { getCurrentUserId, supabase } from '@/lib/supabase';
 import { getAssetsData } from '@/lib/api/assets';
 import { addExpense } from '@/lib/api/expenses';
@@ -43,6 +43,7 @@ function DropdownPicker({
   onSelect: (v: string) => void;
   placeholder?: string;
 }) {
+  const { themeColors } = useThemeColors();
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -60,7 +61,7 @@ function DropdownPicker({
               {options.map(opt => (
                 <TouchableOpacity
                   key={opt}
-                  style={[styles.dropdownItem, value === opt && styles.dropdownItemActive]}
+                  style={[styles.dropdownItem, value === opt && styles.dropdownItemActive, value === opt && { backgroundColor: themeColors.primary }]}
                   onPress={() => { onSelect(opt); setOpen(false); }}
                   activeOpacity={0.7}
                 >
@@ -96,6 +97,7 @@ function SaveToast({ visible }: { visible: boolean }) {
 }
 
 export default function AddExpenseScreen() {
+  const { themeColors } = useThemeColors();
   const router = useRouter();
   const params = useLocalSearchParams<{ type?: string }>();
   const [userId, setUserId] = useState<string | null>(null);
@@ -281,7 +283,7 @@ export default function AddExpenseScreen() {
   if (loading) {
     return (
       <View style={[styles.screen, styles.center]}>
-        <ActivityIndicator color={COLORS.primary} />
+        <ActivityIndicator color={themeColors.primary} />
       </View>
     );
   }
@@ -290,7 +292,7 @@ export default function AddExpenseScreen() {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.headerRow}>
-        <Text style={styles.pageTitle}>직접 입력</Text>
+        <Text style={[styles.pageTitle, { color: themeColors.accent }]}>직접 입력</Text>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.cancelText}>취소</Text>
         </TouchableOpacity>
@@ -301,7 +303,7 @@ export default function AddExpenseScreen() {
         {TYPE_CONFIG.map(({ key, label }) => (
           <TouchableOpacity
             key={key}
-            style={[styles.typeToggleBtn, type === key && styles.typeToggleBtnActive]}
+            style={[styles.typeToggleBtn, type === key && styles.typeToggleBtnActive, type === key && { backgroundColor: themeColors.primary }]}
             onPress={() => { setType(key); resetTypeState(); }}
           >
             <Text style={[styles.typeToggleText, type === key && styles.typeToggleTextActive]}>{label}</Text>
@@ -420,7 +422,7 @@ export default function AddExpenseScreen() {
 
       {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-      <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving}>
+      <TouchableOpacity style={[styles.saveBtn, { backgroundColor: themeColors.primary }, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving}>
         <Text style={styles.saveBtnText}>
           {saving ? '저장 중...' :
            type === 'expense' ? '지출 저장' :
