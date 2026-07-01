@@ -1,12 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import {
-  Animated,
-  Easing,
   KeyboardAvoidingView,
   Modal,
   Platform,
   StyleSheet,
   TouchableOpacity,
+  View,
 } from 'react-native';
 
 interface Props {
@@ -22,34 +21,9 @@ export default function SlideUpModal({
   children,
   dismissOnBackdrop = true,
 }: Props) {
-  const [internalVisible, setInternalVisible] = useState(false);
-  const translateY = useRef(new Animated.Value(300)).current;
-
-  useEffect(() => {
-    if (visible) {
-      setInternalVisible(true);
-      translateY.setValue(300);
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 280,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(translateY, {
-        toValue: 300,
-        duration: 220,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) setInternalVisible(false);
-      });
-    }
-  }, [visible]);
-
   return (
     <Modal
-      visible={internalVisible}
+      visible={visible}
       transparent
       animationType="none"
       onRequestClose={onRequestClose}
@@ -65,9 +39,7 @@ export default function SlideUpModal({
             onPress={onRequestClose}
           />
         )}
-        <Animated.View style={{ transform: [{ translateY }] }}>
-          {children}
-        </Animated.View>
+        <View>{children}</View>
       </KeyboardAvoidingView>
     </Modal>
   );

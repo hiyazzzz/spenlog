@@ -983,8 +983,8 @@ function EditRow({ expense, categories, paymentMethods, cardNames, accountNames,
 
 function TransferEditRow({ expense, onSave, onDelete, onCancel }: { expense: Expense; onSave: (u: Partial<Expense>) => void; onDelete: () => void; onCancel: () => void }) {
   const parts = expense.name.includes('→') ? expense.name.split('→').map(s => s.trim()) : [expense.name, ''];
-  const [fromText, setFromText] = useState(parts[0]);
-  const [toText, setToText] = useState(parts[1] || '');
+  const [fromText, setFromText] = useState(parts[0] || expense.payment_method || '');
+  const [toText, setToText] = useState(parts[1] || expense.memo?.replace('[이체] ', '') || '');
   const [amount, setAmount] = useState(String(expense.amount));
   return (
     <View style={[styles.editBox, { backgroundColor: '#fafafa' }]}>

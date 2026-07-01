@@ -204,29 +204,71 @@ export default function ReportScreen() {
             </View>
           )}
 
-          {savingGoal > 0 && (
-            <View style={styles.card}>
-              <Text style={styles.cardLabel}>🎯 저축 목표 달성률</Text>
-              <View style={styles.goalRow}>
-                <View>
-                  <Text style={[styles.goalAmount, { color: goalAchieved ? COLORS.green : themeColors.accent }]}>
-                    {formatCurrency(savedAmount)}
-                  </Text>
-                  <Text style={styles.goalSub}>목표 {formatCurrency(savingGoal)}</Text>
-                </View>
-                <Text style={[styles.goalPct, { color: goalAchieved ? COLORS.green : savingPct >= 70 ? COLORS.amber : COLORS.red }]}>
-                  {savingPct}%
-                </Text>
-              </View>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, {
-                  width: `${savingPct}%`,
-                  backgroundColor: goalAchieved ? COLORS.green : savingPct >= 70 ? COLORS.amber : COLORS.red,
-                }]} />
-              </View>
-              {goalAchieved && <Text style={styles.goalAchievedText}>🎉 목표 달성! 대단해요</Text>}
+          <View style={styles.card}>
+            <View style={styles.coachHeaderRow}>
+              <Text style={styles.cardLabel}>🤖 AI 코치</Text>
+              {!coach && !coachErrorCode && (
+                <TouchableOpacity style={[styles.coachBtn, { backgroundColor: themeColors.primary }]} onPress={loadCoach} disabled={coachLoading}>
+                  <Text style={styles.coachBtnText}>{coachLoading ? '분석 중...' : 'AI 코치 받기'}</Text>
+                </TouchableOpacity>
+              )}
             </View>
-          )}
+
+            {coachLoading && (
+              <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                <ActivityIndicator color={COLORS.primaryMid} />
+                <Text style={[styles.emptyText, { marginTop: 8 }]}>AI가 분석 중이에요...</Text>
+              </View>
+            )}
+
+            {!!coachErrorCode && !coachLoading && (
+              <View style={{ alignItems: 'center', paddingVertical: 12 }}>
+                <Text style={[styles.emptyText, { marginBottom: 12 }]}>
+                  {coachErrorCode === 'NO_DATA' ? '이 달 기록된 지출이 없어요'
+                    : coachErrorCode === 'PREMIUM_REQUIRED' ? '3개월 무료 체험이 끝났어요'
+                    : 'AI 코치를 일시적으로 이용할 수 없어요'}
+                </Text>
+                {coachErrorCode === 'API_ERROR' && (
+                  <TouchableOpacity style={[styles.coachBtn, { backgroundColor: themeColors.primary }]} onPress={loadCoach}>
+                    <Text style={styles.coachBtnText}>다시 시도</Text>
+                  </TouchableOpacity>
+                )}
+                {coachErrorCode === 'NO_DATA' && (
+                  <TouchableOpacity style={[styles.coachBtn, { backgroundColor: themeColors.primary }]} onPress={() => router.push('/(tabs)')}>
+                    <Text style={styles.coachBtnText}>지출 기록하러 가기</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {coach ? (
+              <View style={{ gap: 14 }}>
+                {([
+                  { step: '1', title: '패턴 진단', content: coach.step1 },
+                  { step: '2', title: '동기부여', content: coach.step2 },
+                  { step: '3', title: '행동 제안', content: coach.step3 },
+                ] as const).map(({ step, title, content }) => (
+                  <View key={title}>
+                    <Text style={styles.coachStepTitle}>{step} {title}</Text>
+                    <Text style={styles.coachStepContent}>{content}</Text>
+                  </View>
+                ))}
+                <View style={styles.coachFooter}>
+                  {hasEnoughData ? (
+                    <TouchableOpacity style={[styles.coachCta, { backgroundColor: themeColors.primary }]} onPress={() => router.push('/(tabs)/assets')}>
+                      <Text style={styles.coachCtaText}>다음 달 예산 AI 추천받기</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <Text style={[styles.emptyText, { textAlign: 'center' }]}>데이터가 쌓이면 예산 AI 추천이 활성화돼요</Text>
+                  )}
+                </View>
+              </View>
+            ) : !coachLoading && !coachErrorCode && (
+              <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                <Text style={styles.emptyText}>AI가 이번 달 소비 패턴을 분석해드려요</Text>
+              </View>
+            )}
+          </View>
 
           <View style={styles.card}>
             <Text style={styles.cardLabel}>📊 카테고리별 지출</Text>
@@ -310,71 +352,6 @@ export default function ReportScreen() {
             </View>
           )}
 
-          <View style={styles.card}>
-            <View style={styles.coachHeaderRow}>
-              <Text style={styles.cardLabel}>🤖 AI 코치</Text>
-              {!coach && !coachErrorCode && (
-                <TouchableOpacity style={[styles.coachBtn, { backgroundColor: themeColors.primary }]} onPress={loadCoach} disabled={coachLoading}>
-                  <Text style={styles.coachBtnText}>{coachLoading ? '분석 중...' : 'AI 코치 받기'}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {coachLoading && (
-              <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-                <ActivityIndicator color={COLORS.primaryMid} />
-                <Text style={[styles.emptyText, { marginTop: 8 }]}>AI가 분석 중이에요...</Text>
-              </View>
-            )}
-
-            {!!coachErrorCode && !coachLoading && (
-              <View style={{ alignItems: 'center', paddingVertical: 12 }}>
-                <Text style={[styles.emptyText, { marginBottom: 12 }]}>
-                  {coachErrorCode === 'NO_DATA' ? '이 달 기록된 지출이 없어요'
-                    : coachErrorCode === 'PREMIUM_REQUIRED' ? '3개월 무료 체험이 끝났어요'
-                    : 'AI 코치를 일시적으로 이용할 수 없어요'}
-                </Text>
-                {coachErrorCode === 'API_ERROR' && (
-                  <TouchableOpacity style={[styles.coachBtn, { backgroundColor: themeColors.primary }]} onPress={loadCoach}>
-                    <Text style={styles.coachBtnText}>다시 시도</Text>
-                  </TouchableOpacity>
-                )}
-                {coachErrorCode === 'NO_DATA' && (
-                  <TouchableOpacity style={[styles.coachBtn, { backgroundColor: themeColors.primary }]} onPress={() => router.push('/(tabs)')}>
-                    <Text style={styles.coachBtnText}>지출 기록하러 가기</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-
-            {coach ? (
-              <View style={{ gap: 14 }}>
-                {([
-                  { step: '1', title: '패턴 진단', content: coach.step1 },
-                  { step: '2', title: '동기부여', content: coach.step2 },
-                  { step: '3', title: '행동 제안', content: coach.step3 },
-                ] as const).map(({ step, title, content }) => (
-                  <View key={title}>
-                    <Text style={styles.coachStepTitle}>{step} {title}</Text>
-                    <Text style={styles.coachStepContent}>{content}</Text>
-                  </View>
-                ))}
-                <View style={styles.coachFooter}>
-                  {hasEnoughData ? (
-                    <TouchableOpacity style={[styles.coachCta, { backgroundColor: themeColors.primary }]} onPress={() => router.push('/(tabs)/assets')}>
-                      <Text style={styles.coachCtaText}>다음 달 예산 AI 추천받기</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <Text style={[styles.emptyText, { textAlign: 'center' }]}>데이터가 쌓이면 예산 AI 추천이 활성화돼요</Text>
-                  )}
-                </View>
-              </View>
-            ) : !coachLoading && !coachErrorCode && (
-              <View style={{ paddingVertical: 12, alignItems: 'center' }}>
-                <Text style={styles.emptyText}>AI가 이번 달 소비 패턴을 분석해드려요</Text>
-              </View>
-            )}
-          </View>
           {/* 일별 지출 바 차트 */}
           {analyticsData && analyticsData.dailyData.length > 0 && (
             <View style={styles.card}>

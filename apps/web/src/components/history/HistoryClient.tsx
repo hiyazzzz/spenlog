@@ -759,7 +759,7 @@ function TransferEditRow({ expense, accounts, onSaveTransfer, onDelete, onCancel
   onCancel: () => void
 }) {
   const parts = expense.name.includes('→') ? expense.name.split('→').map((s: string) => s.trim()) : [expense.name, '']
-  const origFrom = parts[0]
+  const origFrom = parts[0] || expense.payment_method || ''
   const origTo = parts[1] || expense.memo?.replace('[이체] ', '') || ''
   const [fromAcc, setFromAcc] = useState(origFrom)
   const [toAcc, setToAcc] = useState(origTo)
@@ -792,12 +792,12 @@ function TransferEditRow({ expense, accounts, onSaveTransfer, onDelete, onCancel
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <select value={fromAcc} onChange={e => setFromAcc(e.target.value)} style={{ ...selectStyle, fontSize: 16 }}>
-          {accNames.length === 0 && <option value={origFrom}>{origFrom}</option>}
+          {origFrom && !accNames.includes(origFrom) && <option value={origFrom}>{origFrom}</option>}
           {accNames.map(n => <option key={n} value={n}>{n}</option>)}
         </select>
         <span style={{ color: '#9ca3af', flexShrink: 0 }}>→</span>
         <select value={toAcc} onChange={e => setToAcc(e.target.value)} style={{ ...selectStyle, fontSize: 16 }}>
-          {accNames.length === 0 && <option value={origTo}>{origTo}</option>}
+          {origTo && !accNames.includes(origTo) && <option value={origTo}>{origTo}</option>}
           {accNames.map(n => <option key={n} value={n}>{n}</option>)}
         </select>
       </div>

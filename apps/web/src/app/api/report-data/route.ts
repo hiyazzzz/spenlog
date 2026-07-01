@@ -43,9 +43,10 @@ export async function GET(request: Request) {
     supabase.from('categories').select('name').eq('user_id', user.id).eq('is_hidden', false).order('sort_order'),
   ])
 
-  const totalSpent = expenses?.filter(e => (e.type ?? 'expense') === 'expense').reduce((s, e) => s + e.amount, 0) ?? 0
-  const prevTotalSpent = prevExpenses?.filter(e => (e.type ?? 'expense') === 'expense').reduce((s, e) => s + e.amount, 0) ?? 0
-  const prev2TotalSpent = prev2Expenses?.filter(e => (e.type ?? 'expense') === 'expense').reduce((s, e) => s + e.amount, 0) ?? 0
+  const isExpense = (e: any) => (e.type ?? (e.category === '수입' ? 'income' : 'expense')) === 'expense'
+  const totalSpent = expenses?.filter(isExpense).reduce((s, e) => s + e.amount, 0) ?? 0
+  const prevTotalSpent = prevExpenses?.filter(isExpense).reduce((s, e) => s + e.amount, 0) ?? 0
+  const prev2TotalSpent = prev2Expenses?.filter(isExpense).reduce((s, e) => s + e.amount, 0) ?? 0
   const income = profile?.income ?? 0
   const savingGoal = profile?.saving_goal ?? 0
   const savedAmount = income > 0 ? Math.max(0, income - totalSpent) : 0

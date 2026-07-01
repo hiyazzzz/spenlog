@@ -430,7 +430,7 @@ export default function HomeScreen() {
                       {(['expense', 'income'] as const).map(t => (
                         <TouchableOpacity
                           key={t}
-                          style={[styles.confirmTypeBtn, editType === t && styles.confirmTypeBtnActive]}
+                          style={[styles.confirmTypeBtn, editType === t && [styles.confirmTypeBtnActive, { backgroundColor: themeColors.primary }]]}
                           onPress={() => setEditType(t)}
                         >
                           <Text style={[styles.confirmTypeBtnText, editType === t && styles.confirmTypeBtnTextActive]}>
@@ -489,7 +489,7 @@ export default function HomeScreen() {
                       />
                     </View>
                     <TouchableOpacity
-                      style={{ backgroundColor: COLORS.primary, borderRadius: RADIUS.md, paddingVertical: 10, alignItems: 'center', marginTop: 4 }}
+                      style={{ backgroundColor: themeColors.primary, borderRadius: RADIUS.md, paddingVertical: 10, alignItems: 'center', marginTop: 4 }}
                       onPress={() => {
                         const updated = [...confirmItems];
                         updated[idx] = {
@@ -555,7 +555,7 @@ export default function HomeScreen() {
             </ScrollView>
 
             <View style={styles.confirmButtons}>
-              <TouchableOpacity style={styles.confirmSaveBtn} onPress={handleConfirmSave}>
+              <TouchableOpacity style={[styles.confirmSaveBtn, { backgroundColor: themeColors.primary }]} onPress={handleConfirmSave}>
                 <Text style={styles.confirmSaveBtnText}>저장</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => { setShowConfirm(false); setConfirmItems([]); }}>
@@ -570,7 +570,7 @@ export default function HomeScreen() {
             <View style={styles.fabSheetHandle} />
             <Text style={styles.fabSheetTitle}>기록하기</Text>
             <TouchableOpacity
-              style={[styles.fabSheetBtn, { backgroundColor: COLORS.redBg }]}
+              style={[styles.fabSheetBtn, { backgroundColor: themeColors.primaryLight }]}
               onPress={() => { setFabOpen(false); router.push('/add?type=expense'); }}
             >
               <Text style={styles.fabSheetBtnText}>💸 지출 기록</Text>
