@@ -46,17 +46,28 @@ JSON만 출력. 설명 금지.
 
 각 메시지는 2문장 이내, 따뜻하고 친근한 말투로.`
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 400, temperature: 0.7 },
-      }),
-    }
-  )
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) throw new Error('GEMINI_API_KEY not configured')
+
+  const geminiController = new AbortController()
+  const geminiTimer = setTimeout(() => geminiController.abort(), 18000)
+  let res: Response
+  try {
+    res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 400, temperature: 0.7 },
+        }),
+        signal: geminiController.signal,
+      }
+    )
+  } finally {
+    clearTimeout(geminiTimer)
+  }
 
   if (!res.ok) throw new Error(`Gemini error ${res.status}`)
   const data = await res.json()

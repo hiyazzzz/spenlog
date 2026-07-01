@@ -3,12 +3,11 @@ import { Animated, View, Text, StyleSheet, ScrollView, TouchableOpacity, Activit
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useDataCache } from '@/store/dataCache';
 import dayjs from 'dayjs';
-import { COLORS, RADIUS, formatCurrency, getThemeColors, useAppTheme } from '@/constants/theme';
+import { COLORS, RADIUS, formatCurrency, getThemeColors, getThemeCardPalette, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
 import { getReportData, getAiCoach, type ReportData, type Coach, type CoachErrorCode } from '@/lib/api/report';
 import { getAnalyticsData, type AnalyticsData } from '@/lib/api/analytics';
 
-const CAT_COLORS = ['#6B1E2E', '#C4748A', '#E8A4B0', '#A85C6E', '#D4848E', '#7E3A4C', '#F0B0BC'];
 
 export default function ReportScreen() {
   const router = useRouter();
@@ -24,11 +23,11 @@ export default function ReportScreen() {
   const [coachErrorCode, setCoachErrorCode] = useState<CoachErrorCode | ''>('');
   const [hasCoachCache, setHasCoachCache] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
-  const [catTab, setCatTab] = useState<'bar' | 'pie'>('bar');
+  const [slideTab, setSlideTab] = useState<'budget' | 'ratio' | 'daily'>('budget');
   const buttonAnim = useRef(new Animated.Value(1)).current;
   const contentAnim = useRef(new Animated.Value(0)).current;
-  const catScrollRef = useRef<ScrollView>(null);
-  const [catPageWidth, setCatPageWidth] = useState(0);
+  const slideScrollRef = useRef<ScrollView>(null);
+  const [slidePageWidth, setSlidePageWidth] = useState(0);
 
   const load = useCallback(async (m?: string) => {
     try {
@@ -108,8 +107,8 @@ export default function ReportScreen() {
   useEffect(() => {
     buttonAnim.setValue(1);
     contentAnim.setValue(0);
-    setCatTab('bar');
-    catScrollRef.current?.scrollTo({ x: 0, animated: false });
+    setSlideTab('budget');
+    slideScrollRef.current?.scrollTo({ x: 0, animated: false });
   }, [month]);
 
   if (loading) {
@@ -139,14 +138,15 @@ export default function ReportScreen() {
   const canGoNext = currentMonth < maxMonth;
   const goalAchieved = savingGoal > 0 && savedAmount >= savingGoal;
   const themeColors = getThemeColors(report.profile?.theme);
+  const cardPalette = getThemeCardPalette(report.profile?.theme);
   const headerBg = goalAchieved ? COLORS.green : themeColors.primary;
 
   const headerTitle = goalAchieved
     ? '저축 목표 달성! 🎉'
-    : spendingDiff !== null && spendingDiff < 0
-      ? '이번 달 잘 아꼈어요 🌿'
-      : savingGoal > 0
-        ? `목표까지 ${formatCurrency(savingGoal - savedAmount)}`
+    : savingGoal > 0
+      ? '조금 아쉽지만, 다음 달엔 꼭! 💪'
+      : spendingDiff !== null && spendingDiff < 0
+        ? '이번 달 잘 아꼈어요 🌿'
         : `${formatCurrency(totalSpent)} 지출`;
 
   // 분석 데이터 (daysInMonth, todayDay, cumulativeData는 early return 이전에 선언됨)
@@ -203,6 +203,12 @@ export default function ReportScreen() {
                 <View>
                   <Text style={styles.headerStatLabel}>달성률</Text>
                   <Text style={styles.headerStatValue}>{savingPct}%</Text>
+                </View>
+              )}
+              {savingGoal > 0 && !goalAchieved && (
+                <View>
+                  <Text style={styles.headerStatLabel}>목표 잔여</Text>
+                  <Text style={styles.headerStatValue}>{formatCurrency(savingGoal - savedAmount)}</Text>
                 </View>
               )}
             </View>
@@ -295,19 +301,22 @@ export default function ReportScreen() {
             )}
           </View>
 
+          {/* 3-카드 슬라이드: 예산 사용량 / 카테고리 비율 / 일별 지출 */}
           <View style={styles.card}>
-            <View onLayout={e => setCatPageWidth(p => p || e.nativeEvent.layout.width)}>
+            <View onLayout={e => { const w = e?.nativeEvent?.layout?.width; if (w) setSlidePageWidth(p => p || w); }}>
               <ScrollView
-                ref={catScrollRef}
+                ref={slideScrollRef}
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
                 onMomentumScrollEnd={e => {
-                  const page = Math.round(e.nativeEvent.contentOffset.x / catPageWidth);
-                  setCatTab(page === 0 ? 'bar' : 'pie');
+                  const page = Math.round(e.nativeEvent.contentOffset.x / slidePageWidth);
+                  setSlideTab(page === 0 ? 'budget' : page === 1 ? 'ratio' : 'daily');
                 }}
               >
-                <View style={{ width: catPageWidth }}>
+                {/* 카드 1: 예산 사용량 */}
+                <View style={{ width: slidePageWidth }}>
+                  <Text style={styles.cardLabel}>💰 예산 사용량</Text>
                   {catData.filter(c => c.amount > 0).length === 0 ? (
                     <Text style={[styles.emptyText, { paddingVertical: 16 }]}>이달은 기록된 지출이 없어요</Text>
                   ) : (
@@ -361,7 +370,10 @@ export default function ReportScreen() {
                     </View>
                   )}
                 </View>
-                <View style={{ width: catPageWidth }}>
+
+                {/* 카드 2: 카테고리 비율 */}
+                <View style={{ width: slidePageWidth }}>
+                  <Text style={styles.cardLabel}>🥧 카테고리 비율</Text>
                   {donutData.length === 0 ? (
                     <Text style={[styles.emptyText, { paddingVertical: 16 }]}>이달은 기록된 지출이 없어요</Text>
                   ) : (
@@ -374,45 +386,85 @@ export default function ReportScreen() {
                               styles.donutBarSegment,
                               {
                                 flex: item.thisAmt,
-                                backgroundColor: CAT_COLORS[i % CAT_COLORS.length],
+                                backgroundColor: cardPalette[i % cardPalette.length],
                                 borderRadius: i === 0 ? 4 : i === donutData.length - 1 ? 4 : 0,
                               },
                             ]}
                           />
                         ))}
                       </View>
-                      <View style={{ gap: 8, marginTop: 12 }}>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
                         {donutData.map((item, i) => (
-                          <View key={item.cat} style={styles.legendRow}>
+                          <View key={item.cat} style={[styles.legendRow, { width: '48%' }]}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                              <View style={[styles.legendDot, { backgroundColor: CAT_COLORS[i % CAT_COLORS.length] }]} />
-                              <Text style={styles.legendLabel}>{item.cat}</Text>
+                              <View style={[styles.legendDot, { backgroundColor: cardPalette[i % cardPalette.length] }]} />
+                              <Text style={[styles.legendLabel, { flex: 1 }]} numberOfLines={1}>{item.cat}</Text>
                             </View>
                             <Text style={styles.legendPct}>
-                              {Math.round((item.thisAmt / analyticsData!.thisTotal) * 100)}%
+                              {Math.round((item.thisAmt / (analyticsData?.thisTotal ?? 1)) * 100)}%
                             </Text>
-                            <Text style={styles.legendAmt}>{formatCurrency(item.thisAmt)}</Text>
                           </View>
                         ))}
                       </View>
                     </>
                   )}
                 </View>
+
+                {/* 카드 3: 일별 지출 */}
+                <View style={{ width: slidePageWidth }}>
+                  <Text style={styles.cardLabel}>📅 일별 지출</Text>
+                  {analyticsData && analyticsData.dailyData.length > 0 ? (
+                    <>
+                      <View style={styles.barChartWrap}>
+                        {cumulativeData.map(d => {
+                          const pct = maxDaily > 0 ? d.daily / maxDaily : 0;
+                          const isToday = d.day === todayDay && dayjs().format('YYYY-MM') === currentMonth;
+                          return (
+                            <View key={d.day} style={styles.barCol}>
+                              <View style={styles.barTrack}>
+                                <View style={[
+                                  styles.barFill,
+                                  {
+                                    height: `${Math.max(pct * 100, d.daily > 0 ? 4 : 0)}%`,
+                                    backgroundColor: isToday ? themeColors.primary : themeColors.primaryMid,
+                                  },
+                                ]} />
+                              </View>
+                              {(d.day === 1 || d.day === Math.ceil(daysInMonth / 2) || d.day === daysInMonth) && (
+                                <Text style={styles.barLabel}>{d.day}</Text>
+                              )}
+                            </View>
+                          );
+                        })}
+                      </View>
+                      <View style={styles.cumWrap}>
+                        <Text style={styles.cumLabel}>누적 지출</Text>
+                        <Text style={[styles.cumValue, { color: themeColors.primary }]}>
+                          {formatCurrency(cumulativeData[todayDay - 1]?.cum ?? analyticsData.thisTotal)}
+                        </Text>
+                      </View>
+                    </>
+                  ) : (
+                    <Text style={[styles.emptyText, { paddingVertical: 16 }]}>일별 데이터가 없어요</Text>
+                  )}
+                </View>
               </ScrollView>
             </View>
+
+            {/* 슬라이드 도트 인디케이터 */}
             <View style={styles.catDotRow}>
-              <TouchableOpacity
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                onPress={() => { catScrollRef.current?.scrollTo({ x: 0, animated: true }); setCatTab('bar'); }}
-              >
-                <View style={[styles.catDot, catTab === 'bar' && { backgroundColor: themeColors.primary }]} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                onPress={() => { catScrollRef.current?.scrollTo({ x: catPageWidth, animated: true }); setCatTab('pie'); }}
-              >
-                <View style={[styles.catDot, catTab === 'pie' && { backgroundColor: themeColors.primary }]} />
-              </TouchableOpacity>
+              {(['budget', 'ratio', 'daily'] as const).map((tab, i) => (
+                <TouchableOpacity
+                  key={tab}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={() => {
+                    slideScrollRef.current?.scrollTo({ x: slidePageWidth * i, animated: true });
+                    setSlideTab(tab);
+                  }}
+                >
+                  <View style={[styles.catDot, slideTab === tab && { backgroundColor: themeColors.primary }]} />
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
 
@@ -439,41 +491,6 @@ export default function ReportScreen() {
               {patternComment && (
                 <Text style={styles.patternComment}>{patternComment}</Text>
               )}
-            </View>
-          )}
-
-          {/* 일별 지출 바 차트 */}
-          {analyticsData && analyticsData.dailyData.length > 0 && (
-            <View style={styles.card}>
-              <Text style={styles.cardLabel}>📅 일별 지출</Text>
-              <View style={styles.barChartWrap}>
-                {cumulativeData.map(d => {
-                  const pct = maxDaily > 0 ? d.daily / maxDaily : 0;
-                  const isToday = d.day === todayDay && dayjs().format('YYYY-MM') === currentMonth;
-                  return (
-                    <View key={d.day} style={styles.barCol}>
-                      <View style={styles.barTrack}>
-                        <View style={[
-                          styles.barFill,
-                          {
-                            height: `${Math.max(pct * 100, d.daily > 0 ? 4 : 0)}%`,
-                            backgroundColor: isToday ? themeColors.primary : themeColors.primaryMid,
-                          },
-                        ]} />
-                      </View>
-                      {(d.day === 1 || d.day === Math.ceil(daysInMonth / 2) || d.day === daysInMonth) && (
-                        <Text style={styles.barLabel}>{d.day}</Text>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-              <View style={styles.cumWrap}>
-                <Text style={styles.cumLabel}>누적 지출</Text>
-                <Text style={[styles.cumValue, { color: themeColors.primary }]}>
-                  {formatCurrency(cumulativeData[todayDay - 1]?.cum ?? analyticsData.thisTotal)}
-                </Text>
-              </View>
             </View>
           )}
 

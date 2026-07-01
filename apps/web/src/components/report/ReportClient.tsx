@@ -72,21 +72,33 @@ export default function ReportClient({
         setLoadingCoach(false)
         return
       }
-      const res = await fetch('/api/ai-coach', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          yearMonth: currentMonth,
-          totalSpent, prevTotalSpent, savingGoal, savedAmount,
-          catData: catData.map(c => ({ cat: c.cat, amount: c.amount, prevAmount: c.prevAmount, budget: c.budget })),
-        }),
-      })
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 20000)
+      let res: Response
+      try {
+        res = await fetch('/api/ai-coach', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            yearMonth: currentMonth,
+            totalSpent, prevTotalSpent, savingGoal, savedAmount,
+            catData: catData.map(c => ({ cat: c.cat, amount: c.amount, prevAmount: c.prevAmount, budget: c.budget })),
+          }),
+          signal: controller.signal,
+        })
+      } finally {
+        clearTimeout(timer)
+      }
       const data = await res.json()
       if (data.coach) {
         setCoach(data.coach)
       } else if (data.error === 'PREMIUM_REQUIRED') {
         setCoachErrorCode('PREMIUM_REQUIRED')
         setCoachError('3개월 무료 체험이 끝났어요')
+      } else if (data.error === 'MONTH_NOT_COMPLETE') {
+        setCoachErrorCode('MONTH_NOT_COMPLETE')
+        setCoachError('이번 달이 끝나면 코치를 받을 수 있어요')
       } else {
         setCoachErrorCode('API_ERROR')
         setCoachError('AI 코치를 일시적으로 이용할 수 없어요')
@@ -139,10 +151,10 @@ export default function ReportClient({
           <p className="text-2xl font-extrabold mb-3">
             {goalAchieved
               ? '저축 목표 달성! 🎉'
-              : spendingDiff !== null && spendingDiff < 0
-                ? '이번 달 잘 아꼈어요 🌿'
-                : savingGoal > 0
-                  ? `목표까지 ${(savingGoal - savedAmount).toLocaleString()}원`
+              : savingGoal > 0
+                ? '조금 아쉽지만, 다음 달엔 꼭! 💪'
+                : spendingDiff !== null && spendingDiff < 0
+                  ? '이번 달 잘 아꼈어요 🌿'
                   : `${totalSpent.toLocaleString()}원 지출`}
           </p>
           <div className="flex gap-5 text-sm flex-wrap">
@@ -162,10 +174,95 @@ export default function ReportClient({
                 <p className="font-bold">{savingPct}%</p>
               </div>
             )}
+            {savingGoal > 0 && !goalAchieved && (
+              <div>
+                <p className="opacity-60 text-xs">목표 잔여</p>
+                <p className="font-bold">{(savingGoal - savedAmount).toLocaleString()}원</p>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* [2] 총 지출 전월 대비 */}
+        {/* AI 코치 */}
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-4">
+          <p className="text-xs text-gray-400 mb-3">🤖 AI 코치</p>
+
+          {!coach && !coachError && !loadingCoach && (
+            <div style={{ opacity: btnOpacity, transition: 'opacity 0.2s ease', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 0' }}>
+              <button onClick={loadCoachWithAnim}
+                className="text-xs px-5 py-2 rounded-xl text-white font-semibold"
+                style={{ background: 'var(--color-primary)' }}>
+                AI 코치 받기
+              </button>
+              <p className="text-xs text-gray-400 mt-2">AI가 이번 달 소비 패턴을 분석해드려요</p>
+            </div>
+          )}
+
+          {loadingCoach && (
+            <div style={{ opacity: contentOpacity, transition: 'opacity 0.3s ease' }} className="space-y-3 py-2">
+              <p className="text-xs text-center" style={{ color: 'var(--color-primary-mid)' }}>AI가 분석 중이에요...</p>
+              {[1, 2, 3].map(i => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-3 bg-gray-100 rounded w-24 mb-2" />
+                  <div className="h-4 bg-gray-100 rounded w-full mb-1" />
+                  <div className="h-4 bg-gray-100 rounded w-4/5" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {coachError && !loadingCoach && (
+            <div className="text-center py-4">
+              <p className="text-sm text-gray-500 mb-3">{coachError}</p>
+              {coachErrorCode === 'NO_DATA' && (
+                <a href="/" className="inline-block text-sm font-semibold px-4 py-2 rounded-xl text-white"
+                  style={{ background: 'var(--color-primary)' }}>
+                  지출 기록하러 가기
+                </a>
+              )}
+              {coachErrorCode === 'API_ERROR' && (
+                <button onClick={() => { setCoachError(''); setCoachErrorCode(''); loadCoach() }}
+                  className="text-sm font-semibold px-4 py-2 rounded-xl text-white"
+                  style={{ background: 'var(--color-primary)' }}>
+                  다시 시도
+                </button>
+              )}
+              {coachErrorCode === 'PREMIUM_REQUIRED' && (
+                <a href="/premium" className="inline-block text-sm font-semibold px-4 py-2 rounded-xl text-white"
+                  style={{ background: 'var(--color-primary)' }}>
+                  프리미엄 시작하기
+                </a>
+              )}
+            </div>
+          )}
+
+          {coach && (
+            <div style={{ opacity: contentOpacity, transition: 'opacity 0.3s ease' }} className="space-y-4">
+              {([
+                { step: '1', title: '패턴 진단', content: coach.step1 },
+                { step: '2', title: '동기부여', content: coach.step2 },
+                { step: '3', title: '행동 제안', content: coach.step3 },
+              ] as const).map(({ step, title, content: c }) => (
+                <div key={title}>
+                  <p className="text-xs font-bold text-gray-700 mb-1">{step} {title}</p>
+                  <p className="text-sm text-gray-600 leading-relaxed">{c}</p>
+                </div>
+              ))}
+              <div className="pt-3 border-t border-gray-50">
+                {hasEnoughData ? (
+                  <a href="/assets" className="block w-full py-3 rounded-xl text-center text-sm font-semibold text-white"
+                    style={{ background: 'var(--color-primary)' }}>
+                    다음 달 예산 AI 추천받기
+                  </a>
+                ) : (
+                  <p className="text-xs text-gray-400 text-center">데이터가 쌓이면 예산 AI 추천이 활성화돼요</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 전월 대비 지출 */}
         {spendingDiff !== null && (
           <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-4">
             <p className="text-xs text-gray-400 mb-2">전월 대비 지출</p>
@@ -183,40 +280,14 @@ export default function ReportClient({
           </div>
         )}
 
-        {/* [3] 저축 목표 달성률 */}
-        {savingGoal > 0 && (
-          <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-4">
-            <p className="text-xs text-gray-400 mb-3">🎯 저축 목표 달성률</p>
-            <div className="flex justify-between items-end mb-2">
-              <div>
-                <p className="text-xl font-extrabold" style={{ color: goalAchieved ? '#10B981' : 'var(--color-accent)' }}>
-                  {savedAmount.toLocaleString()}원
-                </p>
-                <p className="text-xs text-gray-400">목표 {savingGoal.toLocaleString()}원</p>
-              </div>
-              <p className={`text-3xl font-extrabold ${goalAchieved ? 'text-emerald-500' : savingPct >= 70 ? 'text-amber-500' : 'text-rose-400'}`}>
-                {savingPct}%
-              </p>
-            </div>
-            <div className="bg-gray-100 rounded-full h-2.5 overflow-hidden">
-              <div className="h-full rounded-full transition-all duration-700"
-                style={{
-                  width: `${savingPct}%`,
-                  background: goalAchieved ? '#10B981' : savingPct >= 70 ? '#f59e0b' : '#ef4444',
-                }} />
-            </div>
-            {goalAchieved && <p className="text-xs text-emerald-500 mt-2 font-semibold">🎉 목표 달성! 대단해요</p>}
-          </div>
-        )}
-
-        {/* [4] 카테고리별 지출 + 비율 (탭 전환) */}
+        {/* 카테고리별 지출 + 비율 (탭 전환) */}
         {(() => {
           const catColors = ['#6B1E2E', '#C4748A', '#E8A4B0', '#A85C6E', '#D4848E', '#7E3A4C', '#F0B0BC']
           const sortedCats = catData.filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount)
           const totalCatAmt = sortedCats.reduce((s, c) => s + c.amount, 0)
           return (
             <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-4"
-              onPointerDown={e => { catDragStart.current = e.clientX; }}
+              onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); catDragStart.current = e.clientX; }}
               onPointerUp={e => {
                 if (catDragStart.current === null) return;
                 const delta = e.clientX - catDragStart.current;
@@ -224,6 +295,7 @@ export default function ReportClient({
                 if (delta < -40) setCatTab('pie');
                 else if (delta > 40) setCatTab('bar');
               }}
+              onPointerLeave={() => { catDragStart.current = null; }}
               style={{ userSelect: 'none', cursor: 'grab' }}
             >
 
@@ -314,7 +386,7 @@ export default function ReportClient({
           )
         })()}
 
-        {/* [5] 3개월 패턴 */}
+        {/* 3개월 패턴 */}
         {threeMonths && threeMonths[0].total > 0 && (
           <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-4">
             <p className="text-xs text-gray-400 mb-3">📈 3개월 패턴</p>
@@ -343,85 +415,6 @@ export default function ReportClient({
             )}
           </div>
         )}
-
-        {/* [6] AI 코치 */}
-        <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-4">
-          <p className="text-xs text-gray-400 mb-3">🤖 AI 코치</p>
-
-          {!coach && !coachError && !loadingCoach && (
-            <div style={{ opacity: btnOpacity, transition: 'opacity 0.2s ease', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 0' }}>
-              <button onClick={loadCoachWithAnim}
-                className="text-xs px-5 py-2 rounded-xl text-white font-semibold"
-                style={{ background: 'var(--color-primary)' }}>
-                AI 코치 받기
-              </button>
-              <p className="text-xs text-gray-400 mt-2">AI가 이번 달 소비 패턴을 분석해드려요</p>
-            </div>
-          )}
-
-          {loadingCoach && (
-            <div style={{ opacity: contentOpacity, transition: 'opacity 0.3s ease' }} className="space-y-3 py-2">
-              <p className="text-xs text-center" style={{ color: 'var(--color-primary-mid)' }}>AI가 분석 중이에요...</p>
-              {[1, 2, 3].map(i => (
-                <div key={i} className="animate-pulse">
-                  <div className="h-3 bg-gray-100 rounded w-24 mb-2" />
-                  <div className="h-4 bg-gray-100 rounded w-full mb-1" />
-                  <div className="h-4 bg-gray-100 rounded w-4/5" />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {coachError && !loadingCoach && (
-            <div className="text-center py-4">
-              <p className="text-sm text-gray-500 mb-3">{coachError}</p>
-              {coachErrorCode === 'NO_DATA' && (
-                <a href="/" className="inline-block text-sm font-semibold px-4 py-2 rounded-xl text-white"
-                  style={{ background: 'var(--color-primary)' }}>
-                  지출 기록하러 가기
-                </a>
-              )}
-              {coachErrorCode === 'API_ERROR' && (
-                <button onClick={() => { setCoachError(''); setCoachErrorCode(''); loadCoach() }}
-                  className="text-sm font-semibold px-4 py-2 rounded-xl text-white"
-                  style={{ background: 'var(--color-primary)' }}>
-                  다시 시도
-                </button>
-              )}
-              {coachErrorCode === 'PREMIUM_REQUIRED' && (
-                <a href="/premium" className="inline-block text-sm font-semibold px-4 py-2 rounded-xl text-white"
-                  style={{ background: 'var(--color-primary)' }}>
-                  프리미엄 시작하기
-                </a>
-              )}
-            </div>
-          )}
-
-          {coach && (
-            <div style={{ opacity: contentOpacity, transition: 'opacity 0.3s ease' }} className="space-y-4">
-              {([
-                { step: '1', title: '패턴 진단', content: coach.step1 },
-                { step: '2', title: '동기부여', content: coach.step2 },
-                { step: '3', title: '행동 제안', content: coach.step3 },
-              ] as const).map(({ step, title, content: c }) => (
-                <div key={title}>
-                  <p className="text-xs font-bold text-gray-700 mb-1">{step} {title}</p>
-                  <p className="text-sm text-gray-600 leading-relaxed">{c}</p>
-                </div>
-              ))}
-              <div className="pt-3 border-t border-gray-50">
-                {hasEnoughData ? (
-                  <a href="/assets" className="block w-full py-3 rounded-xl text-center text-sm font-semibold text-white"
-                    style={{ background: 'var(--color-primary)' }}>
-                    다음 달 예산 AI 추천받기
-                  </a>
-                ) : (
-                  <p className="text-xs text-gray-400 text-center">데이터가 쌓이면 예산 AI 추천이 활성화돼요</p>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
 
       </>)}
     </div>
