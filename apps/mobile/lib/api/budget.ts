@@ -42,6 +42,37 @@ export async function getBudgetData(userId: string): Promise<BudgetData> {
     supabase.from('categories').select('name, is_hidden').eq('user_id', userId).order('sort_order'),
   ])
 
+  // Budget carryover: 이번 달 예산 없으면 가장 최근 이전 달에서 복사 (persist)
+  let budgetsData: Budget[] = (budgets as Budget[]) ?? []
+  if (budgetsData.length === 0) {
+    const { data: prevBudgets } = await supabase
+      .from('budgets')
+      .select('category, amount, month')
+      .eq('user_id', userId)
+      .lt('month', thisMonth)
+      .order('month', { ascending: false })
+      .limit(50)
+
+    if (prevBudgets && prevBudgets.length > 0) {
+      const latestMonth = (prevBudgets[0] as any).month as string
+      const latestRows = prevBudgets.filter((b: any) => b.month === latestMonth)
+
+      const newBudgets = latestRows.map((b: any) => ({
+        user_id: userId,
+        category: b.category as string,
+        amount: b.amount as number,
+        month: thisMonth,
+        source: 'manual' as const,
+      }))
+
+      await supabase
+        .from('budgets')
+        .upsert(newBudgets, { onConflict: 'user_id,category,month', ignoreDuplicates: true })
+
+      budgetsData = newBudgets as Budget[]
+    }
+  }
+
   const fixedSavings = fixedCosts?.filter(f => f.kind === '고정저축').reduce((s, f) => s + f.amount, 0) ?? 0
 
   const catNames = (categories ?? []).filter(c => !c.is_hidden).map(c => c.name).filter(n => n !== '수입')
@@ -54,7 +85,7 @@ export async function getBudgetData(userId: string): Promise<BudgetData> {
   }))
 
   return {
-    budgets: (budgets as Budget[]) ?? [],
+    budgets: budgetsData,
     expenses: expenses ?? [],
     income: profile?.income ?? 0,
     fixedSavings,

@@ -36,6 +36,37 @@ export async function GET() {
       .gte('date', `${threeMonthsAgo}-01`).lt('date', `${nextMonth}-01`),
   ])
 
+  // Budget carryover: 이번 달 예산 없으면 가장 최근 이전 달에서 복사 (persist)
+  let resolvedBudgets: any[] = budgets ?? []
+  if (resolvedBudgets.length === 0) {
+    const { data: prevBudgets } = await supabase
+      .from('budgets')
+      .select('category, amount, month')
+      .eq('user_id', user.id)
+      .lt('month', thisMonth)
+      .order('month', { ascending: false })
+      .limit(50)
+
+    if (prevBudgets && prevBudgets.length > 0) {
+      const latestMonth = (prevBudgets[0] as any).month as string
+      const latestRows = prevBudgets.filter((b: any) => b.month === latestMonth)
+
+      const newBudgets = latestRows.map((b: any) => ({
+        user_id: user.id,
+        category: b.category as string,
+        amount: b.amount as number,
+        month: thisMonth,
+        source: 'manual',
+      }))
+
+      await supabase
+        .from('budgets')
+        .upsert(newBudgets, { onConflict: 'user_id,category,month', ignoreDuplicates: true })
+
+      resolvedBudgets = newBudgets
+    }
+  }
+
   const categorySpent: Record<string, number> = {}
   expenses?.forEach(e => {
     if (!e.type || e.type === 'expense') {
@@ -48,7 +79,7 @@ export async function GET() {
     accounts: accounts ?? [],
     cards: cards ?? [],
     fixedCosts: fixedCosts ?? [],
-    budgets: budgets ?? [],
+    budgets: resolvedBudgets,
     thisMonthSpent: expenses?.filter(e => !e.type || e.type === 'expense').reduce((s, e) => s + e.amount, 0) ?? 0,
     categorySpent,
     thisMonth,
