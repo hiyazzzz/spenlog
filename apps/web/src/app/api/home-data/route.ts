@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import dayjs from 'dayjs'
+import { carryoverBudgetsIfEmpty } from '@/lib/budget-carryover'
 
 export async function GET() {
   const supabase = await createClient()
@@ -18,11 +19,14 @@ export async function GET() {
     supabase.from('categories').select('name, color').eq('user_id', user.id).eq('is_hidden', false).order('sort_order'),
   ])
 
+  // Budget carryover: 이번 달 예산 없으면 가장 최근 이전 달에서 복사 (persist)
+  const resolvedBudgets = await carryoverBudgetsIfEmpty(supabase, user.id, budgets ?? [], thisMonth)
+
   return NextResponse.json({
     userId: user.id,
     profile: profile ?? null,
     expenses: (expenses ?? []).map(e => ({ ...e, type: e.type ?? 'expense' })),
-    budgets: budgets ?? [],
+    budgets: resolvedBudgets,
     userCategories: userCategories ?? [],
   })
 }

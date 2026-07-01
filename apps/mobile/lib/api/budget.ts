@@ -6,6 +6,46 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://spenlog-nr7t.vercel.
 
 const DEFAULT_BUDGET_CATEGORIES = ['생활비', '고정비', '활동비', '친목비', '예비비']
 
+/**
+ * 이번 달 예산이 없으면 가장 최근 이전 달에서 복사해서 저장(persist).
+ * ignoreDuplicates=true로 동시 호출 중복 insert 방지.
+ * already-fetched budgets를 받으므로 추가 select 없음.
+ */
+export async function carryoverBudgetsIfEmpty(
+  userId: string,
+  existing: Budget[],
+  thisMonth: string
+): Promise<Budget[]> {
+  if (existing.length > 0) return existing
+
+  const { data: prevBudgets } = await supabase
+    .from('budgets')
+    .select('category, amount, month')
+    .eq('user_id', userId)
+    .lt('month', thisMonth)
+    .order('month', { ascending: false })
+    .limit(50)
+
+  if (!prevBudgets || prevBudgets.length === 0) return []
+
+  const latestMonth = (prevBudgets[0] as any).month as string
+  const latestRows = prevBudgets.filter((b: any) => b.month === latestMonth)
+
+  const newBudgets = latestRows.map((b: any) => ({
+    user_id: userId,
+    category: b.category as string,
+    amount: b.amount as number,
+    month: thisMonth,
+    source: 'manual' as const,
+  }))
+
+  await supabase
+    .from('budgets')
+    .upsert(newBudgets, { onConflict: 'user_id,category,month', ignoreDuplicates: true })
+
+  return newBudgets as Budget[]
+}
+
 export interface BudgetData {
   budgets: Budget[]
   expenses: { category: string; amount: number }[]
@@ -43,35 +83,7 @@ export async function getBudgetData(userId: string): Promise<BudgetData> {
   ])
 
   // Budget carryover: 이번 달 예산 없으면 가장 최근 이전 달에서 복사 (persist)
-  let budgetsData: Budget[] = (budgets as Budget[]) ?? []
-  if (budgetsData.length === 0) {
-    const { data: prevBudgets } = await supabase
-      .from('budgets')
-      .select('category, amount, month')
-      .eq('user_id', userId)
-      .lt('month', thisMonth)
-      .order('month', { ascending: false })
-      .limit(50)
-
-    if (prevBudgets && prevBudgets.length > 0) {
-      const latestMonth = (prevBudgets[0] as any).month as string
-      const latestRows = prevBudgets.filter((b: any) => b.month === latestMonth)
-
-      const newBudgets = latestRows.map((b: any) => ({
-        user_id: userId,
-        category: b.category as string,
-        amount: b.amount as number,
-        month: thisMonth,
-        source: 'manual' as const,
-      }))
-
-      await supabase
-        .from('budgets')
-        .upsert(newBudgets, { onConflict: 'user_id,category,month', ignoreDuplicates: true })
-
-      budgetsData = newBudgets as Budget[]
-    }
-  }
+  const budgetsData = await carryoverBudgetsIfEmpty(userId, (budgets as Budget[]) ?? [], thisMonth) as Budget[]
 
   const fixedSavings = fixedCosts?.filter(f => f.kind === '고정저축').reduce((s, f) => s + f.amount, 0) ?? 0
 

@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { monthString } from '@/lib/date'
 import type { Expense, Budget, FixedCost, User } from '@spenlog/types'
+import { carryoverBudgetsIfEmpty } from './budget'
 
 export interface HomeData {
   profile: User | null
@@ -42,10 +43,13 @@ export async function getHomeData(userId: string): Promise<HomeData> {
     ...(expenses ?? []).map((e: Expense) => e.payment_method).filter(Boolean),
   ])] as string[]
 
+  // Budget carryover: 이번 달 예산 없으면 가장 최근 이전 달에서 복사 (persist)
+  const resolvedBudgets = await carryoverBudgetsIfEmpty(userId, (budgets as Budget[]) ?? [], thisMonth)
+
   return {
     profile: (profile as User) ?? null,
     expenses: ((expenses as Expense[]) ?? []).map(e => ({ ...e, type: e.type ?? 'expense' })),
-    budgets: (budgets as Budget[]) ?? [],
+    budgets: resolvedBudgets,
     categories: categories ?? [],
     fixedCosts: (fixedCosts as Pick<FixedCost, 'amount' | 'kind'>[]) ?? [],
     paymentMethods,

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import dayjs from 'dayjs'
+import { carryoverBudgetsIfEmpty } from '@/lib/budget-carryover'
 
 export async function GET() {
   const supabase = await createClient()
@@ -37,35 +38,7 @@ export async function GET() {
   ])
 
   // Budget carryover: 이번 달 예산 없으면 가장 최근 이전 달에서 복사 (persist)
-  let resolvedBudgets: any[] = budgets ?? []
-  if (resolvedBudgets.length === 0) {
-    const { data: prevBudgets } = await supabase
-      .from('budgets')
-      .select('category, amount, month')
-      .eq('user_id', user.id)
-      .lt('month', thisMonth)
-      .order('month', { ascending: false })
-      .limit(50)
-
-    if (prevBudgets && prevBudgets.length > 0) {
-      const latestMonth = (prevBudgets[0] as any).month as string
-      const latestRows = prevBudgets.filter((b: any) => b.month === latestMonth)
-
-      const newBudgets = latestRows.map((b: any) => ({
-        user_id: user.id,
-        category: b.category as string,
-        amount: b.amount as number,
-        month: thisMonth,
-        source: 'manual',
-      }))
-
-      await supabase
-        .from('budgets')
-        .upsert(newBudgets, { onConflict: 'user_id,category,month', ignoreDuplicates: true })
-
-      resolvedBudgets = newBudgets
-    }
-  }
+  const resolvedBudgets = await carryoverBudgetsIfEmpty(supabase, user.id, budgets ?? [], thisMonth)
 
   const categorySpent: Record<string, number> = {}
   expenses?.forEach(e => {
