@@ -134,6 +134,8 @@ JSON만 출력. 설명 없음.
     }
 
     return NextResponse.json({ amounts, reason, usedFallback, hasHistory })
-  } catch (e) {
+  } catch (e: any) {
     console.error('[budget-recommend]', e)
-    return NextResponse.json({ error
+    return NextResponse.json({ error: e?.message ?? 'server_error' }, { status: 500 })
+  }
+}

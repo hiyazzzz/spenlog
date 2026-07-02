@@ -1,8 +1,9 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ko'
+import ReportSlider from './ReportSlider'
 
 dayjs.locale('ko')
 
@@ -11,6 +12,7 @@ interface CatData {
   budget: number; budgetPct: number; prevDiff: number | null
 }
 
+interface DailyData { day: number; amount: number }
 interface MonthTotal { month: string; label: string; total: number }
 interface Coach { step1: string; step2: string; step3: string }
 
@@ -26,6 +28,11 @@ interface Props {
   savedAmount: number
   savingPct: number
   catData: CatData[]
+  topCategory: string | null
+  dailyData: DailyData[]
+  noSpendDays: number
+  fixedAmount: number
+  variableAmount: number
   threeMonths: MonthTotal[] | null
   maxTotal: number
   patternComment: string
@@ -37,7 +44,8 @@ export default function ReportClient({
   userId, currentMonth, prevMonth, maxMonth,
   totalSpent, prevTotalSpent, spendingDiff,
   savingGoal, savedAmount, savingPct,
-  catData, threeMonths, maxTotal, patternComment,
+  catData, topCategory, dailyData, noSpendDays, fixedAmount, variableAmount,
+  threeMonths, maxTotal, patternComment,
   cachedCoach, hasEnoughData,
 }: Props) {
   const router = useRouter()
@@ -45,10 +53,8 @@ export default function ReportClient({
   const [loadingCoach, setLoadingCoach] = useState(false)
   const [coachError, setCoachError] = useState('')
   const [coachErrorCode, setCoachErrorCode] = useState<'NO_DATA' | 'API_ERROR' | 'PREMIUM_REQUIRED' | 'MONTH_NOT_COMPLETE' | ''>('')
-  const [catTab, setCatTab] = useState<'bar' | 'pie'>('bar')
   const [btnOpacity, setBtnOpacity] = useState(1)
   const [contentOpacity, setContentOpacity] = useState(0)
-  const catDragStart = useRef<number | null>(null)
 
   const monthLabel = dayjs(currentMonth).format('YYYY년 M월')
   const isOldest = prevMonth < dayjs().subtract(6, 'month').format('YYYY-MM')
@@ -157,29 +163,16 @@ export default function ReportClient({
                   ? '이번 달 잘 아꼈어요 🌿'
                   : `${totalSpent.toLocaleString()}원 지출`}
           </p>
-          <div className="flex gap-5 text-sm flex-wrap">
-            <div>
-              <p className="opacity-60 text-xs">총 지출</p>
-              <p className="font-bold">{totalSpent.toLocaleString()}원</p>
-            </div>
-            {savingGoal > 0 && (
-              <div>
-                <p className="opacity-60 text-xs">실제 저축</p>
-                <p className="font-bold">{savedAmount.toLocaleString()}원</p>
-              </div>
-            )}
-            {savingGoal > 0 && (
-              <div>
-                <p className="opacity-60 text-xs">달성률</p>
-                <p className="font-bold">{savingPct}%</p>
-              </div>
-            )}
-            {savingGoal > 0 && !goalAchieved && (
-              <div>
-                <p className="opacity-60 text-xs">목표 잔여</p>
-                <p className="font-bold">{(savingGoal - savedAmount).toLocaleString()}원</p>
-              </div>
-            )}
+          <div className="flex items-end justify-between gap-3 flex-wrap">
+            <p className="text-xl font-bold">
+              {savingGoal > 0
+                ? <>목표의 {savingPct}% 달성 <span className="text-sm font-semibold opacity-80">({savedAmount.toLocaleString()}원)</span></>
+                : `이번 달 저축 ${savedAmount.toLocaleString()}원`}
+            </p>
+            <p className="text-[13px] opacity-70">
+              {monthLabel} 총지출 {totalSpent.toLocaleString()}원
+              {topCategory && <> │ 가장 많이 쓴 카테고리 &quot;{topCategory}&quot;</>}
+            </p>
           </div>
         </div>
 
@@ -262,128 +255,157 @@ export default function ReportClient({
           )}
         </div>
 
-        {/* 전월 대비 지출 */}
-        {spendingDiff !== null && (
-          <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-4">
-            <p className="text-xs text-gray-400 mb-2">전월 대비 지출</p>
-            <div className="flex items-end gap-3">
-              <p className={`text-2xl font-extrabold ${spendingDiff > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
-                {spendingDiff > 0 ? '▲' : '▼'} {Math.abs(spendingDiff)}%
-              </p>
-              <p className="text-xs text-gray-400 mb-1">
-                ({spendingDiff > 0 ? '+' : ''}{(totalSpent - prevTotalSpent).toLocaleString()}원)
-              </p>
-            </div>
-            <p className="text-xs text-gray-400 mt-1">
-              전달 {prevTotalSpent.toLocaleString()}원 → 이번 달 {totalSpent.toLocaleString()}원
-            </p>
-          </div>
-        )}
-
-        {/* 카테고리별 지출 + 비율 (탭 전환) */}
+        {/* 4카드 슬라이드: 카테고리비율+예산 / 전월대비 / 소비패턴 / 일별추이 */}
         {(() => {
           const catColors = ['#6B1E2E', '#C4748A', '#E8A4B0', '#A85C6E', '#D4848E', '#7E3A4C', '#F0B0BC']
           const sortedCats = catData.filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount)
           const totalCatAmt = sortedCats.reduce((s, c) => s + c.amount, 0)
-          return (
-            <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-4"
-              onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); catDragStart.current = e.clientX; }}
-              onPointerUp={e => {
-                if (catDragStart.current === null) return;
-                const delta = e.clientX - catDragStart.current;
-                catDragStart.current = null;
-                if (delta < -40) setCatTab('pie');
-                else if (delta > 40) setCatTab('bar');
-              }}
-              onPointerLeave={() => { catDragStart.current = null; }}
-              style={{ userSelect: 'none', cursor: 'grab' }}
-            >
+          const cardCls = 'bg-white rounded-2xl p-6 border border-gray-100'
 
-              {catTab === 'bar' && (
-                <div className="space-y-4">
-                  {sortedCats.map(c => {
-                    const over = c.budget > 0 && c.amount > c.budget
-                    const barColor = c.budgetPct >= 90 ? '#ef4444' : c.budgetPct >= 70 ? '#f59e0b' : 'var(--color-primary)'
-                    return (
-                      <div key={c.cat}>
-                        <div className="flex justify-between items-center mb-1">
-                          <div className="flex items-center gap-2">
+          const page1 = (
+            <div className={cardCls}>
+              <p className="text-sm font-bold text-gray-700 mb-4">카테고리별 지출 비율 및 예산 사용량</p>
+              {sortedCats.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">이달은 기록된 지출이 없어요</p>
+              ) : (
+                <>
+                  <div className="flex rounded-lg overflow-hidden gap-px" style={{ height: 20 }}>
+                    {sortedCats.map((c, i) => (
+                      <div key={c.cat} style={{ flex: c.amount, backgroundColor: catColors[i % catColors.length] }} />
+                    ))}
+                  </div>
+                  <div className="flex flex-col gap-y-4 mt-5">
+                    {sortedCats.map(c => {
+                      const over = c.budget > 0 && c.amount > c.budget
+                      const barColor = c.budgetPct >= 80 ? '#EF4444' : c.budgetPct >= 60 ? '#f59e0b' : 'var(--color-primary)'
+                      return (
+                        <div key={c.cat}>
+                          <div className="flex justify-between items-center mb-1">
                             <span className="text-sm font-semibold text-gray-700">{c.cat}</span>
-                            {c.prevDiff !== null && (
-                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full
-                                ${Math.abs(c.prevDiff) >= 20
-                                  ? c.prevDiff > 0 ? 'bg-rose-50 text-rose-400' : 'bg-emerald-50 text-emerald-500'
-                                  : 'bg-gray-100 text-gray-400'}`}>
-                                {c.prevDiff > 0 ? '▲' : '▼'}{Math.abs(c.prevDiff)}%
-                                {c.prevDiff >= 20 && ' ⚠️'}
-                              </span>
-                            )}
+                            <span className="text-sm font-bold text-gray-800">{c.amount.toLocaleString()}원</span>
                           </div>
-                          <span className="text-sm font-bold text-gray-800">{c.amount.toLocaleString()}원</span>
-                        </div>
-                        {c.budget > 0 ? (
-                          <>
-                            <div className="bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                              <div className="h-full rounded-full transition-all duration-500"
-                                style={{ width: `${c.budgetPct}%`, background: barColor }} />
+                          {c.budget > 0 ? (
+                            <>
+                              <div className="bg-gray-100 rounded-full overflow-hidden" style={{ height: 14 }}>
+                                <div className="h-full rounded-full transition-all duration-500"
+                                  style={{ width: `${c.budgetPct}%`, background: barColor }} />
+                              </div>
+                              <p className="text-[10px] text-gray-400 mt-0.5">
+                                예산 대비 {c.budgetPct}% {over && '(초과)'}
+                              </p>
+                            </>
+                          ) : (
+                            <div className="bg-gray-100 rounded-full overflow-hidden" style={{ height: 14 }}>
+                              <div className="h-full rounded-full bg-gray-300"
+                                style={{ width: `${totalCatAmt > 0 ? Math.round((c.amount / totalCatAmt) * 100) : 0}%` }} />
                             </div>
-                            <p className="text-[10px] text-gray-400 mt-0.5">
-                              예산 대비 {c.budgetPct}% {over && '(초과)'}
-                            </p>
-                          </>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          )
+
+          const page2 = (
+            <div className={cardCls}>
+              <p className="text-sm font-bold text-gray-700 mb-4">🔄 전월 대비 지출 비교</p>
+              {sortedCats.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">이달은 기록된 지출이 없어요</p>
+              ) : (
+                <div className="flex flex-col gap-y-3">
+                  {sortedCats.map(c => {
+                    const diff = c.amount - c.prevAmount
+                    const isNew = c.prevAmount === 0
+                    return (
+                      <div key={c.cat} className="flex justify-between items-center">
+                        <span className="text-sm font-semibold text-gray-700">{c.cat}</span>
+                        {isNew ? (
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-400">신규</span>
                         ) : (
-                          <div className="bg-gray-100 rounded-full h-1 overflow-hidden">
-                            <div className="h-full rounded-full bg-gray-300"
-                              style={{ width: `${totalSpent > 0 ? Math.round((c.amount / totalSpent) * 100) : 0}%` }} />
-                          </div>
+                          <span className={`text-sm font-bold ${diff > 0 ? 'text-rose-500' : diff < 0 ? 'text-emerald-500' : 'text-gray-400'}`}>
+                            {diff > 0 ? '🔺' : diff < 0 ? '🔽' : '-'} {Math.abs(diff).toLocaleString()}원
+                          </span>
                         )}
                       </div>
                     )
                   })}
-                  {sortedCats.length === 0 && (
-                    <p className="text-sm text-gray-400 text-center py-4">이달은 기록된 지출이 없어요</p>
-                  )}
                 </div>
               )}
+            </div>
+          )
 
-              {catTab === 'pie' && (
-                sortedCats.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-4">이달은 기록된 지출이 없어요</p>
-                ) : (
-                  <>
-                    <div className="flex h-4 rounded overflow-hidden gap-px mb-4">
-                      {sortedCats.map((c, i) => (
-                        <div key={c.cat} style={{ flex: c.amount, backgroundColor: catColors[i % catColors.length] }} />
-                      ))}
-                    </div>
-                    <div className="space-y-2">
-                      {sortedCats.map((c, i) => (
-                        <div key={c.cat} className="flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: catColors[i % catColors.length] }} />
-                          <span className="text-xs text-gray-600 flex-1">{c.cat}</span>
-                          <span className="text-xs font-bold text-gray-800 w-8 text-right">
-                            {totalCatAmt > 0 ? Math.round((c.amount / totalCatAmt) * 100) : 0}%
-                          </span>
-                          <span className="text-xs text-gray-500 w-20 text-right">{c.amount.toLocaleString()}원</span>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )
-              )}
-
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 12 }}>
-                {(['bar', 'pie'] as const).map(t => (
-                  <button key={t} onClick={() => setCatTab(t)} style={{
-                    width: 6, height: 6, borderRadius: 3, border: 'none', padding: 0, cursor: 'pointer',
-                    backgroundColor: catTab === t ? 'var(--color-primary)' : '#e5e7eb',
-                    transition: 'background-color 0.2s',
-                  }} />
-                ))}
+          const fixedPct = totalSpent > 0 ? Math.round((fixedAmount / totalSpent) * 100) : 0
+          const page3 = (
+            <div className={cardCls}>
+              <p className="text-sm font-bold text-gray-700 mb-4">🔍 소비 패턴 분석</p>
+              <span className="inline-block text-xs font-bold px-3 py-1.5 rounded-full mb-5"
+                style={{ background: 'var(--color-primary-mid)', color: 'white' }}>
+                무지출 데이 {noSpendDays}일
+              </span>
+              <div className="flex rounded-lg overflow-hidden gap-px" style={{ height: 20 }}>
+                <div style={{ flex: Math.max(fixedAmount, 0.0001), backgroundColor: 'var(--color-primary)' }} />
+                <div style={{ flex: Math.max(variableAmount, 0.0001), backgroundColor: '#E8A4B0' }} />
+              </div>
+              <div className="flex justify-between mt-3 text-xs">
+                <span className="flex items-center gap-1.5 text-gray-600">
+                  <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: 'var(--color-primary)' }} />
+                  고정비 {fixedPct}% ({fixedAmount.toLocaleString()}원)
+                </span>
+                <span className="flex items-center gap-1.5 text-gray-600">
+                  <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: '#E8A4B0' }} />
+                  변동비 {100 - fixedPct}% ({variableAmount.toLocaleString()}원)
+                </span>
               </div>
             </div>
           )
+
+          const daysInMonth = dailyData.length
+          const maxDaily = Math.max(...dailyData.map(d => d.amount), 1)
+          const labelDays = new Set([1, Math.ceil(daysInMonth / 2), daysInMonth])
+          const page4 = (
+            <div className={cardCls}>
+              <p className="text-sm font-bold text-gray-700 mb-4">📅 일별 지출 추이</p>
+              {dailyData.length === 0 || totalSpent === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">일별 데이터가 없어요</p>
+              ) : (
+                <div style={{ position: 'relative', height: 120 }}>
+                  <div style={{ position: 'absolute', inset: 0 }}>
+                    {[0.25, 0.5, 0.75, 1].map(p => (
+                      <div key={p} style={{
+                        position: 'absolute', left: 0, right: 0, bottom: `${p * 100}%`,
+                        borderTop: '1px dashed #e5e7eb',
+                      }} />
+                    ))}
+                  </div>
+                  <div className="flex items-end h-full relative" style={{ gap: 1 }}>
+                    {dailyData.map(d => (
+                      <div key={d.day} className="flex-1 flex flex-col items-center justify-end h-full">
+                        <div style={{
+                          width: '100%', maxWidth: 10,
+                          height: `${Math.max((d.amount / maxDaily) * 100, d.amount > 0 ? 3 : 0)}%`,
+                          background: 'var(--color-primary)', borderRadius: 2,
+                        }} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {dailyData.length > 0 && totalSpent > 0 && (
+                <div className="flex mt-1" style={{ gap: 1 }}>
+                  {dailyData.map(d => (
+                    <div key={d.day} className="flex-1 text-center text-[10px] text-gray-400">
+                      {labelDays.has(d.day) ? `${d.day}일` : ''}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+
+          return <ReportSlider pages={[page1, page2, page3, page4]} />
         })()}
 
         {/* 3개월 패턴 */}

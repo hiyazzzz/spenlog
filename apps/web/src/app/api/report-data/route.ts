@@ -74,6 +74,23 @@ export async function GET(request: Request) {
     return { cat, amount, prevAmount, budget, budgetPct, prevDiff }
   })
 
+  const topCategory = catData.filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount)[0]?.cat ?? null
+
+  const daysInMonth = dayjs(safeMonth).daysInMonth()
+  const dailyMap = new Map<number, number>()
+  expenses?.filter(isExpense).forEach((e: any) => {
+    const day = dayjs(e.date).date()
+    dailyMap.set(day, (dailyMap.get(day) ?? 0) + e.amount)
+  })
+  const dailyData = Array.from({ length: daysInMonth }, (_, i) => ({ day: i + 1, amount: dailyMap.get(i + 1) ?? 0 }))
+
+  const spendDaysSet = new Set(expenses?.filter(isExpense).map((e: any) => dayjs(e.date).date()))
+  const noSpendDays = daysInMonth - spendDaysSet.size
+
+  const isFixed = (e: any) => e.source === 'routine' || normCat(e.category) === '고정비'
+  const fixedAmount = expenses?.filter(isExpense).filter(isFixed).reduce((s: number, e: any) => s + e.amount, 0) ?? 0
+  const variableAmount = totalSpent - fixedAmount
+
   const threeMonths = [
     { month: prev2Month, label: dayjs(prev2Month).format('M월'), total: prev2TotalSpent },
     { month: prevMonth, label: dayjs(prevMonth).format('M월'), total: prevTotalSpent },
@@ -104,6 +121,11 @@ export async function GET(request: Request) {
     savedAmount,
     savingPct,
     catData,
+    topCategory,
+    dailyData,
+    noSpendDays,
+    fixedAmount,
+    variableAmount,
     threeMonths: prevTotalSpent > 0 ? threeMonths : null,
     maxTotal,
     patternComment,
