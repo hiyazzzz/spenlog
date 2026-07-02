@@ -91,8 +91,6 @@ interface Props {
   topCategory: string | null
   dailyData: DailyData[]
   noSpendDays: number
-  fixedAmount: number
-  variableAmount: number
   topItems?: TopItem[]
   spendClusters?: SpendCluster[]
   txnCount?: number
@@ -107,7 +105,7 @@ export default function ReportClient({
   userId, currentMonth, prevMonth, maxMonth,
   totalSpent, prevTotalSpent, spendingDiff,
   savingGoal, savedAmount, savingPct, income,
-  catData, topCategory, dailyData, noSpendDays, fixedAmount, variableAmount,
+  catData, topCategory, dailyData, noSpendDays,
   topItems, spendClusters, txnCount, threeMonths, maxTotal, patternComment,
   cachedCoach, hasEnoughData,
 }: Props) {
@@ -308,56 +306,48 @@ export default function ReportClient({
           )}
         </div>
 
-        {/* 4카드 슬라이드: 카테고리비율+예산 / 전월대비 / 소비패턴 / 일별추이 */}
+        {/* 3카드 슬라이드: 카테고리별 예산사용량 / 전월대비 / 일별소비패턴 */}
         {(() => {
-          const catColors = ['#6B1E2E', '#C4748A', '#E8A4B0', '#A85C6E', '#D4848E', '#7E3A4C', '#F0B0BC']
           const sortedCats = catData.filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount)
           const totalCatAmt = sortedCats.reduce((s, c) => s + c.amount, 0)
           const cardCls = 'bg-white rounded-2xl p-6 border border-gray-100'
 
           const page1 = (
             <div className={cardCls}>
-              <p className="text-sm font-bold text-gray-700 mb-4">카테고리별 지출 비율 및 예산 사용량</p>
+              <p className="text-sm font-bold text-gray-700 mb-4">카테고리별 예산 사용량</p>
               {sortedCats.length === 0 ? (
                 <p className="text-sm text-gray-400 text-center py-4">이달은 기록된 지출이 없어요</p>
               ) : (
-                <>
-                  <div className="flex rounded-lg overflow-hidden gap-px" style={{ height: 20 }}>
-                    {sortedCats.map((c, i) => (
-                      <div key={c.cat} style={{ flex: c.amount, backgroundColor: catColors[i % catColors.length] }} />
-                    ))}
-                  </div>
-                  <div className="flex flex-col gap-y-4 mt-5">
-                    {sortedCats.map(c => {
-                      const over = c.budget > 0 && c.amount > c.budget
-                      const barColor = c.budgetPct >= 80 ? '#EF4444' : c.budgetPct >= 60 ? '#f59e0b' : 'var(--color-primary)'
-                      return (
-                        <div key={c.cat}>
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-sm font-semibold text-gray-700">{c.cat}</span>
-                            <span className="text-sm font-bold text-gray-800">{c.amount.toLocaleString()}원</span>
-                          </div>
-                          {c.budget > 0 ? (
-                            <>
-                              <div className="bg-gray-100 rounded-full overflow-hidden" style={{ height: 14 }}>
-                                <div className="h-full rounded-full transition-all duration-500"
-                                  style={{ width: `${c.budgetPct}%`, background: barColor }} />
-                              </div>
-                              <p className="text-[10px] text-gray-400 mt-0.5">
-                                예산 대비 {c.budgetPct}% {over && '(초과)'}
-                              </p>
-                            </>
-                          ) : (
-                            <div className="bg-gray-100 rounded-full overflow-hidden" style={{ height: 14 }}>
-                              <div className="h-full rounded-full bg-gray-300"
-                                style={{ width: `${totalCatAmt > 0 ? Math.round((c.amount / totalCatAmt) * 100) : 0}%` }} />
-                            </div>
-                          )}
+                <div className="flex flex-col gap-y-4">
+                  {sortedCats.map(c => {
+                    const over = c.budget > 0 && c.amount > c.budget
+                    const barColor = over ? '#EF4444' : 'var(--color-primary)'
+                    return (
+                      <div key={c.cat}>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm font-semibold text-gray-700">{c.cat}</span>
+                          <span className="text-sm font-bold text-gray-800">{c.amount.toLocaleString()}원</span>
                         </div>
-                      )
-                    })}
-                  </div>
-                </>
+                        {c.budget > 0 ? (
+                          <>
+                            <div className="bg-gray-100 rounded-full overflow-hidden" style={{ height: 12 }}>
+                              <div className="h-full rounded-full transition-all duration-500"
+                                style={{ width: `${c.budgetPct}%`, background: barColor }} />
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-0.5">
+                              예산 대비 {c.budgetPct}% {over && '(초과)'}
+                            </p>
+                          </>
+                        ) : (
+                          <div className="bg-gray-100 rounded-full overflow-hidden" style={{ height: 12 }}>
+                            <div className="h-full rounded-full bg-gray-300"
+                              style={{ width: `${totalCatAmt > 0 ? Math.round((c.amount / totalCatAmt) * 100) : 0}%` }} />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               )}
             </div>
           )
@@ -390,37 +380,16 @@ export default function ReportClient({
             </div>
           )
 
-          const fixedPct = totalSpent > 0 ? Math.round((fixedAmount / totalSpent) * 100) : 0
-          const page3 = (
-            <div className={cardCls}>
-              <p className="text-sm font-bold text-gray-700 mb-4">🔍 소비 패턴 분석</p>
-              <span className="inline-block text-xs font-bold px-3 py-1.5 rounded-full mb-5"
-                style={{ background: 'var(--color-primary-mid)', color: 'white' }}>
-                무지출 데이 {noSpendDays}일
-              </span>
-              <div className="flex rounded-lg overflow-hidden gap-px" style={{ height: 20 }}>
-                <div style={{ flex: Math.max(fixedAmount, 0.0001), backgroundColor: 'var(--color-primary)' }} />
-                <div style={{ flex: Math.max(variableAmount, 0.0001), backgroundColor: '#E8A4B0' }} />
-              </div>
-              <div className="flex justify-between mt-3 text-xs">
-                <span className="flex items-center gap-1.5 text-gray-600">
-                  <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: 'var(--color-primary)' }} />
-                  고정비 {fixedPct}% ({fixedAmount.toLocaleString()}원)
-                </span>
-                <span className="flex items-center gap-1.5 text-gray-600">
-                  <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: '#E8A4B0' }} />
-                  변동비 {100 - fixedPct}% ({variableAmount.toLocaleString()}원)
-                </span>
-              </div>
-            </div>
-          )
-
           const daysInMonth = dailyData.length
           const maxDaily = Math.max(...dailyData.map(d => d.amount), 1)
           const labelDays = new Set([1, Math.ceil(daysInMonth / 2), daysInMonth])
-          const page4 = (
+          const page3 = (
             <div className={cardCls}>
-              <p className="text-sm font-bold text-gray-700 mb-4">📅 일별 지출 추이</p>
+              <p className="text-sm font-bold text-gray-700 mb-4">📅 일별 소비 패턴</p>
+              <span className="inline-block text-xs font-bold px-3 py-1.5 rounded-full mb-4"
+                style={{ background: 'var(--color-primary-mid)', color: 'white' }}>
+                무지출 데이 {noSpendDays}일
+              </span>
               {dailyData.length === 0 || totalSpent === 0 ? (
                 <p className="text-sm text-gray-400 text-center py-4">일별 데이터가 없어요</p>
               ) : (
@@ -458,7 +427,7 @@ export default function ReportClient({
             </div>
           )
 
-          return <ReportSlider pages={[page1, page2, page3, page4]} />
+          return <ReportSlider pages={[page1, page2, page3]} />
         })()}
 
         {/* 3개월 패턴 */}

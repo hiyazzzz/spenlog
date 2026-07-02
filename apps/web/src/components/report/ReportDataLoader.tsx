@@ -90,8 +90,6 @@ export default function ReportDataLoader() {
       topCategory={data.topCategory ?? null}
       dailyData={data.dailyData ?? []}
       noSpendDays={data.noSpendDays ?? 0}
-      fixedAmount={data.fixedAmount ?? 0}
-      variableAmount={data.variableAmount ?? 0}
       topItems={data.topItems}
       spendClusters={data.spendClusters}
       txnCount={data.txnCount}

@@ -108,10 +108,6 @@ export async function GET(request: Request) {
   const spendDaysSet = new Set(expenses?.filter(isExpense).map((e: any) => dayjs(e.date).date()))
   const noSpendDays = daysInMonth - spendDaysSet.size
 
-  const isFixed = (e: any) => e.source === 'routine' || normCat(e.category) === '고정비'
-  const fixedAmount = expenses?.filter(isExpense).filter(isFixed).reduce((s: number, e: any) => s + e.amount, 0) ?? 0
-  const variableAmount = totalSpent - fixedAmount
-
   // AI 코치가 "고정비를 줄여보세요" 같은 뭉뚱그린 조언 대신 실제 항목을 지목할 수 있도록 고액 지출 TOP3 전달
   const expenseRows = (expenses ?? []).filter(isExp)
   const topItems = [...expenseRows]
@@ -155,8 +151,6 @@ export async function GET(request: Request) {
     topCategory,
     dailyData,
     noSpendDays,
-    fixedAmount,
-    variableAmount,
     topItems,
     txnCount,
     spendClusters,

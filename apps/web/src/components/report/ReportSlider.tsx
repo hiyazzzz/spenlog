@@ -16,7 +16,8 @@ export default function ReportSlider({ pages }: Props) {
   function settle(delta: number, elapsed: number) {
     const velocity = elapsed > 0 ? delta / elapsed : 0
     let next = index
-    if (Math.abs(delta) > 40 || Math.abs(velocity) > 0.5) {
+    // 짧고 빠른 스와이프(velocity)도 페이지 전환되도록 거리/속도 중 하나만 넘으면 통과
+    if (Math.abs(delta) > 28 || Math.abs(velocity) > 0.35) {
       next = delta < 0 ? Math.min(index + 1, count - 1) : Math.max(index - 1, 0)
     }
     setIndex(next)
@@ -26,6 +27,7 @@ export default function ReportSlider({ pages }: Props) {
   }
 
   function onPointerDown(e: React.PointerEvent) {
+    e.stopPropagation()
     try {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     } catch {}
@@ -36,20 +38,24 @@ export default function ReportSlider({ pages }: Props) {
 
   function onPointerMove(e: React.PointerEvent) {
     if (startX.current === null) return
+    e.stopPropagation()
     setDragOffset(e.clientX - startX.current)
   }
 
   function onPointerUp(e: React.PointerEvent) {
     if (startX.current === null) return
+    e.stopPropagation()
     settle(e.clientX - startX.current, Date.now() - startTime.current)
   }
 
-  function onPointerLeave() {
+  function onPointerLeave(e: React.PointerEvent) {
     if (startX.current === null) return
+    e.stopPropagation()
     settle(dragOffset, Date.now() - startTime.current)
   }
 
-  function onPointerCancel() {
+  function onPointerCancel(e: React.PointerEvent) {
+    e.stopPropagation()
     setDragOffset(0)
     setDragging(false)
     startX.current = null
