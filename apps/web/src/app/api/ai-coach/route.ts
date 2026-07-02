@@ -204,7 +204,9 @@ export async function POST(req: Request) {
     }
 
     // 캐시 확인 (개발자 계정은 프롬프트 튜닝 테스트를 위해 캐시를 건너뛰고 항상 새로 생성)
-    if (!u?.is_developer) {
+    if (u?.is_developer) {
+      console.log(`[ai-coach] is_developer=true (userId=${userId}) → 캐시 건너뛰고 새로 생성`)
+    } else {
       const { data: cached } = await supabase
         .from('reports')
         .select('ai_coach')
@@ -213,6 +215,7 @@ export async function POST(req: Request) {
         .single()
 
       if (cached?.ai_coach) {
+        console.log(`[ai-coach] 캐시 히트 (userId=${userId}, yearMonth=${yearMonth})`)
         return NextResponse.json({ coach: cached.ai_coach, cached: true })
       }
     }

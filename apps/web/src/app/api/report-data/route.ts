@@ -117,7 +117,8 @@ export async function GET(request: Request) {
     threeMonths: prevTotalSpent > 0 ? threeMonths : null,
     maxTotal,
     patternComment,
-    cachedCoach: cachedReport?.ai_coach ?? null,
+    // 개발자 계정은 화면에 캐시된 코치 문구를 바로 채우지 않음 - 항상 버튼을 눌러 새로 생성하도록 유도
+    cachedCoach: profile?.is_developer ? null : (cachedReport?.ai_coach ?? null),
     hasEnoughData: prevTotalSpent > 0,
   })
 }
