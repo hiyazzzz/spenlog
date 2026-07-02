@@ -203,16 +203,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'PREMIUM_REQUIRED' }, { status: 403 })
     }
 
-    // 캐시 확인
-    const { data: cached } = await supabase
-      .from('reports')
-      .select('ai_coach')
-      .eq('user_id', userId)
-      .eq('year_month', yearMonth)
-      .single()
+    // 캐시 확인 (개발자 계정은 프롬프트 튜닝 테스트를 위해 캐시를 건너뛰고 항상 새로 생성)
+    if (!u?.is_developer) {
+      const { data: cached } = await supabase
+        .from('reports')
+        .select('ai_coach')
+        .eq('user_id', userId)
+        .eq('year_month', yearMonth)
+        .single()
 
-    if (cached?.ai_coach) {
-      return NextResponse.json({ coach: cached.ai_coach, cached: true })
+      if (cached?.ai_coach) {
+        return NextResponse.json({ coach: cached.ai_coach, cached: true })
+      }
     }
 
     // 생성
