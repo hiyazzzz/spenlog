@@ -136,4 +136,6 @@ JSON만 출력. 설명 없음.
     return NextResponse.json({ amounts, reason, usedFallback, hasHistory })
   } catch (e) {
     console.error('[budget-recommend]', e)
-    return NextResponse.json({ error
+    return NextResponse.json({ error: 'API_ERROR' }, { status: 500 })
+  }
+}
