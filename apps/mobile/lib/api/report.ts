@@ -184,16 +184,17 @@ export async function getReportData(userId: string, month?: string): Promise<Rep
   }
 }
 
-// message: 신규 통합 메시지 스키마. step1~3: 구버전 캐시 호환용
+// pattern~action: 신규 5필드 스키마. message: 구버전 통합 메시지. step1~3: 구구버전 3단 스키마 (모두 getCoachBlocks에서 하위호환 처리)
 export interface Coach {
+  pattern?: string
+  warning?: string
+  context?: string
+  solution?: string
+  action?: string
   message?: string
   step1?: string
   step2?: string
   step3?: string
-}
-
-export function getCoachMessage(c: Coach): string {
-  return c.message ?? [c.step1, c.step2, c.step3].filter(Boolean).join(' ')
 }
 
 export interface CoachSegment {
@@ -201,16 +202,34 @@ export interface CoachSegment {
   text: string
 }
 
-// "\n\n" 문단 구분 + "**볼드**" 마크다운 라이트 파싱 (RN Text는 HTML을 못 그리므로 세그먼트 배열로 반환)
-export function parseCoachParagraphs(message: string): CoachSegment[][] {
-  const paragraphs = message.split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
-  return paragraphs.map(para =>
-    para.split(/(\*\*.+?\*\*)/g).filter(Boolean).map(seg =>
-      seg.startsWith('**') && seg.endsWith('**')
-        ? { bold: true, text: seg.slice(2, -2) }
-        : { bold: false, text: seg }
-    )
+export interface CoachBlock {
+  type: 'p' | 'warning' | 'solution'
+  segments: CoachSegment[]
+}
+
+// "**볼드**" 마크다운 라이트 파싱 (RN Text는 HTML을 못 그리므로 세그먼트 배열로 반환)
+function parseSegments(text: string): CoachSegment[] {
+  return text.split(/(\*\*.+?\*\*)/g).filter(Boolean).map(seg =>
+    seg.startsWith('**') && seg.endsWith('**')
+      ? { bold: true, text: seg.slice(2, -2) }
+      : { bold: false, text: seg }
   )
+}
+
+export function getCoachBlocks(c: Coach): CoachBlock[] {
+  if (c.pattern || c.solution || c.action) {
+    const blocks: CoachBlock[] = []
+    if (c.pattern) blocks.push({ type: 'p', segments: parseSegments(c.pattern) })
+    if (c.warning) blocks.push({ type: 'warning', segments: parseSegments(c.warning) })
+    if (c.context) blocks.push({ type: 'p', segments: parseSegments(c.context) })
+    if (c.solution) blocks.push({ type: 'solution', segments: parseSegments(c.solution) })
+    if (c.action) blocks.push({ type: 'p', segments: parseSegments(c.action) })
+    return blocks
+  }
+  // 구버전 호환: message 또는 step1/2/3 -> 전부 일반 문단으로 (콜아웃 없이)
+  const legacyText = c.message ?? [c.step1, c.step2, c.step3].filter(Boolean).join(' ')
+  return legacyText.split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
+    .map(text => ({ type: 'p' as const, segments: parseSegments(text) }))
 }
 
 export type CoachErrorCode = 'NO_DATA' | 'API_ERROR' | 'PREMIUM_REQUIRED' | 'MONTH_NOT_COMPLETE'

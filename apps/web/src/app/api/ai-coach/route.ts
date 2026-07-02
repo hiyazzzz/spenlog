@@ -23,9 +23,12 @@ const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-preview-05-20', 'ge
 // 일반적으로 권장되는 수입 대비 저축률 가이드라인 (재무 기준 진단용)
 const SAVING_RATE_GUIDELINE_PCT = 20
 
-// 이전 코칭 결과(신규 message 스키마 또는 구버전 step1/2/3 스키마 모두)에서 회고용 텍스트를 뽑아냄
+// 이전 코칭 결과(신규 5필드 스키마, 구 message 스키마, 구구 step1/2/3 스키마 모두)에서 회고용 텍스트를 뽑아냄
 function extractCoachText(coach: any): string {
   if (!coach) return ''
+  if (coach.pattern || coach.solution || coach.action) {
+    return [coach.pattern, coach.warning, coach.context, coach.solution, coach.action].filter(Boolean).join(' ')
+  }
   if (typeof coach.message === 'string') return coach.message
   return [coach.step1, coach.step2, coach.step3].filter(Boolean).join(' ')
 }
@@ -76,12 +79,12 @@ function buildPrompt(input: CoachInput, lastMonthCoachText: string): string {
     ? Math.round((input.savedAmount / input.income) * 100)
     : null
 
-  return `당신은 Spenlog 가계부 앱의 유료 AI 재무 코치예요. 사용자에게 말하듯 친근하게, 아래 데이터를 바탕으로 코칭 메시지 하나를 써주세요. 절대 딱딱한 보고서가 아니라, 친한 재무 코치가 카톡으로 메시지 보내주는 느낌이어야 해요. "1번은 이거, 2번은 저거" 식으로 나누지 말고 인사 없이 바로 본론부터 자연스럽게 이어지는 글로 쓸 것.
+  return `당신은 Spenlog 가계부 앱의 유료 AI 재무 코치예요. 사용자에게 말하듯 친근하게, 아래 데이터를 바탕으로 코칭 메시지를 5개 필드로 나눠서 써주세요. 절대 딱딱한 보고서가 아니라, 친한 재무 코치가 카톡으로 메시지 보내주는 느낌이어야 해요. 5개 필드를 이어 붙였을 때 인사 없이 바로 본론부터 자연스럽게 흘러가는 하나의 글처럼 읽혀야 함.
 
 [포맷 - 반드시 지킬 것]
-- [소비 요약], [행동 가이드] 같은 인위적인 대제목을 절대 쓰지 말 것
-- 대신 내용 흐름이 바뀌는 지점마다 문단을 나누고, 문단 사이는 줄바꿈 두 번(\\n\\n)으로 구분할 것. 전체 2~4문단
-- 문단 안에서 핵심 수치(금액, %, 건수)와 실제 항목명은 **텍스트**처럼 마크다운 볼드로 감쌀 것
+- [소비 요약], [행동 가이드] 같은 인위적인 대제목은 각 필드 텍스트 안에 절대 넣지 말 것 (필드 자체가 이미 구조를 담당함)
+- 각 필드는 화면에서 별도 블록으로 렌더링되니, "1번은 이거고" 식으로 필드 간 연결어를 쓰지 말고 각 필드가 독립된 문장으로도 자연스럽게 읽히게 쓸 것
+- 필드 텍스트 안에서 핵심 수치(금액, %, 건수)와 실제 항목명은 **텍스트**처럼 마크다운 볼드로 감쌀 것
 
 [문체 - 반드시 지킬 것]
 - 모든 문장은 "-요"로 끝나는 부드러운 대화체로 쓸 것. "-습니다/-니다" 격식체, "~하고 있습니다", "~것이 필요합니다", "~것이 효과적입니다" 같은 보고서식 명사형 종결 절대 금지
@@ -94,12 +97,12 @@ function buildPrompt(input: CoachInput, lastMonthCoachText: string): string {
   나쁜 예(추상적/시점 어색): "남은 기간 목표를 다 채우려면 하루 평균 31,290원씩 모으면 딱 맞아요." (이미 끝난 달 리포트에서 '남은 기간'이 모호하고, 무엇을 줄여야 하는지도 안 나와 있음)
   좋은 예(구체적 실행법과 연결): "다음 달에 생활비만 **3만원** 줄여도, 목표까지 필요한 하루 평균 **31,290원**을 어렵지 않게 채울 수 있어요."
 
-[내용 - 반드시 지킬 것, 아래 순서로 자연스럽게 이어질 것]
-1. 총지출·저축률처럼 화면에 이미 보이는 숫자를 그대로 나열하지 말고, "왜 그런 결과가 나왔는지"를 지출 TOP3 항목/건수로 짚어줄 것
-2. 지난달 코칭 기록이 있으면, 그때 얘기했던 내용과 이번 달 실제 결과(카테고리별 amount vs prevAmount)를 비교해서 자연스럽게 한마디 남길 것. 지난달 코칭 기록이 없으면 이 부분은 완전히 생략 (없다는 말도 하지 말 것)
-3. 수입 대비 저축률 데이터가 있으면, 권장 기준과 비교해서 짧게 짚어줄 것. 데이터 없으면 생략
-4. 절감 제안은 [소비 유형 묶음]이 있으면 그걸 최우선으로 쓸 것 (예: "카페 지출만 8번에 4만2천원이었어요, 이 중 몇 번만 줄여도..." 처럼 카테고리 전체보다 훨씬 구체적이고 와닿음). 묶음이 없으면 [절감 여지가 있는 카테고리]를 사용. 얼마를 줄이면 좋을지 구체적 금액을 제안하고, 그 절감액이 다음 달 저축 목표(하루 평균 절약액)에 어떻게 도움되는지 자연스럽게 연결해서 설명할 것. "남은 기간"이라는 모호한 표현 대신 반드시 "다음 달"이라고 명시할 것. 묶음도 절감 여지 카테고리도 없으면 이 부분은 생략
-5. 지출 TOP3 중 최소 1개의 실제 항목명을 지목해서 구체적인 다음 행동 제안으로 마무리. 카테고리명만 언급 금지, 질문형("~하는 건 어떨까요?")으로 끝내지 말 것
+[각 필드에 들어갈 내용 - 반드시 지킬 것]
+- pattern (필수): 총지출·저축률처럼 화면에 이미 보이는 숫자를 그대로 나열하지 말고, "왜 그런 결과가 나왔는지"를 지출 TOP3 항목/건수로 짚어줄 것. 1~2문장
+- warning (선택): pattern에서 짚은 결과가 왜 그렇게 됐는지의 구체적 원인(급증한 항목, 예상치 못한 지출 등) 한 문장. 화면에서 주의 배지로 강조되니 톤은 부드럽되 원인은 명확하게. 뚜렷한 원인이 없으면 빈 문자열("")
+- context (선택): 지난달 코칭 기록이 있으면 그때 얘기했던 내용과 이번 달 실제 결과(카테고리별 amount vs prevAmount)를 비교해서 한마디, 그리고/또는 수입 대비 저축률 데이터가 있으면 권장 기준과 비교해서 짧게. 둘 다 없으면 빈 문자열("")
+- solution (필수): 절감 제안은 [소비 유형 묶음]이 있으면 그걸 최우선으로 쓸 것 (예: "카페 지출만 8번에 4만2천원이었어요, 이 중 몇 번만 줄여도..." 처럼 카테고리 전체보다 훨씬 구체적이고 와닿음). 묶음이 없으면 [절감 여지가 있는 카테고리]를 사용. 얼마를 줄이면 좋을지 구체적 금액을 제안하고, 그 절감액이 다음 달 저축 목표(하루 평균 절약액)에 어떻게 도움되는지 연결해서 설명. "남은 기간"이라는 모호한 표현 대신 반드시 "다음 달"이라고 명시. 화면에서 가장 강조되는 핵심 솔루션 배지로 표시되니 이 메시지의 핵심 조언이 여기 담겨야 함. 1~2문장
+- action (필수): 지출 TOP3 중 최소 1개의 실제 항목명을 지목해서 구체적인 다음 행동 제안으로 마무리. 카테고리명만 언급 금지, 질문형("~하는 건 어떨까요?")으로 끝내지 말 것. 1~2문장
 
 데이터:
 - ${monthLabel}(${input.yearMonth}): ${input.totalSpent.toLocaleString()}원 지출 (총 ${input.txnCount ?? '?'}건 결제)
@@ -117,9 +120,9 @@ ${topItemsLines || '  - 데이터 없음'}
 - 목표까지 남은 금액: ${remainToGoal > 0 ? `${remainToGoal.toLocaleString()}원 (다음 달 하루 ${dailySaveNeeded.toLocaleString()}원씩 저축하면 도달 가능)` : '미설정 또는 이미 달성'}
 
 JSON만 출력. 설명 금지.
-형식: {"message":"\\n\\n으로 구분된 2~4문단짜리 코칭 메시지, 핵심 수치는 **볼드**"}
+형식: {"pattern":"...","warning":"... (없으면 빈 문자열)","context":"... (없으면 빈 문자열)","solution":"...","action":"..."}
 
-위 [문체] 예시의 "좋은 예"처럼 카톡으로 편하게 말 걸듯이, 인사말 없이 바로 본론으로 시작할 것.`
+위 [문체] 예시의 "좋은 예"처럼 카톡으로 편하게 말 걸듯이 쓸 것. 각 필드에 인사말 넣지 말 것.`
 }
 
 // 모델 1개 호출 — 실패 원인을 진단할 수 있도록 상태 코드/응답 본문을 그대로 서버 콘솔에 남긴다
@@ -178,7 +181,15 @@ async function callGeminiModel(model: string, prompt: string, apiKey: string, si
   return text
 }
 
-async function generateCoach(input: CoachInput, lastMonthCoachText: string): Promise<{ message: string }> {
+interface CoachOutput {
+  pattern: string
+  warning: string
+  context: string
+  solution: string
+  action: string
+}
+
+async function generateCoach(input: CoachInput, lastMonthCoachText: string): Promise<CoachOutput> {
   const prompt = buildPrompt(input, lastMonthCoachText)
 
   const apiKey = process.env.GEMINI_API_KEY
@@ -209,13 +220,19 @@ async function generateCoach(input: CoachInput, lastMonthCoachText: string): Pro
           lastError = parseErr
           continue
         }
-        if (!parsed.message || typeof parsed.message !== 'string') {
-          console.error(`[ai-coach] Gemini ${model} 파싱 결과에 message 필드 누락:`, parsed)
+        if (!parsed.pattern || !parsed.solution || !parsed.action) {
+          console.error(`[ai-coach] Gemini ${model} 파싱 결과에 필수 필드(pattern/solution/action) 누락:`, parsed)
           lastError = new Error('GEMINI_MISSING_FIELDS')
           continue
         }
         console.log(`[ai-coach] Gemini ${model} 성공`)
-        return parsed
+        return {
+          pattern: parsed.pattern,
+          warning: parsed.warning ?? '',
+          context: parsed.context ?? '',
+          solution: parsed.solution,
+          action: parsed.action,
+        }
       } catch (modelErr: any) {
         lastError = modelErr
         if (modelErr.name === 'AbortError') {

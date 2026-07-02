@@ -12,27 +12,65 @@ interface CatData {
 }
 
 interface MonthTotal { month: string; label: string; total: number }
-// message: 신규 통합 메시지 스키마. step1~3: 구버전 캐시 호환용 (렌더 시 getCoachMessage로 합쳐서 사용)
-interface Coach { message?: string; step1?: string; step2?: string; step3?: string }
+// pattern~action: 신규 5필드 스키마. message: 구버전 통합 메시지. step1~3: 구구버전 3단 스키마 (모두 getCoachBlocks에서 하위호환 처리)
+interface Coach {
+  pattern?: string; warning?: string; context?: string; solution?: string; action?: string
+  message?: string
+  step1?: string; step2?: string; step3?: string
+}
 interface TopItem { name: string; amount: number; category: string }
 interface SpendCluster { label: string; amount: number; count: number }
 
-function getCoachMessage(c: Coach): string {
-  return c.message ?? [c.step1, c.step2, c.step3].filter(Boolean).join(' ')
+type CoachBlock = { type: 'p' | 'warning' | 'solution'; text: string }
+
+function getCoachBlocks(c: Coach): CoachBlock[] {
+  if (c.pattern || c.solution || c.action) {
+    const blocks: CoachBlock[] = []
+    if (c.pattern) blocks.push({ type: 'p', text: c.pattern })
+    if (c.warning) blocks.push({ type: 'warning', text: c.warning })
+    if (c.context) blocks.push({ type: 'p', text: c.context })
+    if (c.solution) blocks.push({ type: 'solution', text: c.solution })
+    if (c.action) blocks.push({ type: 'p', text: c.action })
+    return blocks
+  }
+  // 구버전 호환: message 또는 step1/2/3 -> 전부 일반 문단으로 (콜아웃 없이)
+  const legacyText = c.message ?? [c.step1, c.step2, c.step3].filter(Boolean).join(' ')
+  return legacyText.split(/\n{2,}/).map(p => p.trim()).filter(Boolean).map(text => ({ type: 'p' as const, text }))
 }
 
-// "\n\n" 문단 구분 + "**볼드**" 마크다운 라이트 파싱 (인위적 헤더 없이 문단/볼드만으로 가독성 확보)
-function renderCoachMessage(message: string) {
-  const paragraphs = message.split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
-  return paragraphs.map((para, pi) => (
-    <p key={pi} className="text-sm text-gray-600 leading-relaxed">
-      {para.split(/(\*\*.+?\*\*)/g).filter(Boolean).map((seg, si) =>
-        seg.startsWith('**') && seg.endsWith('**')
-          ? <strong key={si} className="font-bold text-gray-800">{seg.slice(2, -2)}</strong>
-          : <span key={si}>{seg}</span>
-      )}
-    </p>
-  ))
+// "**볼드**" 마크다운 라이트 파싱
+function renderInlineBold(text: string, boldClassName: string) {
+  return text.split(/(\*\*.+?\*\*)/g).filter(Boolean).map((seg, si) =>
+    seg.startsWith('**') && seg.endsWith('**')
+      ? <strong key={si} className={boldClassName}>{seg.slice(2, -2)}</strong>
+      : <span key={si}>{seg}</span>
+  )
+}
+
+// 인위적 헤더 없이 문단/볼드/콜아웃 배지만으로 가독성 확보
+function renderCoachBlocks(coach: Coach) {
+  return getCoachBlocks(coach).map((block, i) => {
+    if (block.type === 'warning') {
+      return (
+        <div key={i} className="bg-red-50 text-red-600 rounded-lg p-3 text-sm leading-relaxed">
+          {renderInlineBold(block.text, 'font-bold')}
+        </div>
+      )
+    }
+    if (block.type === 'solution') {
+      return (
+        <div key={i} className="rounded-lg py-3 px-4 text-sm leading-relaxed font-medium"
+          style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>
+          {renderInlineBold(block.text, 'font-bold')}
+        </div>
+      )
+    }
+    return (
+      <p key={i} className="text-sm text-gray-600 leading-relaxed">
+        {renderInlineBold(block.text, 'font-bold text-gray-800')}
+      </p>
+    )
+  })
 }
 
 interface Props {
@@ -262,7 +300,7 @@ export default function ReportClient({
 
           {coach && (
             <div style={{ opacity: contentOpacity, transition: 'opacity 0.3s ease' }} className="space-y-4">
-              <div className="space-y-4">{renderCoachMessage(getCoachMessage(coach))}</div>
+              <div className="space-y-4">{renderCoachBlocks(coach)}</div>
               <div className="pt-3 border-t border-gray-50">
                 {hasEnoughData ? (
                   <a href="/assets" className="block w-full py-3 rounded-xl text-center text-sm font-semibold text-white"

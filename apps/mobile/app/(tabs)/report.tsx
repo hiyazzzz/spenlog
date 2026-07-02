@@ -5,7 +5,7 @@ import { useDataCache } from '@/store/dataCache';
 import dayjs from 'dayjs';
 import { COLORS, RADIUS, formatCurrency, getThemeColors, getThemeCardPalette, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
-import { getReportData, getAiCoach, getCoachMessage, parseCoachParagraphs, type ReportData, type Coach, type CoachErrorCode } from '@/lib/api/report';
+import { getReportData, getAiCoach, getCoachBlocks, type ReportData, type Coach, type CoachErrorCode } from '@/lib/api/report';
 import { getAnalyticsData, type AnalyticsData } from '@/lib/api/analytics';
 
 
@@ -279,13 +279,30 @@ export default function ReportScreen() {
             {coach && (
               <Animated.View style={{ opacity: contentAnim, gap: 14 }}>
                 <View style={{ gap: 16 }}>
-                  {parseCoachParagraphs(getCoachMessage(coach)).map((segments, pi) => (
-                    <Text key={pi} style={styles.coachStepContent}>
-                      {segments.map((seg, si) => (
-                        <Text key={si} style={seg.bold ? styles.coachBold : undefined}>{seg.text}</Text>
-                      ))}
-                    </Text>
-                  ))}
+                  {getCoachBlocks(coach).map((block, bi) => {
+                    const textNode = (textColor?: string) => (
+                      <Text style={[styles.coachStepContent, textColor ? { color: textColor } : null]}>
+                        {block.segments.map((seg, si) => (
+                          <Text key={si} style={seg.bold ? (textColor ? { fontWeight: '700' as const } : styles.coachBold) : undefined}>{seg.text}</Text>
+                        ))}
+                      </Text>
+                    );
+                    if (block.type === 'warning') {
+                      return (
+                        <View key={bi} style={{ backgroundColor: COLORS.redBg, borderRadius: RADIUS.lg, padding: 12 }}>
+                          {textNode(COLORS.red)}
+                        </View>
+                      );
+                    }
+                    if (block.type === 'solution') {
+                      return (
+                        <View key={bi} style={{ backgroundColor: themeColors.primaryLight, borderRadius: RADIUS.lg, paddingVertical: 12, paddingHorizontal: 16 }}>
+                          {textNode(themeColors.primary)}
+                        </View>
+                      );
+                    }
+                    return <View key={bi}>{textNode()}</View>;
+                  })}
                 </View>
                 <View style={styles.coachFooter}>
                   {hasEnoughData ? (
