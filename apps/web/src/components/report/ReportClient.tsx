@@ -231,7 +231,7 @@ export default function ReportClient({
                 ? <>목표의 {savingPct}% 달성 <span className="text-sm font-semibold opacity-80">({savedAmount.toLocaleString()}원)</span></>
                 : `이번 달 저축 ${savedAmount.toLocaleString()}원`}
             </p>
-            <p className="text-[13px] opacity-70">
+            <p className="text-xs sm:text-sm opacity-70 whitespace-nowrap shrink-0">
               {monthLabel} 총지출 {totalSpent.toLocaleString()}원
               {topCategory && <> │ 가장 많이 쓴 카테고리 &quot;{topCategory}&quot;</>}
             </p>
@@ -310,15 +310,17 @@ export default function ReportClient({
         {(() => {
           const sortedCats = catData.filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount)
           const totalCatAmt = sortedCats.reduce((s, c) => s + c.amount, 0)
-          const cardCls = 'bg-white rounded-2xl p-6 border border-gray-100'
+          const cardCls = 'bg-white rounded-2xl p-6 border border-gray-100 min-h-[420px] flex flex-col'
 
           const page1 = (
             <div className={cardCls}>
               <p className="text-sm font-bold text-gray-700 mb-4">카테고리별 예산 사용량</p>
               {sortedCats.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-4">이달은 기록된 지출이 없어요</p>
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="text-sm text-gray-400 text-center">이달은 기록된 지출이 없어요</p>
+                </div>
               ) : (
-                <div className="flex flex-col gap-y-4">
+                <div className="flex-1 flex flex-col gap-y-4 justify-between">
                   {sortedCats.map(c => {
                     const over = c.budget > 0 && c.amount > c.budget
                     const barColor = over ? '#EF4444' : 'var(--color-primary)'
@@ -356,9 +358,11 @@ export default function ReportClient({
             <div className={cardCls}>
               <p className="text-sm font-bold text-gray-700 mb-4">🔄 전월 대비 지출 비교</p>
               {sortedCats.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-4">이달은 기록된 지출이 없어요</p>
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="text-sm text-gray-400 text-center">이달은 기록된 지출이 없어요</p>
+                </div>
               ) : (
-                <div className="flex flex-col gap-y-3">
+                <div className="flex-1 flex flex-col gap-y-3 justify-between">
                   {sortedCats.map(c => {
                     const diff = c.amount - c.prevAmount
                     const isNew = c.prevAmount === 0
@@ -380,9 +384,8 @@ export default function ReportClient({
             </div>
           )
 
-          const daysInMonth = dailyData.length
-          const maxDaily = Math.max(...dailyData.map(d => d.amount), 1)
-          const labelDays = new Set([1, Math.ceil(daysInMonth / 2), daysInMonth])
+          const firstDow = dayjs(currentMonth).startOf('month').day()
+          const weekLabels = ['일', '월', '화', '수', '목', '금', '토']
           const page3 = (
             <div className={cardCls}>
               <p className="text-sm font-bold text-gray-700 mb-4">📅 일별 소비 패턴</p>
@@ -391,37 +394,39 @@ export default function ReportClient({
                 무지출 데이 {noSpendDays}일
               </span>
               {dailyData.length === 0 || totalSpent === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-4">일별 데이터가 없어요</p>
-              ) : (
-                <div style={{ position: 'relative', height: 120 }}>
-                  <div style={{ position: 'absolute', inset: 0 }}>
-                    {[0.25, 0.5, 0.75, 1].map(p => (
-                      <div key={p} style={{
-                        position: 'absolute', left: 0, right: 0, bottom: `${p * 100}%`,
-                        borderTop: '1px dashed #e5e7eb',
-                      }} />
-                    ))}
-                  </div>
-                  <div className="flex items-end h-full relative" style={{ gap: 1 }}>
-                    {dailyData.map(d => (
-                      <div key={d.day} className="flex-1 flex flex-col items-center justify-end h-full">
-                        <div style={{
-                          width: '100%', maxWidth: 10,
-                          height: `${Math.max((d.amount / maxDaily) * 100, d.amount > 0 ? 3 : 0)}%`,
-                          background: 'var(--color-primary)', borderRadius: 2,
-                        }} />
-                      </div>
-                    ))}
-                  </div>
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="text-sm text-gray-400 text-center">일별 데이터가 없어요</p>
                 </div>
-              )}
-              {dailyData.length > 0 && totalSpent > 0 && (
-                <div className="flex mt-1" style={{ gap: 1 }}>
-                  {dailyData.map(d => (
-                    <div key={d.day} className="flex-1 text-center text-[10px] text-gray-400">
-                      {labelDays.has(d.day) ? `${d.day}일` : ''}
-                    </div>
-                  ))}
+              ) : (
+                <div className="flex-1 flex flex-col">
+                  <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                    {weekLabels.map(w => (
+                      <div key={w} className="text-[10px] text-gray-400 font-medium">{w}</div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {Array.from({ length: firstDow }).map((_, i) => (
+                      <div key={`blank-${i}`} />
+                    ))}
+                    {dailyData.map(d => {
+                      const isNoSpend = d.amount === 0
+                      return (
+                        <div key={d.day} className="relative group flex flex-col items-center justify-center h-10 w-full rounded-md">
+                          <div className={`w-full h-full flex items-center justify-center rounded-md text-xs ${isNoSpend ? 'bg-[var(--color-primary)]/70 text-white font-bold' : 'text-gray-800'}`}>
+                            {d.day}
+                          </div>
+                          {!isNoSpend && d.amount > 0 && (
+                            <div className="absolute bottom-full mb-1 hidden group-hover:flex flex-col items-center z-50 pointer-events-none">
+                              <div className="bg-gray-900 text-white text-[10px] rounded-md py-1 px-2 whitespace-nowrap shadow-lg">
+                                {d.amount.toLocaleString()}원
+                              </div>
+                              <div className="w-2 h-2 bg-gray-900 rotate-45 -mt-1" />
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
             </div>

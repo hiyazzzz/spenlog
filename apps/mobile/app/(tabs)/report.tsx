@@ -8,6 +8,8 @@ import { getCurrentUserId } from '@/lib/supabase';
 import { getReportData, getAiCoach, getCoachBlocks, type ReportData, type Coach, type CoachErrorCode } from '@/lib/api/report';
 import { getAnalyticsData, type AnalyticsData } from '@/lib/api/analytics';
 
+const MIN_CARD_HEIGHT = 380;
+const WEEK_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
 export default function ReportScreen() {
   const router = useRouter();
@@ -28,6 +30,7 @@ export default function ReportScreen() {
   const contentAnim = useRef(new Animated.Value(0)).current;
   const slideScrollRef = useRef<ScrollView>(null);
   const [slidePageWidth, setSlidePageWidth] = useState(0);
+  const [tapDay, setTapDay] = useState<number | null>(null);
 
   const load = useCallback(async (m?: string) => {
     try {
@@ -76,7 +79,7 @@ export default function ReportScreen() {
   // ⚠️ useMemo는 early return 이전에 선언 (React hooks 순서 규칙)
   const _month = report?.currentMonth ?? month ?? dayjs().format('YYYY-MM');
   const daysInMonth = dayjs(_month).daysInMonth();
-  const todayDay = dayjs().month() === dayjs(_month).month() ? dayjs().date() : daysInMonth;
+  const firstDow = dayjs(_month).startOf('month').day();
   const cumulativeData = useMemo(() => {
     if (!analyticsData) return [];
     let cum = 0;
@@ -108,6 +111,7 @@ export default function ReportScreen() {
     buttonAnim.setValue(1);
     contentAnim.setValue(0);
     setSlideTab('budget');
+    setTapDay(null);
     slideScrollRef.current?.scrollTo({ x: 0, animated: false });
   }, [month]);
 
@@ -147,9 +151,6 @@ export default function ReportScreen() {
       : spendingDiff !== null && spendingDiff < 0
         ? '이번 달 잘 아꼈어요 🌿'
         : `${formatCurrency(totalSpent)} 지출`;
-
-  // 분석 데이터 (daysInMonth, todayDay, cumulativeData는 early return 이전에 선언됨)
-  const maxDaily = Math.max(...cumulativeData.map(d => d.daily), 1);
 
   function goMonth(delta: number) {
     const m = dayjs(currentMonth).add(delta, 'month').format('YYYY-MM');
@@ -306,12 +307,14 @@ export default function ReportScreen() {
                 }}
               >
                 {/* 카드 1: 카테고리별 예산 사용량 */}
-                <View style={{ width: slidePageWidth }}>
+                <View style={{ width: slidePageWidth, minHeight: MIN_CARD_HEIGHT }}>
                   <Text style={styles.cardLabel}>카테고리별 예산 사용량</Text>
                   {catData.filter(c => c.amount > 0).length === 0 ? (
-                    <Text style={[styles.emptyText, { paddingVertical: 16 }]}>이달은 기록된 지출이 없어요</Text>
+                    <View style={styles.cardEmptyWrap}>
+                      <Text style={styles.emptyText}>이달은 기록된 지출이 없어요</Text>
+                    </View>
                   ) : (
-                    <View style={{ gap: 16 }}>
+                    <View style={{ flex: 1, justifyContent: 'space-between', gap: 16 }}>
                       {[...catData].filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount).map(c => {
                         const over = c.budget > 0 && c.amount > c.budget;
                         const barColor = over ? COLORS.red : themeColors.primary;
@@ -344,12 +347,14 @@ export default function ReportScreen() {
                 </View>
 
                 {/* 카드 2: 전월 대비 지출 비교 */}
-                <View style={{ width: slidePageWidth }}>
+                <View style={{ width: slidePageWidth, minHeight: MIN_CARD_HEIGHT }}>
                   <Text style={styles.cardLabel}>🔄 전월 대비 지출 비교</Text>
                   {catData.filter(c => c.amount > 0).length === 0 ? (
-                    <Text style={[styles.emptyText, { paddingVertical: 16 }]}>이달은 기록된 지출이 없어요</Text>
+                    <View style={styles.cardEmptyWrap}>
+                      <Text style={styles.emptyText}>이달은 기록된 지출이 없어요</Text>
+                    </View>
                   ) : (
-                    <View style={{ gap: 12 }}>
+                    <View style={{ flex: 1, justifyContent: 'space-between', gap: 12 }}>
                       {[...catData].filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount).map(c => {
                         const diff = c.amount - c.prevAmount;
                         const isNew = c.prevAmount === 0;
@@ -373,41 +378,49 @@ export default function ReportScreen() {
                 </View>
 
                 {/* 카드 3: 일별 소비 패턴 */}
-                <View style={{ width: slidePageWidth }}>
+                <View style={{ width: slidePageWidth, minHeight: MIN_CARD_HEIGHT }}>
                   <Text style={styles.cardLabel}>📅 일별 소비 패턴</Text>
                   <View style={[styles.noSpendBadge, { backgroundColor: themeColors.primaryMid }]}>
                     <Text style={styles.noSpendBadgeText}>무지출 데이 {noSpendDays}일</Text>
                   </View>
                   {analyticsData && analyticsData.dailyData.length > 0 ? (
-                    <View style={styles.barChartWrap}>
-                      <View style={StyleSheet.absoluteFill}>
-                        {[0.25, 0.5, 0.75, 1].map(p => (
-                          <View key={p} style={[styles.dashedGuide, { bottom: `${p * 100}%` }]} />
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.calWeekRow}>
+                        {WEEK_LABELS.map(w => (
+                          <Text key={w} style={styles.calWeekLabel}>{w}</Text>
                         ))}
                       </View>
-                      {cumulativeData.map(d => {
-                        const pct = maxDaily > 0 ? d.daily / maxDaily : 0;
-                        const isToday = d.day === todayDay && dayjs().format('YYYY-MM') === currentMonth;
-                        return (
-                          <View key={d.day} style={styles.barCol}>
-                            <View style={styles.barTrack}>
-                              <View style={[
-                                styles.barFill,
-                                {
-                                  height: `${Math.max(pct * 100, d.daily > 0 ? 4 : 0)}%`,
-                                  backgroundColor: isToday ? themeColors.primary : themeColors.primaryMid,
-                                },
-                              ]} />
+                      <View style={styles.calGrid}>
+                        {Array.from({ length: firstDow }).map((_, i) => (
+                          <View key={`blank-${i}`} style={styles.calCell} />
+                        ))}
+                        {cumulativeData.map(d => {
+                          const isNoSpend = d.daily === 0;
+                          const isTapped = tapDay === d.day;
+                          return (
+                            <View key={d.day} style={styles.calCell}>
+                              <TouchableOpacity
+                                activeOpacity={0.7}
+                                disabled={isNoSpend}
+                                onPress={() => setTapDay(isTapped ? null : d.day)}
+                                style={[styles.calTile, isNoSpend && { backgroundColor: `${themeColors.primary}B3` }]}
+                              >
+                                <Text style={[styles.calTileText, isNoSpend && styles.calTileTextNoSpend]}>{d.day}</Text>
+                              </TouchableOpacity>
+                              {isTapped && !isNoSpend && (
+                                <View style={styles.calTooltip} pointerEvents="none">
+                                  <Text style={styles.calTooltipText}>{formatCurrency(d.daily)}</Text>
+                                </View>
+                              )}
                             </View>
-                            {(d.day === 1 || d.day === Math.ceil(daysInMonth / 2) || d.day === daysInMonth) && (
-                              <Text style={styles.barLabel}>{d.day}일</Text>
-                            )}
-                          </View>
-                        );
-                      })}
+                          );
+                        })}
+                      </View>
                     </View>
                   ) : (
-                    <Text style={[styles.emptyText, { paddingVertical: 16 }]}>일별 데이터가 없어요</Text>
+                    <View style={styles.cardEmptyWrap}>
+                      <Text style={styles.emptyText}>일별 데이터가 없어요</Text>
+                    </View>
                   )}
                 </View>
               </ScrollView>
@@ -520,7 +533,7 @@ const styles = StyleSheet.create({
 
   noSpendBadge: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 12 },
   noSpendBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
-  dashedGuide: { position: 'absolute', left: 0, right: 0, borderTopWidth: 1, borderColor: COLORS.gray100, borderStyle: 'dashed' },
+  cardEmptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   patternRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   patternLabel: { fontSize: 11, color: COLORS.gray500, width: 28 },
@@ -540,10 +553,17 @@ const styles = StyleSheet.create({
   coachCta: { backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, paddingVertical: 12, alignItems: 'center' },
   coachCtaText: { fontSize: 13, fontWeight: '700', color: '#fff' },
 
-  // 일별 바 차트
-  barChartWrap: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, height: 80, marginBottom: 8 },
-  barCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
-  barTrack: { width: '100%', height: 72, justifyContent: 'flex-end' },
-  barFill: { width: '100%', borderRadius: 2 },
-  barLabel: { fontSize: 8, color: COLORS.gray400, marginTop: 2 },
+  // 일별 소비 패턴 미니 캘린더
+  calWeekRow: { flexDirection: 'row', marginBottom: 4 },
+  calWeekLabel: { width: `${100 / 7}%`, textAlign: 'center', fontSize: 10, color: COLORS.gray400, fontWeight: '500' },
+  calGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  calCell: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  calTile: { width: '82%', aspectRatio: 1, borderRadius: RADIUS.md, alignItems: 'center', justifyContent: 'center' },
+  calTileText: { fontSize: 12, color: COLORS.gray800 },
+  calTileTextNoSpend: { color: '#fff', fontWeight: '700' },
+  calTooltip: {
+    position: 'absolute', top: -30, alignSelf: 'center', backgroundColor: '#1F2937',
+    borderRadius: RADIUS.sm, paddingHorizontal: 8, paddingVertical: 4, zIndex: 50,
+  },
+  calTooltipText: { fontSize: 10, color: '#fff', fontWeight: '600' },
 });
