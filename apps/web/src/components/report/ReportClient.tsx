@@ -398,38 +398,63 @@ export default function ReportClient({
                 <div className="flex-1 flex items-center justify-center">
                   <p className="text-sm text-gray-400 text-center">일별 데이터가 없어요</p>
                 </div>
-              ) : (
-                <div className="flex-1 flex flex-col">
-                  <div className="grid grid-cols-7 gap-1 text-center mb-1">
-                    {weekLabels.map(w => (
-                      <div key={w} className="text-[10px] text-gray-400 font-medium">{w}</div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-7 gap-1">
-                    {Array.from({ length: firstDow }).map((_, i) => (
-                      <div key={`blank-${i}`} />
-                    ))}
-                    {dailyData.map(d => {
-                      const isNoSpend = d.amount === 0
-                      return (
-                        <div key={d.day} className="relative group flex flex-col items-center justify-center h-10 w-full rounded-md">
-                          <div className={`w-full h-full flex items-center justify-center rounded-md text-xs ${isNoSpend ? 'bg-[var(--color-primary)]/70 text-white font-bold' : 'text-gray-800'}`}>
-                            {d.day}
-                          </div>
-                          {!isNoSpend && d.amount > 0 && (
-                            <div className="absolute bottom-full mb-1 hidden group-hover:flex flex-col items-center z-50 pointer-events-none">
-                              <div className="bg-gray-900 text-white text-[10px] rounded-md py-1 px-2 whitespace-nowrap shadow-lg">
-                                {d.amount.toLocaleString()}원
+              ) : (() => {
+                // 무지출 데이 연속 구간(같은 주 내 좌우 연결)을 하나의 띠로 이어붙이기 위한 셀 맵
+                const cells: ({ type: 'blank' } | { type: 'day'; day: number; amount: number })[] = [
+                  ...Array.from({ length: firstDow }, () => ({ type: 'blank' as const })),
+                  ...dailyData.map(d => ({ type: 'day' as const, day: d.day, amount: d.amount })),
+                ]
+                function isNoSpendAt(idx: number) {
+                  const c = cells[idx]
+                  return !!c && c.type === 'day' && c.amount === 0
+                }
+                function streakPos(idx: number): 'solo' | 'start' | 'mid' | 'end' {
+                  const col = idx % 7
+                  const prevLinked = col > 0 && isNoSpendAt(idx - 1)
+                  const nextLinked = col < 6 && isNoSpendAt(idx + 1)
+                  if (prevLinked && nextLinked) return 'mid'
+                  if (!prevLinked && nextLinked) return 'start'
+                  if (prevLinked && !nextLinked) return 'end'
+                  return 'solo'
+                }
+                return (
+                  <div className="flex-1 flex flex-col">
+                    <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                      {weekLabels.map(w => (
+                        <div key={w} className="text-[10px] text-gray-400 font-medium">{w}</div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-7">
+                      {cells.map((c, idx) => {
+                        if (c.type === 'blank') return <div key={`blank-${idx}`} className="h-10" />
+                        const isNoSpend = c.amount === 0
+                        const pos = isNoSpend ? streakPos(idx) : 'solo'
+                        const pillCls = isNoSpend
+                          ? 'flex items-center justify-center h-10 text-xs text-white font-bold bg-[var(--color-primary)]/70 ' + (
+                            pos === 'solo' ? 'mx-0.5 rounded-md'
+                              : pos === 'start' ? 'ml-0.5 mr-0 rounded-l-md rounded-r-none'
+                                : pos === 'end' ? 'mr-0.5 ml-0 rounded-r-md rounded-l-none'
+                                  : 'mx-0 rounded-none'
+                          )
+                          : 'flex items-center justify-center h-10 text-xs text-gray-800'
+                        return (
+                          <div key={c.day} className="relative group h-10">
+                            <div className={pillCls}>{c.day}</div>
+                            {!isNoSpend && c.amount > 0 && (
+                              <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-50 pointer-events-none">
+                                <div className="bg-gray-900 text-white text-[10px] rounded-md py-1 px-2 whitespace-nowrap shadow-lg">
+                                  {c.amount.toLocaleString()}원
+                                </div>
+                                <div className="w-2 h-2 bg-gray-900 rotate-45 -mt-1" />
                               </div>
-                              <div className="w-2 h-2 bg-gray-900 rotate-45 -mt-1" />
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                )
+              })()}
             </div>
           )
 

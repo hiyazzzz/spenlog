@@ -383,41 +383,66 @@ export default function ReportScreen() {
                   <View style={[styles.noSpendBadge, { backgroundColor: themeColors.primaryMid }]}>
                     <Text style={styles.noSpendBadgeText}>무지출 데이 {noSpendDays}일</Text>
                   </View>
-                  {analyticsData && analyticsData.dailyData.length > 0 ? (
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.calWeekRow}>
-                        {WEEK_LABELS.map(w => (
-                          <Text key={w} style={styles.calWeekLabel}>{w}</Text>
-                        ))}
+                  {analyticsData && analyticsData.dailyData.length > 0 ? (() => {
+                    // 무지출 데이 연속 구간(같은 주 내 좌우 연결)을 하나의 띠로 이어붙이기 위한 폭 계산
+                    const cellW = slidePageWidth / 7;
+                    const tileW = cellW * 0.82;
+                    const gapW = cellW - tileW;
+                    const isNoSpendAt = (idx: number) => idx >= firstDow && cumulativeData[idx - firstDow]?.daily === 0;
+                    const streakPos = (idx: number): 'solo' | 'start' | 'mid' | 'end' => {
+                      const col = idx % 7;
+                      const prevLinked = col > 0 && isNoSpendAt(idx - 1);
+                      const nextLinked = col < 6 && isNoSpendAt(idx + 1);
+                      if (prevLinked && nextLinked) return 'mid';
+                      if (!prevLinked && nextLinked) return 'start';
+                      if (prevLinked && !nextLinked) return 'end';
+                      return 'solo';
+                    };
+                    return (
+                      <View style={{ flex: 1 }}>
+                        <View style={styles.calWeekRow}>
+                          {WEEK_LABELS.map(w => (
+                            <Text key={w} style={styles.calWeekLabel}>{w}</Text>
+                          ))}
+                        </View>
+                        <View style={styles.calGrid}>
+                          {Array.from({ length: firstDow }).map((_, i) => (
+                            <View key={`blank-${i}`} style={styles.calCell} />
+                          ))}
+                          {cumulativeData.map((d, i) => {
+                            const idx = firstDow + i;
+                            const isNoSpend = d.daily === 0;
+                            const isTapped = tapDay === d.day;
+                            const pos = isNoSpend ? streakPos(idx) : 'solo';
+                            const tileLayout = pos === 'mid'
+                              ? { width: cellW, height: tileW, marginLeft: 0, borderRadius: 0 }
+                              : pos === 'start'
+                                ? { width: tileW + gapW / 2, height: tileW, marginLeft: gapW / 2, borderTopLeftRadius: RADIUS.md, borderBottomLeftRadius: RADIUS.md, borderTopRightRadius: 0, borderBottomRightRadius: 0 }
+                                : pos === 'end'
+                                  ? { width: tileW + gapW / 2, height: tileW, marginLeft: 0, borderTopRightRadius: RADIUS.md, borderBottomRightRadius: RADIUS.md, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }
+                                  : { width: tileW, height: tileW, marginLeft: gapW / 2, borderRadius: RADIUS.md }
+                            return (
+                              <View key={d.day} style={styles.calCell}>
+                                <TouchableOpacity
+                                  activeOpacity={0.7}
+                                  disabled={isNoSpend}
+                                  onPress={() => setTapDay(isTapped ? null : d.day)}
+                                  style={[styles.calTile, tileLayout, isNoSpend && { backgroundColor: `${themeColors.primary}B3` }]}
+                                >
+                                  <Text style={[styles.calTileText, isNoSpend && styles.calTileTextNoSpend]}>{d.day}</Text>
+                                </TouchableOpacity>
+                                {isTapped && !isNoSpend && (
+                                  <View style={styles.calTooltip} pointerEvents="none">
+                                    <Text style={styles.calTooltipText}>{formatCurrency(d.daily)}</Text>
+                                  </View>
+                                )}
+                              </View>
+                            );
+                          })}
+                        </View>
                       </View>
-                      <View style={styles.calGrid}>
-                        {Array.from({ length: firstDow }).map((_, i) => (
-                          <View key={`blank-${i}`} style={styles.calCell} />
-                        ))}
-                        {cumulativeData.map(d => {
-                          const isNoSpend = d.daily === 0;
-                          const isTapped = tapDay === d.day;
-                          return (
-                            <View key={d.day} style={styles.calCell}>
-                              <TouchableOpacity
-                                activeOpacity={0.7}
-                                disabled={isNoSpend}
-                                onPress={() => setTapDay(isTapped ? null : d.day)}
-                                style={[styles.calTile, isNoSpend && { backgroundColor: `${themeColors.primary}B3` }]}
-                              >
-                                <Text style={[styles.calTileText, isNoSpend && styles.calTileTextNoSpend]}>{d.day}</Text>
-                              </TouchableOpacity>
-                              {isTapped && !isNoSpend && (
-                                <View style={styles.calTooltip} pointerEvents="none">
-                                  <Text style={styles.calTooltipText}>{formatCurrency(d.daily)}</Text>
-                                </View>
-                              )}
-                            </View>
-                          );
-                        })}
-                      </View>
-                    </View>
-                  ) : (
+                    );
+                  })() : (
                     <View style={styles.cardEmptyWrap}>
                       <Text style={styles.emptyText}>일별 데이터가 없어요</Text>
                     </View>
@@ -557,8 +582,8 @@ const styles = StyleSheet.create({
   calWeekRow: { flexDirection: 'row', marginBottom: 4 },
   calWeekLabel: { width: `${100 / 7}%`, textAlign: 'center', fontSize: 10, color: COLORS.gray400, fontWeight: '500' },
   calGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  calCell: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  calTile: { width: '82%', aspectRatio: 1, borderRadius: RADIUS.md, alignItems: 'center', justifyContent: 'center' },
+  calCell: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'flex-start', justifyContent: 'center', position: 'relative' },
+  calTile: { alignItems: 'center', justifyContent: 'center' },
   calTileText: { fontSize: 12, color: COLORS.gray800 },
   calTileTextNoSpend: { color: '#fff', fontWeight: '700' },
   calTooltip: {
