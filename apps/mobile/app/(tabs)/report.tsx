@@ -3,7 +3,7 @@ import { Animated, View, Text, StyleSheet, ScrollView, TouchableOpacity, Activit
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useDataCache } from '@/store/dataCache';
 import dayjs from 'dayjs';
-import { COLORS, RADIUS, formatCurrency, getThemeColors, getThemeCardPalette, useAppTheme } from '@/constants/theme';
+import { COLORS, RADIUS, formatCurrency, getThemeColors, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
 import { getReportData, getAiCoach, getCoachBlocks, type ReportData, type Coach, type CoachErrorCode } from '@/lib/api/report';
 import { getAnalyticsData, type AnalyticsData } from '@/lib/api/analytics';
@@ -23,7 +23,7 @@ export default function ReportScreen() {
   const [coachErrorCode, setCoachErrorCode] = useState<CoachErrorCode | ''>('');
   const [hasCoachCache, setHasCoachCache] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
-  const [slideTab, setSlideTab] = useState<'budget' | 'ratio' | 'daily'>('budget');
+  const [slideTab, setSlideTab] = useState<'budget' | 'compare' | 'daily'>('budget');
   const buttonAnim = useRef(new Animated.Value(1)).current;
   const contentAnim = useRef(new Animated.Value(0)).current;
   const slideScrollRef = useRef<ScrollView>(null);
@@ -129,16 +129,15 @@ export default function ReportScreen() {
 
   const {
     currentMonth, prevMonth, maxMonth,
-    totalSpent, prevTotalSpent, spendingDiff,
+    totalSpent, spendingDiff,
     savingGoal, savedAmount, savingPct,
-    catData, threeMonths, maxTotal, patternComment, hasEnoughData,
+    catData, topCategory, noSpendDays, threeMonths, maxTotal, patternComment, hasEnoughData,
   } = report;
 
   const monthLabel = dayjs(currentMonth).format('YYYY년 M월');
   const canGoNext = currentMonth < maxMonth;
   const goalAchieved = savingGoal > 0 && savedAmount >= savingGoal;
   const themeColors = getThemeColors(report.profile?.theme);
-  const cardPalette = getThemeCardPalette(report.profile?.theme);
   const headerBg = goalAchieved ? COLORS.green : themeColors.primary;
 
   const headerTitle = goalAchieved
@@ -151,7 +150,6 @@ export default function ReportScreen() {
 
   // 분석 데이터 (daysInMonth, todayDay, cumulativeData는 early return 이전에 선언됨)
   const maxDaily = Math.max(...cumulativeData.map(d => d.daily), 1);
-  const donutData = analyticsData ? analyticsData.categoryData.filter(c => c.thisAmt > 0) : [];
 
   function goMonth(delta: number) {
     const m = dayjs(currentMonth).add(delta, 'month').format('YYYY-MM');
@@ -188,48 +186,18 @@ export default function ReportScreen() {
           <View style={[styles.headerCard, { backgroundColor: headerBg }]}>
             <Text style={styles.headerCardLabel}>{monthLabel} 소비 총평</Text>
             <Text style={styles.headerCardTitle}>{headerTitle}</Text>
-            <View style={styles.headerStatsRow}>
-              <View>
-                <Text style={styles.headerStatLabel}>총 지출</Text>
-                <Text style={styles.headerStatValue}>{formatCurrency(totalSpent)}</Text>
-              </View>
-              {savingGoal > 0 && (
-                <View>
-                  <Text style={styles.headerStatLabel}>실제 저축</Text>
-                  <Text style={styles.headerStatValue}>{formatCurrency(savedAmount)}</Text>
-                </View>
-              )}
-              {savingGoal > 0 && (
-                <View>
-                  <Text style={styles.headerStatLabel}>달성률</Text>
-                  <Text style={styles.headerStatValue}>{savingPct}%</Text>
-                </View>
-              )}
-              {savingGoal > 0 && !goalAchieved && (
-                <View>
-                  <Text style={styles.headerStatLabel}>목표 잔여</Text>
-                  <Text style={styles.headerStatValue}>{formatCurrency(savingGoal - savedAmount)}</Text>
-                </View>
-              )}
-            </View>
-          </View>
-
-          {spendingDiff !== null && (
-            <View style={styles.card}>
-              <Text style={styles.cardLabel}>전월 대비 지출</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
-                <Text style={[styles.diffValue, { color: spendingDiff > 0 ? COLORS.red : COLORS.green }]}>
-                  {spendingDiff > 0 ? '▲' : '▼'} {Math.abs(spendingDiff)}%
-                </Text>
-                <Text style={styles.diffSub}>
-                  ({spendingDiff > 0 ? '+' : ''}{formatCurrency(totalSpent - prevTotalSpent)})
-                </Text>
-              </View>
-              <Text style={styles.diffDetail}>
-                전달 {formatCurrency(prevTotalSpent)} → 이번 달 {formatCurrency(totalSpent)}
+            <View style={styles.heroSplitRow}>
+              <Text style={styles.heroLeft}>
+                {savingGoal > 0
+                  ? <>목표의 {savingPct}% 달성 <Text style={styles.heroLeftSub}>({formatCurrency(savedAmount)})</Text></>
+                  : `이번 달 저축 ${formatCurrency(savedAmount)}`}
+              </Text>
+              <Text style={styles.heroRight}>
+                {monthLabel} 총지출 {formatCurrency(totalSpent)}
+                {topCategory ? ` │ 가장 많이 쓴 카테고리 "${topCategory}"` : ''}
               </Text>
             </View>
-          )}
+          </View>
 
           <View style={styles.card}>
             <Text style={styles.cardLabel}>🤖 AI 코치</Text>
@@ -317,52 +285,40 @@ export default function ReportScreen() {
             )}
           </View>
 
-          {/* 3-카드 슬라이드: 예산 사용량 / 카테고리 비율 / 일별 지출 */}
-          <View style={styles.card}>
-            <View onLayout={e => { const w = e?.nativeEvent?.layout?.width; if (w) setSlidePageWidth(p => p || w); }}>
+          {/* 3-카드 슬라이드: 카테고리별 예산사용량 / 전월대비 / 일별소비패턴 */}
+          <View style={styles.sliderCard}>
+            <View
+              onLayout={e => { const w = e?.nativeEvent?.layout?.width; if (w) setSlidePageWidth(p => p || w); }}
+              style={{ overflow: 'hidden' }}
+            >
               <ScrollView
                 ref={slideScrollRef}
                 horizontal
                 pagingEnabled
+                decelerationRate="fast"
+                bounces={false}
+                nestedScrollEnabled
+                directionalLockEnabled
                 showsHorizontalScrollIndicator={false}
                 onMomentumScrollEnd={e => {
                   const page = Math.round(e.nativeEvent.contentOffset.x / slidePageWidth);
-                  setSlideTab(page === 0 ? 'budget' : page === 1 ? 'ratio' : 'daily');
+                  setSlideTab(page === 0 ? 'budget' : page === 1 ? 'compare' : 'daily');
                 }}
               >
-                {/* 카드 1: 예산 사용량 */}
+                {/* 카드 1: 카테고리별 예산 사용량 */}
                 <View style={{ width: slidePageWidth }}>
-                  <Text style={styles.cardLabel}>💰 예산 사용량</Text>
+                  <Text style={styles.cardLabel}>카테고리별 예산 사용량</Text>
                   {catData.filter(c => c.amount > 0).length === 0 ? (
                     <Text style={[styles.emptyText, { paddingVertical: 16 }]}>이달은 기록된 지출이 없어요</Text>
                   ) : (
                     <View style={{ gap: 16 }}>
                       {[...catData].filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount).map(c => {
                         const over = c.budget > 0 && c.amount > c.budget;
-                        const barColor = c.budgetPct >= 90 ? COLORS.red : c.budgetPct >= 70 ? COLORS.amber : themeColors.primary;
+                        const barColor = over ? COLORS.red : themeColors.primary;
                         return (
                           <View key={c.cat}>
                             <View style={styles.catRow}>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                <Text style={styles.catName}>{c.cat}</Text>
-                                {c.prevDiff !== null && (
-                                  <View style={[
-                                    styles.prevDiffBadge,
-                                    Math.abs(c.prevDiff) >= 20
-                                      ? { backgroundColor: c.prevDiff > 0 ? COLORS.redBg : COLORS.greenBg }
-                                      : { backgroundColor: COLORS.gray100 },
-                                  ]}>
-                                    <Text style={[
-                                      styles.prevDiffText,
-                                      Math.abs(c.prevDiff) >= 20
-                                        ? { color: c.prevDiff > 0 ? COLORS.red : COLORS.green }
-                                        : { color: COLORS.gray400 },
-                                    ]}>
-                                      {c.prevDiff > 0 ? '▲' : '▼'}{Math.abs(c.prevDiff)}%{c.prevDiff >= 20 ? ' ⚠️' : ''}
-                                    </Text>
-                                  </View>
-                                )}
-                              </View>
+                              <Text style={styles.catName}>{c.cat}</Text>
                               <Text style={styles.catAmount}>{formatCurrency(c.amount)}</Text>
                             </View>
                             {c.budget > 0 ? (
@@ -387,79 +343,69 @@ export default function ReportScreen() {
                   )}
                 </View>
 
-                {/* 카드 2: 카테고리 비율 */}
+                {/* 카드 2: 전월 대비 지출 비교 */}
                 <View style={{ width: slidePageWidth }}>
-                  <Text style={styles.cardLabel}>🥧 카테고리 비율</Text>
-                  {donutData.length === 0 ? (
+                  <Text style={styles.cardLabel}>🔄 전월 대비 지출 비교</Text>
+                  {catData.filter(c => c.amount > 0).length === 0 ? (
                     <Text style={[styles.emptyText, { paddingVertical: 16 }]}>이달은 기록된 지출이 없어요</Text>
                   ) : (
-                    <>
-                      <View style={styles.donutBarRow}>
-                        {donutData.map((item, i) => (
-                          <View
-                            key={item.cat}
-                            style={[
-                              styles.donutBarSegment,
-                              {
-                                flex: item.thisAmt,
-                                backgroundColor: cardPalette[i % cardPalette.length],
-                                borderRadius: i === 0 ? 4 : i === donutData.length - 1 ? 4 : 0,
-                              },
-                            ]}
-                          />
-                        ))}
-                      </View>
-                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-                        {donutData.map((item, i) => (
-                          <View key={item.cat} style={[styles.legendRow, { width: '48%' }]}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                              <View style={[styles.legendDot, { backgroundColor: cardPalette[i % cardPalette.length] }]} />
-                              <Text style={[styles.legendLabel, { flex: 1 }]} numberOfLines={1}>{item.cat}</Text>
-                            </View>
-                            <Text style={styles.legendPct}>
-                              {Math.round((item.thisAmt / (analyticsData?.thisTotal ?? 1)) * 100)}%
-                            </Text>
+                    <View style={{ gap: 12 }}>
+                      {[...catData].filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount).map(c => {
+                        const diff = c.amount - c.prevAmount;
+                        const isNew = c.prevAmount === 0;
+                        return (
+                          <View key={c.cat} style={styles.compareRow}>
+                            <Text style={styles.catName}>{c.cat}</Text>
+                            {isNew ? (
+                              <View style={styles.newBadge}>
+                                <Text style={styles.newBadgeText}>신규</Text>
+                              </View>
+                            ) : (
+                              <Text style={[styles.compareDiff, { color: diff > 0 ? COLORS.red : diff < 0 ? COLORS.green : COLORS.gray400 }]}>
+                                {diff > 0 ? '🔺' : diff < 0 ? '🔽' : '-'} {formatCurrency(Math.abs(diff))}
+                              </Text>
+                            )}
                           </View>
-                        ))}
-                      </View>
-                    </>
+                        );
+                      })}
+                    </View>
                   )}
                 </View>
 
-                {/* 카드 3: 일별 지출 */}
+                {/* 카드 3: 일별 소비 패턴 */}
                 <View style={{ width: slidePageWidth }}>
-                  <Text style={styles.cardLabel}>📅 일별 지출</Text>
+                  <Text style={styles.cardLabel}>📅 일별 소비 패턴</Text>
+                  <View style={[styles.noSpendBadge, { backgroundColor: themeColors.primaryMid }]}>
+                    <Text style={styles.noSpendBadgeText}>무지출 데이 {noSpendDays}일</Text>
+                  </View>
                   {analyticsData && analyticsData.dailyData.length > 0 ? (
-                    <>
-                      <View style={styles.barChartWrap}>
-                        {cumulativeData.map(d => {
-                          const pct = maxDaily > 0 ? d.daily / maxDaily : 0;
-                          const isToday = d.day === todayDay && dayjs().format('YYYY-MM') === currentMonth;
-                          return (
-                            <View key={d.day} style={styles.barCol}>
-                              <View style={styles.barTrack}>
-                                <View style={[
-                                  styles.barFill,
-                                  {
-                                    height: `${Math.max(pct * 100, d.daily > 0 ? 4 : 0)}%`,
-                                    backgroundColor: isToday ? themeColors.primary : themeColors.primaryMid,
-                                  },
-                                ]} />
-                              </View>
-                              {(d.day === 1 || d.day === Math.ceil(daysInMonth / 2) || d.day === daysInMonth) && (
-                                <Text style={styles.barLabel}>{d.day}</Text>
-                              )}
+                    <View style={styles.barChartWrap}>
+                      <View style={StyleSheet.absoluteFill}>
+                        {[0.25, 0.5, 0.75, 1].map(p => (
+                          <View key={p} style={[styles.dashedGuide, { bottom: `${p * 100}%` }]} />
+                        ))}
+                      </View>
+                      {cumulativeData.map(d => {
+                        const pct = maxDaily > 0 ? d.daily / maxDaily : 0;
+                        const isToday = d.day === todayDay && dayjs().format('YYYY-MM') === currentMonth;
+                        return (
+                          <View key={d.day} style={styles.barCol}>
+                            <View style={styles.barTrack}>
+                              <View style={[
+                                styles.barFill,
+                                {
+                                  height: `${Math.max(pct * 100, d.daily > 0 ? 4 : 0)}%`,
+                                  backgroundColor: isToday ? themeColors.primary : themeColors.primaryMid,
+                                },
+                              ]} />
                             </View>
-                          );
-                        })}
-                      </View>
-                      <View style={styles.cumWrap}>
-                        <Text style={styles.cumLabel}>누적 지출</Text>
-                        <Text style={[styles.cumValue, { color: themeColors.primary }]}>
-                          {formatCurrency(cumulativeData[todayDay - 1]?.cum ?? analyticsData.thisTotal)}
-                        </Text>
-                      </View>
-                    </>
+                            {(d.day === 1 || d.day === Math.ceil(daysInMonth / 2) || d.day === daysInMonth) && (
+                              <Text style={styles.barLabel}>{d.day}일</Text>
+                            )}
+                          </View>
+                        );
+                      })}
+                    </View>
                   ) : (
                     <Text style={[styles.emptyText, { paddingVertical: 16 }]}>일별 데이터가 없어요</Text>
                   )}
@@ -469,7 +415,7 @@ export default function ReportScreen() {
 
             {/* 슬라이드 도트 인디케이터 */}
             <View style={styles.catDotRow}>
-              {(['budget', 'ratio', 'daily'] as const).map((tab, i) => (
+              {(['budget', 'compare', 'daily'] as const).map((tab, i) => (
                 <TouchableOpacity
                   key={tab}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -542,13 +488,14 @@ const styles = StyleSheet.create({
   headerStatsRow: { flexDirection: 'row', gap: 20 },
   headerStatLabel: { fontSize: 10, color: 'rgba(255,255,255,0.6)' },
   headerStatValue: { fontSize: 13, fontWeight: '700', color: '#fff', marginTop: 2 },
+  heroSplitRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 8 },
+  heroLeft: { fontSize: 20, fontWeight: '700', color: '#fff' },
+  heroLeftSub: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.8)' },
+  heroRight: { fontSize: 13, color: 'rgba(255,255,255,0.7)', flexShrink: 1, textAlign: 'right' },
 
   card: { backgroundColor: '#fff', borderRadius: RADIUS.xl, borderWidth: 1, borderColor: COLORS.gray100, padding: 16, marginBottom: 12 },
+  sliderCard: { backgroundColor: '#fff', borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.gray100, padding: 24, marginBottom: 12 },
   cardLabel: { fontSize: 11, color: COLORS.gray400, marginBottom: 10 },
-
-  diffValue: { fontSize: 22, fontWeight: '800' },
-  diffSub: { fontSize: 11, color: COLORS.gray400, marginBottom: 2 },
-  diffDetail: { fontSize: 11, color: COLORS.gray400, marginTop: 6 },
 
   goalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 },
   goalAmount: { fontSize: 18, fontWeight: '800' },
@@ -562,11 +509,18 @@ const styles = StyleSheet.create({
   catRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   catName: { fontSize: 13, fontWeight: '600', color: COLORS.gray700 },
   catAmount: { fontSize: 13, fontWeight: '700', color: COLORS.gray800 },
-  prevDiffBadge: { borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
-  prevDiffText: { fontSize: 9, fontWeight: '700' },
-  thinTrack: { backgroundColor: COLORS.gray100, borderRadius: 999, height: 6, overflow: 'hidden' },
+  thinTrack: { backgroundColor: COLORS.gray100, borderRadius: 999, height: 12, overflow: 'hidden' },
   thinFill: { height: '100%', borderRadius: 999 },
   catSub: { fontSize: 9, color: COLORS.gray400, marginTop: 3 },
+
+  compareRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  compareDiff: { fontSize: 13, fontWeight: '700' },
+  newBadge: { backgroundColor: COLORS.gray100, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  newBadgeText: { fontSize: 11, fontWeight: '700', color: COLORS.gray400 },
+
+  noSpendBadge: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 12 },
+  noSpendBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  dashedGuide: { position: 'absolute', left: 0, right: 0, borderTopWidth: 1, borderColor: COLORS.gray100, borderStyle: 'dashed' },
 
   patternRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   patternLabel: { fontSize: 11, color: COLORS.gray500, width: 28 },
@@ -592,16 +546,4 @@ const styles = StyleSheet.create({
   barTrack: { width: '100%', height: 72, justifyContent: 'flex-end' },
   barFill: { width: '100%', borderRadius: 2 },
   barLabel: { fontSize: 8, color: COLORS.gray400, marginTop: 2 },
-  cumWrap: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: COLORS.gray50 },
-  cumLabel: { fontSize: 11, color: COLORS.gray400 },
-  cumValue: { fontSize: 13, fontWeight: '700' },
-
-  // 카테고리 비율
-  donutBarRow: { flexDirection: 'row', height: 16, borderRadius: 4, overflow: 'hidden', gap: 1 },
-  donutBarSegment: { height: '100%' },
-  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendLabel: { fontSize: 12, color: COLORS.gray600 },
-  legendPct: { fontSize: 12, fontWeight: '700', color: COLORS.gray800, minWidth: 32, textAlign: 'right' },
-  legendAmt: { fontSize: 11, color: COLORS.gray500, minWidth: 64, textAlign: 'right' },
 });

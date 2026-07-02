@@ -51,6 +51,11 @@ function clusterExpenses(items: { name: string; amount: number }[]): SpendCluste
   return result.sort((a, b) => b.amount - a.amount)
 }
 
+export interface DailyData {
+  day: number
+  amount: number
+}
+
 export interface ReportData {
   profile: User | null
   currentMonth: string
@@ -64,6 +69,9 @@ export interface ReportData {
   savingPct: number
   income: number
   catData: CatData[]
+  topCategory: string | null
+  dailyData: DailyData[]
+  noSpendDays: number
   topItems: TopItem[]
   spendClusters: SpendCluster[]
   txnCount: number
@@ -126,12 +134,25 @@ export async function getReportData(userId: string, month?: string): Promise<Rep
 
   const catData: CatData[] = reportCategories.map((cat: string) => {
     const amount = expenses?.filter((e: any) => e.category === cat && (e.type ?? 'expense') === 'expense').reduce((s: number, e: any) => s + e.amount, 0) ?? 0
-    const prevAmount = prevExpenses?.filter((e: any) => e.category === cat).reduce((s: number, e: any) => s + e.amount, 0) ?? 0
+    const prevAmount = prevExpenses?.filter((e: any) => e.category === cat && (e.type ?? 'expense') === 'expense').reduce((s: number, e: any) => s + e.amount, 0) ?? 0
     const budget = budgets?.find((b: any) => b.category === cat)?.amount ?? 0
     const budgetPct = budget > 0 ? Math.min(Math.round((amount / budget) * 100), 100) : 0
     const prevDiff = prevAmount > 0 ? Math.round(((amount - prevAmount) / prevAmount) * 100) : null
     return { cat, amount, prevAmount, budget, budgetPct, prevDiff }
   })
+
+  const topCategory = catData.filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount)[0]?.cat ?? null
+
+  const daysInMonth = dayjs(safeMonth).daysInMonth()
+  const dailyMap = new Map<number, number>()
+  expenses?.filter((e: any) => (e.type ?? 'expense') === 'expense').forEach((e: any) => {
+    const day = dayjs(e.date).date()
+    dailyMap.set(day, (dailyMap.get(day) ?? 0) + e.amount)
+  })
+  const dailyData: DailyData[] = Array.from({ length: daysInMonth }, (_, i) => ({ day: i + 1, amount: dailyMap.get(i + 1) ?? 0 }))
+
+  const spendDaysSet = new Set(expenses?.filter((e: any) => (e.type ?? 'expense') === 'expense').map((e: any) => dayjs(e.date).date()))
+  const noSpendDays = daysInMonth - spendDaysSet.size
 
   // AI 코치가 카테고리 뭉뚱그린 조언 대신 실제 항목을 지목할 수 있도록 고액 지출 TOP3 전달 (web report-data와 동일 로직)
   const expenseRows = (expenses ?? []).filter((e: any) => (e.type ?? 'expense') === 'expense')
@@ -173,6 +194,9 @@ export async function getReportData(userId: string, month?: string): Promise<Rep
     savingPct,
     income,
     catData,
+    topCategory,
+    dailyData,
+    noSpendDays,
     topItems,
     spendClusters,
     txnCount,
