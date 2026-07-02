@@ -74,6 +74,14 @@ export async function GET(request: Request) {
     return { cat, amount, prevAmount, budget, budgetPct, prevDiff }
   })
 
+  // AI 코치가 "고정비를 줄여보세요" 같은 뭉뚱그린 조언 대신 실제 항목을 지목할 수 있도록 고액 지출 TOP3 전달
+  const expenseRows = (expenses ?? []).filter(isExp)
+  const topItems = [...expenseRows]
+    .sort((a: any, b: any) => b.amount - a.amount)
+    .slice(0, 3)
+    .map((e: any) => ({ name: e.name ?? '항목', amount: e.amount, category: normCat(e.category) }))
+  const txnCount = expenseRows.length
+
   const threeMonths = [
     { month: prev2Month, label: dayjs(prev2Month).format('M월'), total: prev2TotalSpent },
     { month: prevMonth, label: dayjs(prevMonth).format('M월'), total: prevTotalSpent },
@@ -104,6 +112,8 @@ export async function GET(request: Request) {
     savedAmount,
     savingPct,
     catData,
+    topItems,
+    txnCount,
     threeMonths: prevTotalSpent > 0 ? threeMonths : null,
     maxTotal,
     patternComment,

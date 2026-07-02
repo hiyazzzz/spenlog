@@ -13,6 +13,7 @@ interface CatData {
 
 interface MonthTotal { month: string; label: string; total: number }
 interface Coach { step1: string; step2: string; step3: string }
+interface TopItem { name: string; amount: number; category: string }
 
 interface Props {
   userId: string
@@ -26,6 +27,8 @@ interface Props {
   savedAmount: number
   savingPct: number
   catData: CatData[]
+  topItems?: TopItem[]
+  txnCount?: number
   threeMonths: MonthTotal[] | null
   maxTotal: number
   patternComment: string
@@ -37,7 +40,7 @@ export default function ReportClient({
   userId, currentMonth, prevMonth, maxMonth,
   totalSpent, prevTotalSpent, spendingDiff,
   savingGoal, savedAmount, savingPct,
-  catData, threeMonths, maxTotal, patternComment,
+  catData, topItems, txnCount, threeMonths, maxTotal, patternComment,
   cachedCoach, hasEnoughData,
 }: Props) {
   const router = useRouter()
@@ -84,6 +87,7 @@ export default function ReportClient({
             yearMonth: currentMonth,
             totalSpent, prevTotalSpent, savingGoal, savedAmount,
             catData: catData.map(c => ({ cat: c.cat, amount: c.amount, prevAmount: c.prevAmount, budget: c.budget })),
+            topItems, txnCount,
           }),
           signal: controller.signal,
         })

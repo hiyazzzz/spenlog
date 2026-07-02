@@ -86,6 +86,8 @@ export default function ReportDataLoader() {
       savedAmount={data.savedAmount}
       savingPct={data.savingPct}
       catData={data.catData}
+      topItems={data.topItems}
+      txnCount={data.txnCount}
       threeMonths={data.threeMonths}
       maxTotal={data.maxTotal}
       patternComment={data.patternComment}

@@ -10,6 +10,8 @@ interface CoachInput {
   savingGoal: number
   savedAmount: number
   catData: { cat: string; amount: number; prevAmount: number; budget?: number }[]
+  topItems?: { name: string; amount: number; category: string }[] // 이번 달 고액 지출 TOP3 (구체적 조언용)
+  txnCount?: number // 이번 달 총 결제 건수
   userId?: string // 모바일 앱은 쿠키 세션이 없어 직접 전달
 }
 
@@ -33,21 +35,39 @@ function buildPrompt(input: CoachInput): string {
 
   const monthLabel = dayjs(input.yearMonth).format('M월')
 
-  return `당신은 친근한 한국어 가계부 AI 코치예요. 아래 데이터를 바탕으로 3단계 코칭 메시지를 JSON으로 작성해주세요.
+  const remainToGoal = input.savingGoal > 0 ? Math.max(input.savingGoal - input.savedAmount, 0) : 0
+  const daysLeftNextMonth = dayjs(input.yearMonth).add(1, 'month').daysInMonth()
+  const dailySaveNeeded = remainToGoal > 0 ? Math.round(remainToGoal / daysLeftNextMonth) : 0
+
+  const topItemsLines = (input.topItems ?? [])
+    .filter(i => i.amount > 0)
+    .map(i => `  - ${i.name} ${i.amount.toLocaleString()}원 (${i.category})`)
+    .join('\n')
+
+  return `당신은 Spenlog 가계부 앱의 AI 코치예요. 사용자의 이번 달 소비 데이터를 분석해서 화면에 이미 보이는 숫자를 재서술하지 말고, 그 숫자 뒤의 맥락과 구체적인 다음 행동을 짚어주세요.
+
+[반드시 지킬 것]
+- step1(패턴진단)에서 총지출·저축률처럼 헤더에 이미 표시된 숫자를 그대로 나열하지 말 것. 대신 "왜 그런 결과가 나왔는지"를 지출 TOP3 항목/건수 등 세부 데이터로 설명할 것
+- "~하는 건 어떨까요?", "~해보아요!", "~하실 수 있어요" 같은 상투적 권유형 어미를 반복하지 말 것. 문장은 단정적으로 끝낼 것
+- step2(동기부여)에서 "남은 %를 채우면 목표에 가까워진다" 같은 동어반복 금지. 대신 남은 금액을 아래 제공된 일일 절약 목표액처럼 구체적 숫자로 환산해서 제시할 것
+- step3(행동제안)은 카테고리명만 언급하지 말고, 아래 지출 TOP3 중 최소 1개의 실제 항목명을 지목해서 구체적으로 제안할 것
 
 데이터:
-- ${monthLabel}(${input.yearMonth}): ${input.totalSpent.toLocaleString()}원 지출
+- ${monthLabel}(${input.yearMonth}): ${input.totalSpent.toLocaleString()}원 지출 (총 ${input.txnCount ?? '?'}건 결제)
 - 전월 대비: ${diff !== null ? (diff > 0 ? `▲${diff}% 증가` : `▼${Math.abs(diff)}% 감소`) : '데이터 없음'}
 - 지출 금액 1위 카테고리: ${topSpending ? `${topSpending.cat} (${topSpending.amount.toLocaleString()}원)` : '없음'}
 - 예산 초과 1위 카테고리: ${topOverBudget ? `${topOverBudget.cat} (예산 ${(topOverBudget.budget ?? 0).toLocaleString()}원 → 실제 ${topOverBudget.amount.toLocaleString()}원)` : '없음'}
+- 이번 달 고액 지출 TOP3:
+${topItemsLines || '  - 데이터 없음'}
 - 저축 목표: ${input.savingGoal > 0 ? `${input.savingGoal.toLocaleString()}원` : '미설정'}
 - 실제 저축: ${input.savingGoal > 0 ? `${input.savedAmount.toLocaleString()}원 (${Math.round((input.savedAmount / input.savingGoal) * 100)}%)` : '미설정'}
+- 목표까지 남은 금액: ${remainToGoal > 0 ? `${remainToGoal.toLocaleString()}원 (다음 달 하루 ${dailySaveNeeded.toLocaleString()}원씩 저축하면 도달 가능)` : '미설정 또는 이미 달성'}
 
 JSON만 출력. 설명 금지.
 형식:
-{"step1":"패턴진단 2문장 (구체적 수치 포함)","step2":"숫자기반 동기부여 2문장 (저축목표와 연결)","step3":"행동제안 2문장 (실용적이고 구체적)"}
+{"step1":"패턴진단 2문장 (지출 TOP3/건수 등 세부 데이터로 해석)","step2":"숫자기반 동기부여 2문장 (일일 절약 목표액 등 구체적 수치로 저축목표와 연결)","step3":"행동제안 2문장 (지출 TOP3 중 실제 항목명 최소 1개 지목)"}
 
-각 메시지는 2문장 이내, 따뜻하고 친근한 말투로.`
+각 메시지는 2문장 이내, 따뜻하지만 단정적인 말투로. 물음표로 문장을 끝내지 말 것.`
 }
 
 // 모델 1개 호출 — 실패 원인을 진단할 수 있도록 상태 코드/응답 본문을 그대로 서버 콘솔에 남긴다
