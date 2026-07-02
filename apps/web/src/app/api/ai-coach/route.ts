@@ -40,6 +40,16 @@ function buildPrompt(input: CoachInput, lastMonthCoachText: string): string {
     .filter(c => (c.budget ?? 0) > 0 && c.amount > (c.budget ?? 0))
     .sort((a, b) => (b.amount - (b.budget ?? 0)) - (a.amount - (a.budget ?? 0)))[0]
 
+  // 절감 여지 카테고리: 예산 초과가 있으면 우선, 없으면 전달 대비 가장 많이 늘어난 곳
+  const topIncrease = [...input.catData]
+    .filter(c => c.prevAmount > 0 && c.amount > c.prevAmount)
+    .sort((a, b) => (b.amount - b.prevAmount) - (a.amount - a.prevAmount))[0]
+  const overspendLine = topOverBudget
+    ? `${topOverBudget.cat} - 예산 ${(topOverBudget.budget ?? 0).toLocaleString()}원 대비 ${(topOverBudget.amount - (topOverBudget.budget ?? 0)).toLocaleString()}원 초과`
+    : topIncrease
+      ? `${topIncrease.cat} - 전달보다 ${(topIncrease.amount - topIncrease.prevAmount).toLocaleString()}원 증가`
+      : '뚜렷하게 과다 지출된 카테고리 없음'
+
   const diff = input.prevTotalSpent > 0
     ? Math.round(((input.totalSpent - input.prevTotalSpent) / input.prevTotalSpent) * 100)
     : null
@@ -59,34 +69,39 @@ function buildPrompt(input: CoachInput, lastMonthCoachText: string): string {
     ? Math.round((input.savedAmount / input.income) * 100)
     : null
 
-  return `당신은 Spenlog 가계부 앱의 유료 AI 재무 코치예요. 사용자에게 말하듯 친근하게, 아래 데이터를 바탕으로 코칭 메시지 하나를 써주세요. 절대 보고서나 분석문서를 쓰는 게 아니라, 친한 재무 코치가 카톡으로 메시지 하나 보내주는 느낌이어야 해요. "1번은 이거, 2번은 저거" 식으로 나누지 말고 인사 없이 바로 본론부터 자연스럽게 이어지는 하나의 글로 쓸 것.
+  return `당신은 Spenlog 가계부 앱의 유료 AI 재무 코치예요. 사용자에게 말하듯 친근하게, 아래 데이터를 바탕으로 코칭 메시지 하나를 써주세요. 절대 딱딱한 보고서가 아니라, 친한 재무 코치가 카톡으로 메시지 보내주는 느낌이어야 해요. "1번은 이거, 2번은 저거" 식으로 나누지 말고 인사 없이 바로 본론부터 자연스럽게 이어지는 글로 쓸 것.
+
+[포맷 - 반드시 지킬 것]
+- [소비 요약], [행동 가이드] 같은 인위적인 대제목을 절대 쓰지 말 것
+- 대신 내용 흐름이 바뀌는 지점마다 문단을 나누고, 문단 사이는 줄바꿈 두 번(\\n\\n)으로 구분할 것. 전체 2~4문단
+- 문단 안에서 핵심 수치(금액, %, 건수)와 실제 항목명은 **텍스트**처럼 마크다운 볼드로 감쌀 것
 
 [문체 - 반드시 지킬 것]
 - 모든 문장은 "-요"로 끝나는 부드러운 대화체로 쓸 것. "-습니다/-니다" 격식체, "~하고 있습니다", "~것이 필요합니다", "~것이 효과적입니다" 같은 보고서식 명사형 종결 절대 금지
 - 항목명을 따옴표로 감싸서 나열하지 말고 문장에 자연스럽게 녹여 쓸 것 (예: 'db생명(투자용)'과 '가족계' (X) → db생명이랑 가족계 (O))
 - 아래 나쁜 예처럼 딱딱하게 쓰지 말고, 좋은 예처럼 편하게 쓸 것:
   나쁜 예: "이번 달 지출은 9건의 결제로 이루어졌고, 고정비가 총 지출의 약 72%를 차지하며 주요 소비 패턴을 형성하고 있습니다."
-  좋은 예: "이번 달엔 9번 결제하셨는데, 그중 db생명이랑 가족계 같은 고정비가 72%나 차지했어요."
-  나쁜 예: "남은 970,000원을 저축하기 위해 다음 달 하루 31,290원씩 꾸준히 저축하는 것이 필요합니다."
-  좋은 예: "목표까지 97만원 남았는데, 다음 달엔 하루 31,290원씩만 모으면 딱 채울 수 있어요!"
+  좋은 예: "이번 달엔 **9번** 결제하셨는데, 그중 db생명이랑 가족계 같은 고정비가 **72%**나 차지했어요."
   나쁜 예: "다음 달에는 '쑥생일선물'과 같은 친목비 지출을 미리 예산에 반영하는 것이 효과적입니다."
   좋은 예: "쑥 생일선물처럼 갑자기 생기는 친목비는 다음 달 예산에 미리 넣어두면 마음이 편할 거예요."
+  나쁜 예(추상적/시점 어색): "남은 기간 목표를 다 채우려면 하루 평균 31,290원씩 모으면 딱 맞아요." (이미 끝난 달 리포트에서 '남은 기간'이 모호하고, 무엇을 줄여야 하는지도 안 나와 있음)
+  좋은 예(구체적 실행법과 연결): "다음 달에 생활비만 **3만원** 줄여도, 목표까지 필요한 하루 평균 **31,290원**을 어렵지 않게 채울 수 있어요."
 
 [내용 - 반드시 지킬 것, 아래 순서로 자연스럽게 이어질 것]
 1. 총지출·저축률처럼 화면에 이미 보이는 숫자를 그대로 나열하지 말고, "왜 그런 결과가 나왔는지"를 지출 TOP3 항목/건수로 짚어줄 것
 2. 지난달 코칭 기록이 있으면, 그때 얘기했던 내용과 이번 달 실제 결과(카테고리별 amount vs prevAmount)를 비교해서 자연스럽게 한마디 남길 것. 지난달 코칭 기록이 없으면 이 부분은 완전히 생략 (없다는 말도 하지 말 것)
 3. 수입 대비 저축률 데이터가 있으면, 권장 기준과 비교해서 짧게 짚어줄 것. 데이터 없으면 생략
-4. 목표까지 남은 금액을 일일 절약액처럼 구체적 숫자로 환산해서 동기부여할 것 ("남은 %를 채우면 목표에 가까워진다" 같은 동어반복 금지)
+4. 아래 [절감 여지가 있는 카테고리]를 지목해서 구체적으로 얼마를 줄이면 좋을지 제안하고, 그 절감액이 다음 달 저축 목표(하루 평균 절약액)에 어떻게 도움되는지 자연스럽게 연결해서 설명할 것. "남은 기간"이라는 모호한 표현 대신 반드시 "다음 달"이라고 명시할 것. 절감 여지 카테고리가 없으면 이 부분은 생략
 5. 지출 TOP3 중 최소 1개의 실제 항목명을 지목해서 구체적인 다음 행동 제안으로 마무리. 카테고리명만 언급 금지, 질문형("~하는 건 어떨까요?")으로 끝내지 말 것
 
 데이터:
 - ${monthLabel}(${input.yearMonth}): ${input.totalSpent.toLocaleString()}원 지출 (총 ${input.txnCount ?? '?'}건 결제)
 - 전월 대비: ${diff !== null ? (diff > 0 ? `▲${diff}% 증가` : `▼${Math.abs(diff)}% 감소`) : '데이터 없음'}
 - 지출 금액 1위 카테고리: ${topSpending ? `${topSpending.cat} (${topSpending.amount.toLocaleString()}원)` : '없음'}
-- 예산 초과 1위 카테고리: ${topOverBudget ? `${topOverBudget.cat} (예산 ${(topOverBudget.budget ?? 0).toLocaleString()}원 → 실제 ${topOverBudget.amount.toLocaleString()}원)` : '없음'}
 - 이번 달 고액 지출 TOP3:
 ${topItemsLines || '  - 데이터 없음'}
 - 카테고리별 이번 달 vs 전달 지출: ${input.catData.filter(c => c.amount > 0).map(c => `${c.cat} ${c.amount.toLocaleString()}원(전달 ${c.prevAmount.toLocaleString()}원)`).join(', ') || '데이터 없음'}
+- 절감 여지가 있는 카테고리: ${overspendLine}
 - 지난달 코칭 기록: ${lastMonthCoachText ? `"${lastMonthCoachText}"` : '없음 (첫 코칭이거나 기록 없음 — 언급하지 말 것)'}
 - 수입 대비 저축률: ${savingsRatePct !== null ? `${savingsRatePct}% (일반적 권장 기준: ${SAVING_RATE_GUIDELINE_PCT}%)` : '데이터 없음 (언급하지 말 것)'}
 - 저축 목표: ${input.savingGoal > 0 ? `${input.savingGoal.toLocaleString()}원` : '미설정'}
@@ -94,7 +109,7 @@ ${topItemsLines || '  - 데이터 없음'}
 - 목표까지 남은 금액: ${remainToGoal > 0 ? `${remainToGoal.toLocaleString()}원 (다음 달 하루 ${dailySaveNeeded.toLocaleString()}원씩 저축하면 도달 가능)` : '미설정 또는 이미 달성'}
 
 JSON만 출력. 설명 금지.
-형식: {"message":"하나로 이어지는 코칭 메시지, 4~6문장"}
+형식: {"message":"\\n\\n으로 구분된 2~4문단짜리 코칭 메시지, 핵심 수치는 **볼드**"}
 
 위 [문체] 예시의 "좋은 예"처럼 카톡으로 편하게 말 걸듯이, 인사말 없이 바로 본론으로 시작할 것.`
 }

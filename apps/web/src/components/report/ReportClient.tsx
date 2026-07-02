@@ -20,6 +20,20 @@ function getCoachMessage(c: Coach): string {
   return c.message ?? [c.step1, c.step2, c.step3].filter(Boolean).join(' ')
 }
 
+// "\n\n" 문단 구분 + "**볼드**" 마크다운 라이트 파싱 (인위적 헤더 없이 문단/볼드만으로 가독성 확보)
+function renderCoachMessage(message: string) {
+  const paragraphs = message.split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
+  return paragraphs.map((para, pi) => (
+    <p key={pi} className="text-sm text-gray-600 leading-relaxed">
+      {para.split(/(\*\*.+?\*\*)/g).filter(Boolean).map((seg, si) =>
+        seg.startsWith('**') && seg.endsWith('**')
+          ? <strong key={si} className="font-bold text-gray-800">{seg.slice(2, -2)}</strong>
+          : <span key={si}>{seg}</span>
+      )}
+    </p>
+  ))
+}
+
 interface Props {
   userId: string
   currentMonth: string
@@ -246,7 +260,7 @@ export default function ReportClient({
 
           {coach && (
             <div style={{ opacity: contentOpacity, transition: 'opacity 0.3s ease' }} className="space-y-4">
-              <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{getCoachMessage(coach)}</p>
+              <div className="space-y-4">{renderCoachMessage(getCoachMessage(coach))}</div>
               <div className="pt-3 border-t border-gray-50">
                 {hasEnoughData ? (
                   <a href="/assets" className="block w-full py-3 rounded-xl text-center text-sm font-semibold text-white"

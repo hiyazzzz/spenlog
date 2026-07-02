@@ -5,7 +5,7 @@ import { useDataCache } from '@/store/dataCache';
 import dayjs from 'dayjs';
 import { COLORS, RADIUS, formatCurrency, getThemeColors, getThemeCardPalette, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
-import { getReportData, getAiCoach, getCoachMessage, type ReportData, type Coach, type CoachErrorCode } from '@/lib/api/report';
+import { getReportData, getAiCoach, getCoachMessage, parseCoachParagraphs, type ReportData, type Coach, type CoachErrorCode } from '@/lib/api/report';
 import { getAnalyticsData, type AnalyticsData } from '@/lib/api/analytics';
 
 
@@ -278,7 +278,15 @@ export default function ReportScreen() {
 
             {coach && (
               <Animated.View style={{ opacity: contentAnim, gap: 14 }}>
-                <Text style={styles.coachStepContent}>{getCoachMessage(coach)}</Text>
+                <View style={{ gap: 16 }}>
+                  {parseCoachParagraphs(getCoachMessage(coach)).map((segments, pi) => (
+                    <Text key={pi} style={styles.coachStepContent}>
+                      {segments.map((seg, si) => (
+                        <Text key={si} style={seg.bold ? styles.coachBold : undefined}>{seg.text}</Text>
+                      ))}
+                    </Text>
+                  ))}
+                </View>
                 <View style={styles.coachFooter}>
                   {hasEnoughData ? (
                     <TouchableOpacity style={[styles.coachCta, { backgroundColor: themeColors.primary }]} onPress={() => router.push('/(tabs)/assets')}>
@@ -555,7 +563,8 @@ const styles = StyleSheet.create({
 
   coachBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: RADIUS.lg, backgroundColor: COLORS.primary },
   coachBtnText: { fontSize: 11, fontWeight: '700', color: '#fff' },
-  coachStepContent: { fontSize: 13, color: COLORS.gray600, lineHeight: 20 },
+  coachStepContent: { fontSize: 13, color: COLORS.gray600, lineHeight: 21 },
+  coachBold: { fontWeight: '700', color: COLORS.gray800 },
   coachFooter: { paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.gray50 },
   coachCta: { backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, paddingVertical: 12, alignItems: 'center' },
   coachCtaText: { fontSize: 13, fontWeight: '700', color: '#fff' },

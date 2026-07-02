@@ -167,6 +167,23 @@ export function getCoachMessage(c: Coach): string {
   return c.message ?? [c.step1, c.step2, c.step3].filter(Boolean).join(' ')
 }
 
+export interface CoachSegment {
+  bold: boolean
+  text: string
+}
+
+// "\n\n" 문단 구분 + "**볼드**" 마크다운 라이트 파싱 (RN Text는 HTML을 못 그리므로 세그먼트 배열로 반환)
+export function parseCoachParagraphs(message: string): CoachSegment[][] {
+  const paragraphs = message.split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
+  return paragraphs.map(para =>
+    para.split(/(\*\*.+?\*\*)/g).filter(Boolean).map(seg =>
+      seg.startsWith('**') && seg.endsWith('**')
+        ? { bold: true, text: seg.slice(2, -2) }
+        : { bold: false, text: seg }
+    )
+  )
+}
+
 export type CoachErrorCode = 'NO_DATA' | 'API_ERROR' | 'PREMIUM_REQUIRED' | 'MONTH_NOT_COMPLETE'
 
 export interface CoachResult {
