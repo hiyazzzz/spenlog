@@ -354,16 +354,17 @@ export default function ReportClient({
             </div>
           )
 
+          const top5Cats = sortedCats.slice(0, 5)
           const page2 = (
             <div className={cardCls}>
               <p className="text-sm font-bold text-gray-700 mb-4">🔄 전월 대비 지출 비교</p>
-              {sortedCats.length === 0 ? (
+              {top5Cats.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center">
                   <p className="text-sm text-gray-400 text-center">이달은 기록된 지출이 없어요</p>
                 </div>
               ) : (
-                <div className="flex-1 flex flex-col gap-y-3 justify-between">
-                  {sortedCats.map(c => {
+                <div className="flex flex-col gap-y-3 max-h-[260px] overflow-y-auto custom-scrollbar pr-1">
+                  {top5Cats.map(c => {
                     const diff = c.amount - c.prevAmount
                     const isNew = c.prevAmount === 0
                     return (

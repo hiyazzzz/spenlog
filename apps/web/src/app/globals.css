@@ -32,3 +32,19 @@ body {
   color: var(--color-text);
   transition: background 0.2s, color 0.2s;
 }
+
+/* ===== 얇은 커스텀 스크롤바 ===== */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}

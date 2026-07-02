@@ -354,8 +354,8 @@ export default function ReportScreen() {
                       <Text style={styles.emptyText}>이달은 기록된 지출이 없어요</Text>
                     </View>
                   ) : (
-                    <View style={{ flex: 1, justifyContent: 'space-between', gap: 12 }}>
-                      {[...catData].filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount).map(c => {
+                    <ScrollView style={{ maxHeight: 260 }} contentContainerStyle={{ gap: 12 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                      {[...catData].filter(c => c.amount > 0).sort((a, b) => b.amount - a.amount).slice(0, 5).map(c => {
                         const diff = c.amount - c.prevAmount;
                         const isNew = c.prevAmount === 0;
                         return (
@@ -373,7 +373,7 @@ export default function ReportScreen() {
                           </View>
                         );
                       })}
-                    </View>
+                    </ScrollView>
                   )}
                 </View>
 
