@@ -85,12 +85,16 @@ export default function ReportDataLoader() {
       savingGoal={data.savingGoal}
       savedAmount={data.savedAmount}
       savingPct={data.savingPct}
+      income={data.income}
       catData={data.catData}
       topCategory={data.topCategory ?? null}
       dailyData={data.dailyData ?? []}
       noSpendDays={data.noSpendDays ?? 0}
       fixedAmount={data.fixedAmount ?? 0}
       variableAmount={data.variableAmount ?? 0}
+      topItems={data.topItems}
+      spendClusters={data.spendClusters}
+      txnCount={data.txnCount}
       threeMonths={data.threeMonths}
       maxTotal={data.maxTotal}
       patternComment={data.patternComment}

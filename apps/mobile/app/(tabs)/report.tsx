@@ -5,7 +5,7 @@ import { useDataCache } from '@/store/dataCache';
 import dayjs from 'dayjs';
 import { COLORS, RADIUS, formatCurrency, getThemeColors, getThemeCardPalette, useAppTheme } from '@/constants/theme';
 import { getCurrentUserId } from '@/lib/supabase';
-import { getReportData, getAiCoach, type ReportData, type Coach, type CoachErrorCode } from '@/lib/api/report';
+import { getReportData, getAiCoach, getCoachBlocks, type ReportData, type Coach, type CoachErrorCode } from '@/lib/api/report';
 import { getAnalyticsData, type AnalyticsData } from '@/lib/api/analytics';
 
 
@@ -278,16 +278,32 @@ export default function ReportScreen() {
 
             {coach && (
               <Animated.View style={{ opacity: contentAnim, gap: 14 }}>
-                {([
-                  { step: '1', title: '패턴 진단', content: coach.step1 },
-                  { step: '2', title: '동기부여', content: coach.step2 },
-                  { step: '3', title: '행동 제안', content: coach.step3 },
-                ] as const).map(({ step, title, content }) => (
-                  <View key={title}>
-                    <Text style={styles.coachStepTitle}>{step} {title}</Text>
-                    <Text style={styles.coachStepContent}>{content}</Text>
-                  </View>
-                ))}
+                <View style={{ gap: 16 }}>
+                  {getCoachBlocks(coach).map((block, bi) => {
+                    const textNode = (textColor?: string) => (
+                      <Text style={[styles.coachStepContent, textColor ? { color: textColor } : null]}>
+                        {block.segments.map((seg, si) => (
+                          <Text key={si} style={seg.bold ? (textColor ? { fontWeight: '700' as const } : styles.coachBold) : undefined}>{seg.text}</Text>
+                        ))}
+                      </Text>
+                    );
+                    if (block.type === 'warning') {
+                      return (
+                        <View key={bi} style={{ backgroundColor: COLORS.redBg, borderRadius: RADIUS.lg, padding: 12 }}>
+                          {textNode(COLORS.red)}
+                        </View>
+                      );
+                    }
+                    if (block.type === 'solution') {
+                      return (
+                        <View key={bi} style={{ backgroundColor: themeColors.primaryLight, borderRadius: RADIUS.lg, paddingVertical: 12, paddingHorizontal: 16 }}>
+                          {textNode(themeColors.primary)}
+                        </View>
+                      );
+                    }
+                    return <View key={bi}>{textNode()}</View>;
+                  })}
+                </View>
                 <View style={styles.coachFooter}>
                   {hasEnoughData ? (
                     <TouchableOpacity style={[styles.coachCta, { backgroundColor: themeColors.primary }]} onPress={() => router.push('/(tabs)/assets')}>
@@ -564,8 +580,8 @@ const styles = StyleSheet.create({
 
   coachBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: RADIUS.lg, backgroundColor: COLORS.primary },
   coachBtnText: { fontSize: 11, fontWeight: '700', color: '#fff' },
-  coachStepTitle: { fontSize: 12, fontWeight: '700', color: COLORS.gray700, marginBottom: 4 },
-  coachStepContent: { fontSize: 13, color: COLORS.gray600, lineHeight: 20 },
+  coachStepContent: { fontSize: 13, color: COLORS.gray600, lineHeight: 21 },
+  coachBold: { fontWeight: '700', color: COLORS.gray800 },
   coachFooter: { paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.gray50 },
   coachCta: { backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, paddingVertical: 12, alignItems: 'center' },
   coachCtaText: { fontSize: 13, fontWeight: '700', color: '#fff' },
