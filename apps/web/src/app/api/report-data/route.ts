@@ -5,6 +5,26 @@ import 'dayjs/locale/ko'
 
 dayjs.locale('ko')
 
+// 이름이 비슷한 소액 지출(커피, 배달 등)을 묶어서 합산 - 개별 금액은 작아도 모이면 유의미한 지출 유형
+const SPEND_CLUSTER_KEYWORDS: Record<string, string[]> = {
+  '카페/커피': ['커피', '카페', '스타벅스', '스벅', '이디야', '투썸', '커피빈', '빽다방', '메가커피', '컴포즈', '아메리카노', '라떼'],
+  '배달/외식': ['배달', '배민', '요기요', '쿠팡이츠', '맥도날드', '버거킹', '치킨', '피자'],
+  '편의점': ['cu', 'gs25', '세븐일레븐', '이마트24', '편의점'],
+  '온라인쇼핑': ['쿠팡', '무신사', '지마켓', '11번가', '올리브영'],
+  '구독서비스': ['넷플릭스', '왓챠', '유튜브', '멜론', '스포티파이', '디즈니'],
+}
+
+function clusterExpenses(items: { name: string; amount: number }[]): { label: string; amount: number; count: number }[] {
+  const result: { label: string; amount: number; count: number }[] = []
+  for (const [label, keywords] of Object.entries(SPEND_CLUSTER_KEYWORDS)) {
+    const matched = items.filter(i => keywords.some(k => i.name.toLowerCase().includes(k.toLowerCase())))
+    if (matched.length >= 2) {
+      result.push({ label, amount: matched.reduce((s, i) => s + i.amount, 0), count: matched.length })
+    }
+  }
+  return result.sort((a, b) => b.amount - a.amount)
+}
+
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -82,6 +102,7 @@ export async function GET(request: Request) {
     .slice(0, 3)
     .map((e: any) => ({ name: e.name ?? '항목', amount: e.amount, category: normCat(e.category) }))
   const txnCount = expenseRows.length
+  const spendClusters = clusterExpenses(expenseRows.map((e: any) => ({ name: e.name ?? '', amount: e.amount })))
 
   const threeMonths = [
     { month: prev2Month, label: dayjs(prev2Month).format('M월'), total: prev2TotalSpent },
@@ -116,6 +137,7 @@ export async function GET(request: Request) {
     catData,
     topItems,
     txnCount,
+    spendClusters,
     threeMonths: prevTotalSpent > 0 ? threeMonths : null,
     maxTotal,
     patternComment,

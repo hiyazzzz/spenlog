@@ -15,6 +15,7 @@ interface MonthTotal { month: string; label: string; total: number }
 // message: 신규 통합 메시지 스키마. step1~3: 구버전 캐시 호환용 (렌더 시 getCoachMessage로 합쳐서 사용)
 interface Coach { message?: string; step1?: string; step2?: string; step3?: string }
 interface TopItem { name: string; amount: number; category: string }
+interface SpendCluster { label: string; amount: number; count: number }
 
 function getCoachMessage(c: Coach): string {
   return c.message ?? [c.step1, c.step2, c.step3].filter(Boolean).join(' ')
@@ -48,6 +49,7 @@ interface Props {
   income?: number
   catData: CatData[]
   topItems?: TopItem[]
+  spendClusters?: SpendCluster[]
   txnCount?: number
   threeMonths: MonthTotal[] | null
   maxTotal: number
@@ -60,7 +62,7 @@ export default function ReportClient({
   userId, currentMonth, prevMonth, maxMonth,
   totalSpent, prevTotalSpent, spendingDiff,
   savingGoal, savedAmount, savingPct, income,
-  catData, topItems, txnCount, threeMonths, maxTotal, patternComment,
+  catData, topItems, spendClusters, txnCount, threeMonths, maxTotal, patternComment,
   cachedCoach, hasEnoughData,
 }: Props) {
   const router = useRouter()
@@ -107,7 +109,7 @@ export default function ReportClient({
             yearMonth: currentMonth,
             totalSpent, prevTotalSpent, savingGoal, savedAmount, income,
             catData: catData.map(c => ({ cat: c.cat, amount: c.amount, prevAmount: c.prevAmount, budget: c.budget })),
-            topItems, txnCount,
+            topItems, spendClusters, txnCount,
           }),
           signal: controller.signal,
         })

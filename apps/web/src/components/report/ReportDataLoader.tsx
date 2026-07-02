@@ -88,6 +88,7 @@ export default function ReportDataLoader() {
       income={data.income}
       catData={data.catData}
       topItems={data.topItems}
+      spendClusters={data.spendClusters}
       txnCount={data.txnCount}
       threeMonths={data.threeMonths}
       maxTotal={data.maxTotal}

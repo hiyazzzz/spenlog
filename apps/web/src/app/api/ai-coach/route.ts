@@ -12,6 +12,7 @@ interface CoachInput {
   income?: number // 수입 대비 저축률 벤치마크용
   catData: { cat: string; amount: number; prevAmount: number; budget?: number }[]
   topItems?: { name: string; amount: number; category: string }[] // 이번 달 고액 지출 TOP3 (구체적 조언용)
+  spendClusters?: { label: string; amount: number; count: number }[] // 이름이 비슷한 소액 지출 묶음 (커피, 배달 등)
   txnCount?: number // 이번 달 총 결제 건수
   userId?: string // 모바일 앱은 쿠키 세션이 없어 직접 전달
 }
@@ -49,6 +50,12 @@ function buildPrompt(input: CoachInput, lastMonthCoachText: string): string {
     : topIncrease
       ? `${topIncrease.cat} - 전달보다 ${(topIncrease.amount - topIncrease.prevAmount).toLocaleString()}원 증가`
       : '뚜렷하게 과다 지출된 카테고리 없음'
+
+  // 이름이 비슷한 소액 지출 묶음 (예: 커피 4,500원씩 8번 → 개별로는 TOP3에 안 잡히지만 모이면 유의미)
+  const topCluster = (input.spendClusters ?? [])[0]
+  const spendClusterLine = topCluster
+    ? `${topCluster.label} - ${topCluster.count}건, 합계 ${topCluster.amount.toLocaleString()}원`
+    : '해당 없음'
 
   const diff = input.prevTotalSpent > 0
     ? Math.round(((input.totalSpent - input.prevTotalSpent) / input.prevTotalSpent) * 100)
@@ -91,7 +98,7 @@ function buildPrompt(input: CoachInput, lastMonthCoachText: string): string {
 1. 총지출·저축률처럼 화면에 이미 보이는 숫자를 그대로 나열하지 말고, "왜 그런 결과가 나왔는지"를 지출 TOP3 항목/건수로 짚어줄 것
 2. 지난달 코칭 기록이 있으면, 그때 얘기했던 내용과 이번 달 실제 결과(카테고리별 amount vs prevAmount)를 비교해서 자연스럽게 한마디 남길 것. 지난달 코칭 기록이 없으면 이 부분은 완전히 생략 (없다는 말도 하지 말 것)
 3. 수입 대비 저축률 데이터가 있으면, 권장 기준과 비교해서 짧게 짚어줄 것. 데이터 없으면 생략
-4. 아래 [절감 여지가 있는 카테고리]를 지목해서 구체적으로 얼마를 줄이면 좋을지 제안하고, 그 절감액이 다음 달 저축 목표(하루 평균 절약액)에 어떻게 도움되는지 자연스럽게 연결해서 설명할 것. "남은 기간"이라는 모호한 표현 대신 반드시 "다음 달"이라고 명시할 것. 절감 여지 카테고리가 없으면 이 부분은 생략
+4. 절감 제안은 [소비 유형 묶음]이 있으면 그걸 최우선으로 쓸 것 (예: "카페 지출만 8번에 4만2천원이었어요, 이 중 몇 번만 줄여도..." 처럼 카테고리 전체보다 훨씬 구체적이고 와닿음). 묶음이 없으면 [절감 여지가 있는 카테고리]를 사용. 얼마를 줄이면 좋을지 구체적 금액을 제안하고, 그 절감액이 다음 달 저축 목표(하루 평균 절약액)에 어떻게 도움되는지 자연스럽게 연결해서 설명할 것. "남은 기간"이라는 모호한 표현 대신 반드시 "다음 달"이라고 명시할 것. 묶음도 절감 여지 카테고리도 없으면 이 부분은 생략
 5. 지출 TOP3 중 최소 1개의 실제 항목명을 지목해서 구체적인 다음 행동 제안으로 마무리. 카테고리명만 언급 금지, 질문형("~하는 건 어떨까요?")으로 끝내지 말 것
 
 데이터:
@@ -101,6 +108,7 @@ function buildPrompt(input: CoachInput, lastMonthCoachText: string): string {
 - 이번 달 고액 지출 TOP3:
 ${topItemsLines || '  - 데이터 없음'}
 - 카테고리별 이번 달 vs 전달 지출: ${input.catData.filter(c => c.amount > 0).map(c => `${c.cat} ${c.amount.toLocaleString()}원(전달 ${c.prevAmount.toLocaleString()}원)`).join(', ') || '데이터 없음'}
+- 소비 유형 묶음 (이름이 비슷한 소액 지출 합산): ${spendClusterLine}
 - 절감 여지가 있는 카테고리: ${overspendLine}
 - 지난달 코칭 기록: ${lastMonthCoachText ? `"${lastMonthCoachText}"` : '없음 (첫 코칭이거나 기록 없음 — 언급하지 말 것)'}
 - 수입 대비 저축률: ${savingsRatePct !== null ? `${savingsRatePct}% (일반적 권장 기준: ${SAVING_RATE_GUIDELINE_PCT}%)` : '데이터 없음 (언급하지 말 것)'}
