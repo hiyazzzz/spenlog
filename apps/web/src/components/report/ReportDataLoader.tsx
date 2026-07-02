@@ -85,6 +85,7 @@ export default function ReportDataLoader() {
       savingGoal={data.savingGoal}
       savedAmount={data.savedAmount}
       savingPct={data.savingPct}
+      income={data.income}
       catData={data.catData}
       topItems={data.topItems}
       txnCount={data.txnCount}

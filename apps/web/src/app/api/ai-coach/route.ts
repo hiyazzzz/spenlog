@@ -9,6 +9,7 @@ interface CoachInput {
   prevTotalSpent: number
   savingGoal: number
   savedAmount: number
+  income?: number // 수입 대비 저축률 벤치마크용
   catData: { cat: string; amount: number; prevAmount: number; budget?: number }[]
   topItems?: { name: string; amount: number; category: string }[] // 이번 달 고액 지출 TOP3 (구체적 조언용)
   txnCount?: number // 이번 달 총 결제 건수
@@ -18,7 +19,17 @@ interface CoachInput {
 // Gemini 모델 우선순위 (stable → preview 순, ai-input과 동일 전략 — 특정 모델이 지원 종료/장애일 때 자동 폴백)
 const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-preview-05-20', 'gemini-1.5-flash']
 
-function buildPrompt(input: CoachInput): string {
+// 일반적으로 권장되는 수입 대비 저축률 가이드라인 (재무 기준 진단용)
+const SAVING_RATE_GUIDELINE_PCT = 20
+
+// 이전 코칭 결과(신규 message 스키마 또는 구버전 step1/2/3 스키마 모두)에서 회고용 텍스트를 뽑아냄
+function extractCoachText(coach: any): string {
+  if (!coach) return ''
+  if (typeof coach.message === 'string') return coach.message
+  return [coach.step1, coach.step2, coach.step3].filter(Boolean).join(' ')
+}
+
+function buildPrompt(input: CoachInput, lastMonthCoachText: string): string {
   // 지출 금액 1위
   const topSpending = [...input.catData]
     .filter(c => c.amount > 0)
@@ -44,7 +55,11 @@ function buildPrompt(input: CoachInput): string {
     .map(i => `  - ${i.name} ${i.amount.toLocaleString()}원 (${i.category})`)
     .join('\n')
 
-  return `당신은 Spenlog 가계부 앱의 AI 코치예요. 사용자에게 말하듯 친근하게, 아래 데이터를 바탕으로 코칭 메시지를 써주세요. 절대 보고서나 분석문서를 쓰는 게 아니라, 친한 사람이 카톡으로 코멘트해주는 느낌이어야 해요.
+  const savingsRatePct = input.income && input.income > 0
+    ? Math.round((input.savedAmount / input.income) * 100)
+    : null
+
+  return `당신은 Spenlog 가계부 앱의 유료 AI 재무 코치예요. 사용자에게 말하듯 친근하게, 아래 데이터를 바탕으로 코칭 메시지 하나를 써주세요. 절대 보고서나 분석문서를 쓰는 게 아니라, 친한 재무 코치가 카톡으로 메시지 하나 보내주는 느낌이어야 해요. "1번은 이거, 2번은 저거" 식으로 나누지 말고 인사 없이 바로 본론부터 자연스럽게 이어지는 하나의 글로 쓸 것.
 
 [문체 - 반드시 지킬 것]
 - 모든 문장은 "-요"로 끝나는 부드러운 대화체로 쓸 것. "-습니다/-니다" 격식체, "~하고 있습니다", "~것이 필요합니다", "~것이 효과적입니다" 같은 보고서식 명사형 종결 절대 금지
@@ -57,11 +72,12 @@ function buildPrompt(input: CoachInput): string {
   나쁜 예: "다음 달에는 '쑥생일선물'과 같은 친목비 지출을 미리 예산에 반영하는 것이 효과적입니다."
   좋은 예: "쑥 생일선물처럼 갑자기 생기는 친목비는 다음 달 예산에 미리 넣어두면 마음이 편할 거예요."
 
-[내용 - 반드시 지킬 것]
-- step1(패턴진단)에서 총지출·저축률처럼 헤더에 이미 표시된 숫자를 그대로 나열하지 말 것. 대신 "왜 그런 결과가 나왔는지"를 지출 TOP3 항목/건수 등 세부 데이터로 설명할 것
-- "~하는 건 어떨까요?" 같은 질문형 권유를 반복하지 말 것 (물음표로 문장 끝내지 않기)
-- step2(동기부여)에서 "남은 %를 채우면 목표에 가까워진다" 같은 동어반복 금지. 대신 남은 금액을 아래 제공된 일일 절약 목표액처럼 구체적 숫자로 환산해서 제시할 것
-- step3(행동제안)은 카테고리명만 언급하지 말고, 아래 지출 TOP3 중 최소 1개의 실제 항목명을 지목해서 구체적으로 제안할 것
+[내용 - 반드시 지킬 것, 아래 순서로 자연스럽게 이어질 것]
+1. 총지출·저축률처럼 화면에 이미 보이는 숫자를 그대로 나열하지 말고, "왜 그런 결과가 나왔는지"를 지출 TOP3 항목/건수로 짚어줄 것
+2. 지난달 코칭 기록이 있으면, 그때 얘기했던 내용과 이번 달 실제 결과(카테고리별 amount vs prevAmount)를 비교해서 자연스럽게 한마디 남길 것. 지난달 코칭 기록이 없으면 이 부분은 완전히 생략 (없다는 말도 하지 말 것)
+3. 수입 대비 저축률 데이터가 있으면, 권장 기준과 비교해서 짧게 짚어줄 것. 데이터 없으면 생략
+4. 목표까지 남은 금액을 일일 절약액처럼 구체적 숫자로 환산해서 동기부여할 것 ("남은 %를 채우면 목표에 가까워진다" 같은 동어반복 금지)
+5. 지출 TOP3 중 최소 1개의 실제 항목명을 지목해서 구체적인 다음 행동 제안으로 마무리. 카테고리명만 언급 금지, 질문형("~하는 건 어떨까요?")으로 끝내지 말 것
 
 데이터:
 - ${monthLabel}(${input.yearMonth}): ${input.totalSpent.toLocaleString()}원 지출 (총 ${input.txnCount ?? '?'}건 결제)
@@ -70,15 +86,17 @@ function buildPrompt(input: CoachInput): string {
 - 예산 초과 1위 카테고리: ${topOverBudget ? `${topOverBudget.cat} (예산 ${(topOverBudget.budget ?? 0).toLocaleString()}원 → 실제 ${topOverBudget.amount.toLocaleString()}원)` : '없음'}
 - 이번 달 고액 지출 TOP3:
 ${topItemsLines || '  - 데이터 없음'}
+- 카테고리별 이번 달 vs 전달 지출: ${input.catData.filter(c => c.amount > 0).map(c => `${c.cat} ${c.amount.toLocaleString()}원(전달 ${c.prevAmount.toLocaleString()}원)`).join(', ') || '데이터 없음'}
+- 지난달 코칭 기록: ${lastMonthCoachText ? `"${lastMonthCoachText}"` : '없음 (첫 코칭이거나 기록 없음 — 언급하지 말 것)'}
+- 수입 대비 저축률: ${savingsRatePct !== null ? `${savingsRatePct}% (일반적 권장 기준: ${SAVING_RATE_GUIDELINE_PCT}%)` : '데이터 없음 (언급하지 말 것)'}
 - 저축 목표: ${input.savingGoal > 0 ? `${input.savingGoal.toLocaleString()}원` : '미설정'}
 - 실제 저축: ${input.savingGoal > 0 ? `${input.savedAmount.toLocaleString()}원 (${Math.round((input.savedAmount / input.savingGoal) * 100)}%)` : '미설정'}
 - 목표까지 남은 금액: ${remainToGoal > 0 ? `${remainToGoal.toLocaleString()}원 (다음 달 하루 ${dailySaveNeeded.toLocaleString()}원씩 저축하면 도달 가능)` : '미설정 또는 이미 달성'}
 
 JSON만 출력. 설명 금지.
-형식:
-{"step1":"패턴진단 2문장 (지출 TOP3/건수 등 세부 데이터로 해석)","step2":"숫자기반 동기부여 2문장 (일일 절약 목표액 등 구체적 수치로 저축목표와 연결)","step3":"행동제안 2문장 (지출 TOP3 중 실제 항목명 최소 1개 지목)"}
+형식: {"message":"하나로 이어지는 코칭 메시지, 4~6문장"}
 
-각 메시지는 2문장 이내. 위 [문체] 예시의 "좋은 예"처럼 카톡으로 편하게 말 걸듯이 쓸 것.`
+위 [문체] 예시의 "좋은 예"처럼 카톡으로 편하게 말 걸듯이, 인사말 없이 바로 본론으로 시작할 것.`
 }
 
 // 모델 1개 호출 — 실패 원인을 진단할 수 있도록 상태 코드/응답 본문을 그대로 서버 콘솔에 남긴다
@@ -137,8 +155,8 @@ async function callGeminiModel(model: string, prompt: string, apiKey: string, si
   return text
 }
 
-async function generateCoach(input: CoachInput): Promise<{ step1: string; step2: string; step3: string }> {
-  const prompt = buildPrompt(input)
+async function generateCoach(input: CoachInput, lastMonthCoachText: string): Promise<{ message: string }> {
+  const prompt = buildPrompt(input, lastMonthCoachText)
 
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
@@ -168,8 +186,8 @@ async function generateCoach(input: CoachInput): Promise<{ step1: string; step2:
           lastError = parseErr
           continue
         }
-        if (!parsed.step1 || !parsed.step2 || !parsed.step3) {
-          console.error(`[ai-coach] Gemini ${model} 파싱 결과에 step 필드 누락:`, parsed)
+        if (!parsed.message || typeof parsed.message !== 'string') {
+          console.error(`[ai-coach] Gemini ${model} 파싱 결과에 message 필드 누락:`, parsed)
           lastError = new Error('GEMINI_MISSING_FIELDS')
           continue
         }
@@ -231,8 +249,18 @@ export async function POST(req: Request) {
       }
     }
 
+    // 지난달 코칭 회고용 - 실패해도 신규 생성 자체는 막지 않음
+    const prevYearMonth = dayjs(yearMonth).subtract(1, 'month').format('YYYY-MM')
+    const { data: prevReport } = await supabase
+      .from('reports')
+      .select('ai_coach')
+      .eq('user_id', userId)
+      .eq('year_month', prevYearMonth)
+      .single()
+    const lastMonthCoachText = extractCoachText(prevReport?.ai_coach)
+
     // 생성
-    const coach = await generateCoach(body)
+    const coach = await generateCoach(body, lastMonthCoachText)
 
     // 저장 (upsert)
     await supabase.from('reports').upsert({

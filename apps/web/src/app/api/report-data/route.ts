@@ -48,6 +48,7 @@ export async function GET(request: Request) {
   const prevTotalSpent = prevExpenses?.filter(isExpense).reduce((s, e) => s + e.amount, 0) ?? 0
   const prev2TotalSpent = prev2Expenses?.filter(isExpense).reduce((s, e) => s + e.amount, 0) ?? 0
   const savingGoal = profile?.saving_goal ?? 0
+  const income = profile?.income ?? 0
   // 실제 저축 기록 합산 (홈화면과 동일 기준)
   const savedAmount = expenses?.filter((e: any) => e.type === 'savings').reduce((s: number, e: any) => s + e.amount, 0) ?? 0
   const savingPct = savingGoal > 0 ? Math.min(Math.round((savedAmount / savingGoal) * 100), 100) : 0
@@ -111,6 +112,7 @@ export async function GET(request: Request) {
     savingGoal,
     savedAmount,
     savingPct,
+    income,
     catData,
     topItems,
     txnCount,

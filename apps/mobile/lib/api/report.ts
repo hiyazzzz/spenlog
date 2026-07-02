@@ -36,6 +36,7 @@ export interface ReportData {
   savingGoal: number
   savedAmount: number
   savingPct: number
+  income: number
   catData: CatData[]
   topItems: TopItem[]
   txnCount: number
@@ -81,6 +82,7 @@ export async function getReportData(userId: string, month?: string): Promise<Rep
   const prevTotalSpent = prevExpenses?.filter((e: any) => (e.type ?? 'expense') === 'expense').reduce((s: number, e: any) => s + e.amount, 0) ?? 0
   const prev2TotalSpent = prev2Expenses?.filter((e: any) => (e.type ?? 'expense') === 'expense').reduce((s: number, e: any) => s + e.amount, 0) ?? 0
   const savingGoal = profile?.saving_goal ?? 0
+  const income = profile?.income ?? 0
 
   // 실제 저축 기록 합산 (홈화면과 동일 기준)
   const savedAmount = expenses?.filter((e: any) => e.type === 'savings').reduce((s: number, e: any) => s + e.amount, 0) ?? 0
@@ -141,6 +143,7 @@ export async function getReportData(userId: string, month?: string): Promise<Rep
     savingGoal,
     savedAmount,
     savingPct,
+    income,
     catData,
     topItems,
     txnCount,
@@ -152,10 +155,16 @@ export async function getReportData(userId: string, month?: string): Promise<Rep
   }
 }
 
+// message: 신규 통합 메시지 스키마. step1~3: 구버전 캐시 호환용
 export interface Coach {
-  step1: string
-  step2: string
-  step3: string
+  message?: string
+  step1?: string
+  step2?: string
+  step3?: string
+}
+
+export function getCoachMessage(c: Coach): string {
+  return c.message ?? [c.step1, c.step2, c.step3].filter(Boolean).join(' ')
 }
 
 export type CoachErrorCode = 'NO_DATA' | 'API_ERROR' | 'PREMIUM_REQUIRED' | 'MONTH_NOT_COMPLETE'
@@ -183,6 +192,7 @@ export async function getAiCoach(userId: string, report: ReportData): Promise<Co
           prevTotalSpent: report.prevTotalSpent,
           savingGoal: report.savingGoal,
           savedAmount: report.savedAmount,
+          income: report.income,
           catData: report.catData.map(c => ({ cat: c.cat, amount: c.amount, prevAmount: c.prevAmount, budget: c.budget })),
           topItems: report.topItems,
           txnCount: report.txnCount,

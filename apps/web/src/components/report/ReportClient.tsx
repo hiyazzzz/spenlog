@@ -12,8 +12,13 @@ interface CatData {
 }
 
 interface MonthTotal { month: string; label: string; total: number }
-interface Coach { step1: string; step2: string; step3: string }
+// message: 신규 통합 메시지 스키마. step1~3: 구버전 캐시 호환용 (렌더 시 getCoachMessage로 합쳐서 사용)
+interface Coach { message?: string; step1?: string; step2?: string; step3?: string }
 interface TopItem { name: string; amount: number; category: string }
+
+function getCoachMessage(c: Coach): string {
+  return c.message ?? [c.step1, c.step2, c.step3].filter(Boolean).join(' ')
+}
 
 interface Props {
   userId: string
@@ -26,6 +31,7 @@ interface Props {
   savingGoal: number
   savedAmount: number
   savingPct: number
+  income?: number
   catData: CatData[]
   topItems?: TopItem[]
   txnCount?: number
@@ -39,7 +45,7 @@ interface Props {
 export default function ReportClient({
   userId, currentMonth, prevMonth, maxMonth,
   totalSpent, prevTotalSpent, spendingDiff,
-  savingGoal, savedAmount, savingPct,
+  savingGoal, savedAmount, savingPct, income,
   catData, topItems, txnCount, threeMonths, maxTotal, patternComment,
   cachedCoach, hasEnoughData,
 }: Props) {
@@ -85,7 +91,7 @@ export default function ReportClient({
           body: JSON.stringify({
             userId,
             yearMonth: currentMonth,
-            totalSpent, prevTotalSpent, savingGoal, savedAmount,
+            totalSpent, prevTotalSpent, savingGoal, savedAmount, income,
             catData: catData.map(c => ({ cat: c.cat, amount: c.amount, prevAmount: c.prevAmount, budget: c.budget })),
             topItems, txnCount,
           }),
@@ -204,14 +210,12 @@ export default function ReportClient({
 
           {loadingCoach && (
             <div style={{ opacity: contentOpacity, transition: 'opacity 0.3s ease' }} className="space-y-3 py-2">
-              <p className="text-xs text-center" style={{ color: 'var(--color-primary-mid)' }}>AI가 분석 중이에요...</p>
-              {[1, 2, 3].map(i => (
-                <div key={i} className="animate-pulse">
-                  <div className="h-3 bg-gray-100 rounded w-24 mb-2" />
-                  <div className="h-4 bg-gray-100 rounded w-full mb-1" />
-                  <div className="h-4 bg-gray-100 rounded w-4/5" />
-                </div>
-              ))}
+              <p className="text-xs text-center mb-2" style={{ color: 'var(--color-primary-mid)' }}>AI가 분석 중이에요...</p>
+              <div className="animate-pulse space-y-2">
+                <div className="h-4 bg-gray-100 rounded w-full" />
+                <div className="h-4 bg-gray-100 rounded w-full" />
+                <div className="h-4 bg-gray-100 rounded w-4/5" />
+              </div>
             </div>
           )}
 
@@ -242,16 +246,7 @@ export default function ReportClient({
 
           {coach && (
             <div style={{ opacity: contentOpacity, transition: 'opacity 0.3s ease' }} className="space-y-4">
-              {([
-                { step: '1', title: '패턴 진단', content: coach.step1 },
-                { step: '2', title: '동기부여', content: coach.step2 },
-                { step: '3', title: '행동 제안', content: coach.step3 },
-              ] as const).map(({ step, title, content: c }) => (
-                <div key={title}>
-                  <p className="text-xs font-bold text-gray-700 mb-1">{step} {title}</p>
-                  <p className="text-sm text-gray-600 leading-relaxed">{c}</p>
-                </div>
-              ))}
+              <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{getCoachMessage(coach)}</p>
               <div className="pt-3 border-t border-gray-50">
                 {hasEnoughData ? (
                   <a href="/assets" className="block w-full py-3 rounded-xl text-center text-sm font-semibold text-white"
